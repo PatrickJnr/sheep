@@ -35,7 +35,7 @@ with a migration note.
 - [x] Test framework (`test` blocks, `baa test`)
 - [x] Project manifest, lockfile, local dependencies
 - [x] Full diagnostic catalogue with professional mode
-- [x] 469 automated tests, benchmarks, recorded example output
+- [x] 472 automated tests, benchmarks, recorded example output
 - [x] Documentation and website
 - [x] VS Code syntax highlighting and snippets
 

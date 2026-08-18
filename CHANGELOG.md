@@ -77,7 +77,7 @@ program in `examples/`.
 
 ### Project
 
-- 469 automated tests across lexer, parser, resolver, runtime, standard
+- 472 automated tests across lexer, parser, resolver, runtime, standard
   library, diagnostics, formatter, linter, modules, CLI and examples.
 - Baa's own test blocks, run by `baa test`.
 - Recorded example transcripts, asserted by the suite.
