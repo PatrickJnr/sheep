@@ -8,8 +8,8 @@
  */
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
-import { BaaArray, checkSize, display, inspect } from "../runtime/values.ts";
-import type { Value } from "../runtime/values.ts";
+import { BaaArray, BaaMap, checkSize, display, inspect } from "../runtime/values.ts";
+import type { MapKey, NativeContext, Value } from "../runtime/values.ts";
 import { argAny, argArray, argInt, argString, defineModule, fn } from "./define.ts";
 
 const CASE_BOUNDARY = /[\s_-]+/;
@@ -170,6 +170,51 @@ export function createWool() {
       }
     }),
 
+    // ---------------------------------------------------------- patterns
+    //
+    // Patterns are ordinary strings, so `\d` is written `\\d`: Baa has one
+    // string literal and adding a second raw form to save a backslash is not
+    // a good trade. Flags are a string of `i` (ignore case), `m` (`^`/`$`
+    // match at line breaks) and `s` (`.` matches a newline).
+
+    matches: fn(2, 3, "True when a pattern matches anywhere in the text.", (args, ctx) =>
+      compile("wool.matches", args, ctx).test(argString("wool.matches", args, 0, ctx.span)),
+    ),
+
+    find: fn(2, 3, "First match as a map of match, start, end and groups, or nil.", (args, ctx) => {
+      const text = argString("wool.find", args, 0, ctx.span);
+      const found = compile("wool.find", args, ctx).exec(text);
+      return found === null ? null : matchMap(found, text);
+    }),
+
+    find_all: fn(2, 3, "Every non-overlapping match, as an array of maps.", (args, ctx) => {
+      const text = argString("wool.find_all", args, 0, ctx.span);
+      const pattern = compile("wool.find_all", args, ctx, "g");
+      const out: Value[] = [];
+      for (const found of text.matchAll(pattern)) {
+        out.push(matchMap(found, text));
+        checkSize("wool.find_all", out.length, ctx.span);
+      }
+      return new BaaArray(out);
+    }),
+
+    substitute: fn(3, 4, "Replace every match. `$1` in the replacement is a group.", (args, ctx) => {
+      const text = argString("wool.substitute", args, 0, ctx.span);
+      const replacement = argString("wool.substitute", args, 2, ctx.span);
+      const pattern = compile("wool.substitute", args, ctx, "g", 3);
+      // `$&` and friends are deliberately not documented, but `replace` honours
+      // them; `$$` still escapes a literal dollar.
+      return text.replace(pattern, replacement);
+    }),
+
+    split_on: fn(2, 3, "Split text on every match of a pattern.", (args, ctx) =>
+      new BaaArray(
+        argString("wool.split_on", args, 0, ctx.span).split(
+          compile("wool.split_on", args, ctx, "g"),
+        ),
+      ),
+    ),
+
     is_blank: fn(1, 1, "True when a string is empty or only whitespace.", (args, ctx) =>
       argString("wool.is_blank", args, 0, ctx.span).trim().length === 0,
     ),
@@ -194,6 +239,85 @@ export function createWool() {
 
     inspect: fn(1, 1, "Developer-facing text for any value.", (args) => inspect(argAny(args, 0))),
   });
+}
+
+/**
+ * Longest pattern accepted.
+ *
+ * A pattern is code. If one ever reaches this from a request, the length cap
+ * is the only thing standing between the program and a pattern chosen to take
+ * exponential time. It is not a defence, only a limit: see the warning in
+ * `docs/web.md` about never compiling a pattern a stranger wrote.
+ */
+const MAX_PATTERN = 4096;
+
+const ALLOWED_FLAGS = new Set(["i", "m", "s"]);
+
+/**
+ * Build a `RegExp` from the pattern and flag arguments.
+ *
+ * `u` is always set, so patterns work in code points like the rest of Baa's
+ * string handling. `g` is added by the callers that iterate; a caller never
+ * passes it, because a global pattern carries mutable state (`lastIndex`) and
+ * sharing one between calls is a classic source of skipped matches.
+ */
+function compile(
+  fnName: string,
+  args: readonly Value[],
+  ctx: NativeContext,
+  extra = "",
+  flagIndex = 2,
+): RegExp {
+  const source = argString(fnName, args, 1, ctx.span);
+  if (source.length > MAX_PATTERN) {
+    throw BaaError.of("BAA312", [fnName, String(source.length), String(MAX_PATTERN)], {
+      span: ctx.span,
+      note: "pattern too long",
+    });
+  }
+  let flags = "u" + extra;
+  if (args.length > flagIndex) {
+    const given = argString(fnName, args, flagIndex, ctx.span);
+    for (const flag of given) {
+      if (!ALLOWED_FLAGS.has(flag)) {
+        throw BaaError.of("BAA311", [fnName, "flags from `i`, `m`, `s`", String(flagIndex + 1), `\`${flag}\``], {
+          span: ctx.span,
+          note: "unknown flag",
+          help: "`i` ignores case, `m` matches `^` and `$` at line breaks, `s` lets `.` match a newline.",
+        });
+      }
+      if (!flags.includes(flag)) flags += flag;
+    }
+  }
+  try {
+    return new RegExp(source, flags);
+  } catch (error) {
+    throw BaaError.of("BAA301", [`${fnName}: ${(error as Error).message}`], {
+      span: ctx.span,
+      note: "the pattern is not valid",
+      help: "Backslashes are written twice in a Baa string: `\\\\d` matches a digit.",
+    });
+  }
+}
+
+/** One match, as the map Baa sees. */
+function matchMap(found: RegExpExecArray | RegExpMatchArray, text: string): BaaMap {
+  const start = found.index ?? 0;
+  const groups = new BaaArray(found.slice(1).map((group) => group ?? null));
+  const named = new Map<MapKey, Value>();
+  for (const [name, value] of Object.entries(found.groups ?? {})) {
+    named.set(name, value ?? null);
+  }
+  return new BaaMap(
+    new Map<MapKey, Value>([
+      ["match", found[0]],
+      // Character offsets, not UTF-16 units, so they line up with `slice`.
+      ["start", [...text.slice(0, start)].length],
+      ["end", [...text.slice(0, start + found[0].length)].length],
+      ["groups", groups],
+      ["named", new BaaMap(named)],
+    ]),
+  );
 }
 
 const HTML_ESCAPES: Readonly<Record<string, string>> = {
