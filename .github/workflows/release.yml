@@ -11,8 +11,9 @@ on:
 
 permissions:
   contents: write
-  # Required by `npm publish --provenance`, which signs the package against
-  # this workflow run. Without it the publish step fails at the last moment.
+  # Trusted publishing authenticates to npm with a short-lived OIDC token
+  # minted for this workflow run, so there is no npm token stored anywhere.
+  # Without this permission there is nothing to authenticate with.
   id-token: write
 
 jobs:
@@ -37,12 +38,6 @@ jobs:
     name: publish release
     needs: verify
     runs-on: ubuntu-latest
-    # Lifted to the job so a step's `if:` can read it. The `secrets` context is
-    # not available in `if:` at all: using it there is a validation error, which
-    # fails the whole file at startup rather than the one step. That is why this
-    # workflow reported a failure on every push while defining no jobs.
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -51,6 +46,11 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           cache: npm
+
+      # Trusted publishing needs npm 11.5.1 or newer. Node 24 ships something
+      # close to it, which is not the same as new enough.
+      - name: Use an npm that can publish with OIDC
+        run: npm install -g npm@^11.5.1
 
       - run: npm ci
 
@@ -88,10 +88,28 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
 
-      # Skipped, not failed, when no token is configured: a GitHub release is
-      # useful on its own and should not depend on npm being set up.
+      # No token, and no `--provenance` flag. Trusted publishing authenticates
+      # over OIDC and adds provenance by itself when the build qualifies, which
+      # a private repository does not: npm does not attest builds nobody can
+      # inspect. Passing the flag explicitly would fail rather than be ignored.
+      #
+      # A trusted publisher is configured on the package's own settings page,
+      # so it cannot be set up before the package exists. Until someone runs
+      # `npm publish` once by hand, this step says so and stops, rather than
+      # turning every release red over a step that was never going to work.
       - name: Publish to npm
-        if: ${{ env.NPM_TOKEN != '' }}
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+
+          if ! npm view "$name" version > /dev/null 2>&1; then
+            echo "::notice::$name is not on the registry yet. Publish it once with \`npm publish --access public\`, then add a trusted publisher for PatrickJnr/sheep and this workflow file. Until then the GitHub release is the release."
+            exit 0
+          fi
+
+          if npm view "$name@$version" version > /dev/null 2>&1; then
+            echo "::notice::$name@$version is already published, nothing to do."
+            exit 0
+          fi
+
+          npm publish --access public

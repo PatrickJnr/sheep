@@ -309,14 +309,49 @@ describe("regression: workflows that fail before they start", () => {
     });
   }
 
-  it("asks for the permission npm provenance needs, wherever it publishes", () => {
+  // Publishing is trusted publishing now, so the OIDC token is the only
+  // credential. Without this permission there is nothing to authenticate with
+  // and the publish fails at the last step of a release.
+  it("asks for the permission npm publishing needs, wherever it publishes", () => {
     for (const name of workflows) {
       const text = readFileSync(join(dir, name), "utf8");
-      if (!text.includes("--provenance")) continue;
+      if (!/^\s*run:.*npm publish/m.test(text) && !text.includes("npm publish")) continue;
       assert.match(
         text,
         /id-token:\s*write/,
-        `${name} publishes with provenance but never requests id-token: write`,
+        `${name} runs npm publish but never requests id-token: write`,
+      );
+    }
+  });
+
+  // Trusted publishing generates provenance itself when the build qualifies,
+  // and a private repository does not qualify: npm does not attest a build
+  // nobody can inspect. Passing the flag is then an error rather than a
+  // no-op, so it must not creep back in.
+  it("does not pass --provenance, which trusted publishing decides for itself", () => {
+    for (const name of workflows) {
+      // Comments are stripped: this is about what the runner executes, and the
+      // step above it explains at length why the flag is absent.
+      const commands = readFileSync(join(dir, name), "utf8")
+        .split("\n")
+        .filter((line) => !/^\s*#/.test(line))
+        .join("\n");
+      assert.ok(
+        !commands.includes("--provenance"),
+        `${name} passes --provenance explicitly; trusted publishing adds it when eligible`,
+      );
+    }
+  });
+
+  // A stored npm token is the mechanism npm is retiring: 2FA-bypass tokens
+  // lost account and package management in July 2026 and lose direct publish
+  // in January 2027.
+  it("stores no npm token, having moved to trusted publishing", () => {
+    for (const name of workflows) {
+      const text = readFileSync(join(dir, name), "utf8");
+      assert.ok(
+        !/NPM_TOKEN|NODE_AUTH_TOKEN/.test(text),
+        `${name} still references an npm token; trusted publishing needs none`,
       );
     }
   });

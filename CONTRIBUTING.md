@@ -146,6 +146,49 @@ a bug in one of them, and finding it is a real contribution.
 
 Security issues go to [SECURITY.md](SECURITY.md), not to the issue tracker.
 
+## Releasing
+
+Releases are cut from a tag. The workflow verifies on all three platforms
+first, so a tag that does not build never becomes a release.
+
+1. Update `CHANGELOG.md` with a `## [x.y.z], YYYY-MM-DD` heading. The release
+   notes are extracted from that entry, and the workflow fails if it is
+   missing.
+2. Set the same version in `package.json`. It is the only place the version
+   lives: `baa version` and the conformance suite both read it from there, and
+   the workflow refuses a tag that disagrees with it.
+3. `git tag -a vx.y.z -m "Baa x.y.z"` and push the tag.
+
+### Publishing to npm
+
+`baa-lang` is published with [trusted publishing](https://docs.npmjs.com/trusted-publishers):
+GitHub Actions authenticates over OIDC with a short-lived token, and there is
+no npm token stored in the repository. npm is retiring the alternative, tokens
+that bypass 2FA lost account and package management in July 2026 and lose
+direct publish in January 2027, so there is nothing here to migrate later.
+
+A trusted publisher is configured on the package's own settings page, which
+means it cannot be set up before the package exists. The first publish is
+therefore done by hand, once:
+
+```bash
+npm login                      # interactive, with real 2FA
+npm publish --access public
+```
+
+Then on npmjs.com, under the package's **Trusted Publisher** section, add
+GitHub Actions with the organisation `PatrickJnr`, the repository `sheep`, and
+the workflow filename `release.yml`. Every tagged release publishes itself
+after that.
+
+Until that is done the publish step reports what is missing and stops without
+failing, because a GitHub release is a release whether or not npm has a copy.
+
+Note that provenance attestations are not generated while the repository is
+private. npm does not attest a build nobody can inspect, and the workflow
+therefore does not pass `--provenance`: trusted publishing adds it by itself
+when a build qualifies.
+
 ## Code of conduct
 
 By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). It is
