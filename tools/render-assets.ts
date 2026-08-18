@@ -16,6 +16,11 @@
  * Rendered at 2x through a real browser, so the output matches the site
  * exactly. Skips with a message when no browser is available, which keeps it
  * from failing a machine that simply has nothing to render with.
+ *
+ * Chrome's PNG encoder is not byte-for-byte reproducible, so re-running this
+ * can leave a changed file in `assets/images/` even when the artwork is
+ * identical. If the only thing a run produced is a few kilobytes of different
+ * compression, discard it: `git checkout -- assets/images`.
  */
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";

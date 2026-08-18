@@ -284,7 +284,7 @@ Everything a port needs already exists and is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 41 diagnostics, both wordings, ready to embed
+  all 44 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 

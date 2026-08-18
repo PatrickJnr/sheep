@@ -35,7 +35,7 @@ with a migration note.
 - [x] Test framework (`test` blocks, `baa test`)
 - [x] Project manifest, lockfile, local dependencies
 - [x] Full diagnostic catalogue with professional mode
-- [x] 412 automated tests, benchmarks, recorded example output
+- [x] 469 automated tests, benchmarks, recorded example output
 - [x] Documentation and website
 - [x] VS Code syntax highlighting and snippets
 
@@ -74,7 +74,7 @@ exists and is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 41 diagnostics, both wordings, ready to embed
+  all 44 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 

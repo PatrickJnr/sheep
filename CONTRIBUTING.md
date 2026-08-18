@@ -129,7 +129,7 @@ all of it.
 2. Make the change, with tests.
 3. `npm run ci` must pass.
 4. Update the docs the change touches: `SPEC.md` for semantics, `LANGUAGE.md`
-   for the tour, `CHANGELOG.md` under *Unreleased*.
+   for the tour, and `CHANGELOG.md`.
 5. Write a description that says what problem this solves. A before/after
    snippet is worth three paragraphs.
 

@@ -298,6 +298,19 @@ Parameters bind positionally. A parameter with a default binds that default:
 evaluated in the callee's scope, at call time: when no argument is supplied. A
 rest parameter binds an array of the remaining arguments, possibly empty.
 
+Because binding is positional, a parameter list must be one a caller can
+satisfy. Each of the following is `BAA204`, reported at analysis time:
+
+- a required parameter after one with a default, which no argument can reach
+  without also supplying the optional one;
+- any parameter after the rest parameter, which has already taken everything
+  left;
+- a second rest parameter;
+- a default on the rest parameter, which is an empty array when nothing
+  remains and so never falls back.
+
+So `fn f(a, b = 2, ..rest)` is valid and `fn f(a = 1, b)` is not.
+
 When the callee's definition is statically visible, arity is checked at
 analysis time; otherwise at call time.
 
@@ -481,6 +494,22 @@ Exit codes:
 Evaluation is single-threaded and deterministic apart from `meadow.now`,
 `meadow.random` and the host environment. `baa run --seed N` makes `meadow`'s
 randomness reproducible.
+
+### 9.1 Implementation limits
+
+An implementation may impose limits, but must report reaching one as an
+ordinary diagnostic rather than failing in terms of the language it is written
+in. Three are specified because programs can observe them:
+
+| Limit | Default | Diagnostic |
+| --- | --- | --- |
+| Nesting depth of expressions and blocks | 400 | `BAA011` |
+| Call depth | 512, `--max-depth` to change | `BAA307` |
+| Items in one constructed string or array | 10,000,000 | `BAA312` |
+
+The last covers anything sized by a value the program supplies: `repeat`,
+`pad_start`, `pad_end`, `wool.center`, `flock.repeat`, `flock.range`, `..`
+materialised with `to_array`, and `"x" * n`.
 
 ## 10. Deliberate omissions
 

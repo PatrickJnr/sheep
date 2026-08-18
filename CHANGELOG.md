@@ -7,10 +7,6 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
-## [Unreleased]
-
-Nothing yet.
-
 ## [0.1.0], 2026-08-17
 
 The first release. Baa is a complete, working language rather than a prototype:
@@ -56,7 +52,7 @@ program in `examples/`.
 
 ### Diagnostics
 
-- 41 diagnostic codes across six ranges, each with a stable `BAAnnn` code.
+- 44 diagnostic codes across six ranges, each with a stable `BAAnnn` code.
 - Rendered with the file, line, column, the source line and an underline of the
   exact span, plus suggestions where possible.
 - Runtime errors carry a real call stack captured at the point of failure.
@@ -81,7 +77,7 @@ program in `examples/`.
 
 ### Project
 
-- 412 automated tests across lexer, parser, resolver, runtime, standard
+- 469 automated tests across lexer, parser, resolver, runtime, standard
   library, diagnostics, formatter, linter, modules, CLI and examples.
 - Baa's own test blocks, run by `baa test`.
 - Recorded example transcripts, asserted by the suite.
@@ -93,7 +89,6 @@ program in `examples/`.
 - VS Code extension with syntax highlighting, snippets and language
   configuration.
 - CI across Windows, Linux and macOS.
-- Zero runtime dependencies.
+- No third-party packages at runtime.
 
-[Unreleased]: https://github.com/PatrickJnr/sheep/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.1.0

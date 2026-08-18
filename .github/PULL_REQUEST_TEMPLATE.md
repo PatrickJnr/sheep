@@ -27,7 +27,7 @@ Fixes #
       `node tools/gen-docs.ts` has been run
 - [ ] `SPEC.md` updated, if semantics changed
 - [ ] `LANGUAGE.md` updated, if it is user-facing
-- [ ] `CHANGELOG.md` updated under *Unreleased*
+- [ ] `CHANGELOG.md` updated
 - [ ] An example added or extended, and `node tools/record-examples.ts` re-run,
       if the change is worth showing
 
