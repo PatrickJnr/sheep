@@ -123,16 +123,23 @@ jobs:
       - name: Install Baa the way a user would
         run: npm install -g .
 
-      - name: A global install puts `baa` on PATH
-        # This is the discovery the extension does on Windows, checked where it
-        # can fail loudly. The extension host does not inherit this PATH on a
-        # runner, which is why the test below is given an explicit path rather
-        # than left to find one: the discovery is asserted here, the client is
-        # exercised there, and neither pretends to cover the other.
+      - name: A global install lays down what the extension looks for
+        # The extension derives the server's entry point from the npm prefix,
+        # because Node cannot spawn the `baa.cmd` shim that sits there. That
+        # file existing is the thing worth asserting.
+        #
+        # Not `where baa`: a hosted runner's PATH does not necessarily carry
+        # the npm prefix, and neither does the environment VS Code hands its
+        # extension host. Asserting it here would assert something that is not
+        # true of this machine, so the facts are printed and the test below is
+        # given an explicit path instead.
         shell: bash
         run: |
-          where baa
-          test -f "$(npm prefix -g)/node_modules/baa-lang/dist/cli/index.js"
+          prefix=$(npm prefix -g)
+          echo "npm prefix: $prefix"
+          ls "$prefix" || true
+          command -v baa || echo "baa is not on PATH in this shell"
+          test -f "$prefix/node_modules/baa-lang/dist/cli/index.js"
 
       - name: Compile the client
         working-directory: editors/vscode
