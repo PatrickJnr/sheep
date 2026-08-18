@@ -398,7 +398,26 @@ export class Lexer {
           help: `Write at least one digit after \`0${marker}\`.`,
         });
       }
-      this.#push("int", text, this.#span(start), { value: parseInt(digits, radix) });
+      // A digit that is valid in some other base stopped the scan above, so it
+      // is still sitting there waiting to be lexed as a separate number. Saying
+      // so here beats the baffling "expected end of statement" that follows.
+      if (isDigit(this.#peek()) || isIdentStart(this.#peek())) {
+        const badStart = this.#pos;
+        while (isIdentPart(this.#peek())) this.#pos++;
+        throw BaaError.of("BAA005", [`\`${this.#text.slice(start, this.#pos)}\``], {
+          span: this.#file.span(badStart, this.#pos),
+          note: `not a base-${radix} digit`,
+          help: `Base ${radix} uses ${radixDigitHelp(radix)}.`,
+        });
+      }
+      const value = parseInt(digits, radix);
+      if (!Number.isFinite(value)) {
+        throw BaaError.of("BAA005", [`\`${text}\``], {
+          span: this.#span(start),
+          help: "That number is too large to represent.",
+        });
+      }
+      this.#push("int", text, this.#span(start), { value });
       return;
     }
 
@@ -517,7 +536,9 @@ export class Lexer {
         while (this.#peek() !== "}" && this.#pos < this.#end) this.#pos++;
         const digits = this.#text.slice(digitsStart, this.#pos);
         this.#pos++; // closing brace
-        const code = Number.parseInt(digits, 16);
+        // `parseInt` stops at the first character it does not understand, so
+        // `\u{41xyz}` would otherwise pass as `A` with the rest thrown away.
+        const code = /^[0-9A-Fa-f]+$/.test(digits) ? Number.parseInt(digits, 16) : Number.NaN;
         if (!Number.isFinite(code) || digits.length === 0 || code > 0x10ffff) {
           throw BaaError.of("BAA007", [`u{${digits}}`], {
             span: this.#span(start),
@@ -574,6 +595,12 @@ export class Lexer {
     }
     return { kind: "expr", source, offset: exprStart };
   }
+}
+
+function radixDigitHelp(radix: number): string {
+  if (radix === 2) return "0 and 1";
+  if (radix === 8) return "0 to 7";
+  return "0 to 9 and a to f";
 }
 
 function isRadixDigit(ch: string, radix: number): boolean {
