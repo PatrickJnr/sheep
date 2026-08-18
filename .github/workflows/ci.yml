@@ -95,6 +95,12 @@ jobs:
         working-directory: examples/native/calculator
         run: node ../../../src/cli/index.ts app build
 
+      - name: The stated test count is true
+        # Here rather than in `quality`: this is the only job with the native
+        # runtime built, and without it twelve tests do not run and the total
+        # is short by exactly that much.
+        run: node tools/check-test-count.ts
+
       - name: Clippy
         run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 
@@ -125,9 +131,6 @@ jobs:
 
       - name: Brand images are committed
         run: node tools/render-assets.ts --check
-
-      - name: The stated test count is true
-        run: node tools/check-test-count.ts
 
       - name: Diagnostics read plainly in CI
         run: node src/cli/index.ts --no-baa check examples

@@ -7,61 +7,108 @@
  *
  *     node tools/check-test-count.ts
  *
- * This lives outside the test suite on purpose: verifying it means running the
- * suite, and a test that runs the suite runs itself. CI calls it as a separate
- * step, after the tests have already passed.
+ * # Why this needs a complete checkout
+ *
+ * Two suites skip themselves when what they test is absent, and both are
+ * absent in a plain checkout:
+ *
+ *  - `tests/website.test.ts` needs `website/`, which is generated and
+ *    gitignored. Twenty-five tests.
+ *  - `tests/native.test.ts` needs the native runtime, which is compiled by
+ *    cargo. Twelve tests.
+ *
+ * A skipped suite's tests are not reported at all, so "how many tests are
+ * there" answers differently depending on what has been built. This generates
+ * the site itself, and refuses to guess when the runtime is missing rather
+ * than comparing a floor against a number it knows is short.
+ *
+ * It lives outside the test suite because verifying it means running the
+ * suite, and a test that runs the suite runs itself.
  */
 
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { hostPath } from "./native-conformance.ts";
+
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+function fail(message: string): never {
+  process.stderr.write(`${message}\n`);
+  process.exit(1);
+}
 
 const readme = readFileSync(join(ROOT, "README.md"), "utf8");
 const stated = /\*\*(\d+)\+ tests\*\*/.exec(readme);
 if (stated === null) {
-  process.stderr.write("README.md no longer states a test count as `**NNN+ tests**`.\n");
-  process.exit(1);
+  fail("README.md no longer states a test count as `**NNN+ tests**`.");
 }
 const floor = Number(stated[1]);
 
-// The same glob `npm test` uses. Passing the directory instead makes Node try
-// to load it as a module, which fails in a way that looks like a broken suite.
-const outcome = spawnSync(
-  process.execPath,
-  ["--test", "--test-reporter=tap", "tests/**/*.test.ts"],
-  { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, shell: false },
-);
-
-const passed = Number(
-  outcome.stdout
-    ?.split("\n")
-    .find((line) => line.startsWith("# pass "))
-    ?.slice("# pass ".length) ?? "0",
-);
-
-if (passed === 0) {
-  process.stderr.write("could not read a pass count from the test runner\n");
-  process.exit(1);
+// Without the runtime, twelve tests do not run and the total is short by
+// exactly that much. Reporting a shortfall that is really a missing build
+// would be a false alarm, and a loud one.
+if (hostPath() === null) {
+  process.stdout.write(
+    "skipped: the native runtime is not built, so twelve tests cannot run and\n" +
+      "the total would be short.\n" +
+      "  cargo build --release --manifest-path rust/Cargo.toml\n",
+  );
+  process.exit(0);
 }
 
-if (passed < floor) {
-  process.stderr.write(
-    `README.md says ${floor}+ tests, but the suite runs ${passed}.\n` +
-      "Lower the figure, or find out which tests stopped running.\n",
+// The site is generated and gitignored, so a fresh checkout has none. Building
+// it is a documented step and takes about a second.
+if (!existsSync(join(ROOT, "website", "index.html"))) {
+  process.stdout.write("building the site first, so its tests are not skipped\n");
+  const built = spawnSync(process.execPath, ["tools/build-site.ts"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  if (built.status !== 0) {
+    fail(`could not build the site:\n${built.stderr ?? ""}`);
+  }
+}
+
+const outcome = spawnSync(
+  process.execPath,
+  // The same glob `npm test` uses. Passing the directory instead makes Node
+  // try to load it as a module, which fails in a way that looks like a broken
+  // suite rather than a wrong argument.
+  ["--test", "--test-reporter=tap", "tests/**/*.test.ts"],
+  { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+);
+
+const summary = (label: string): number =>
+  Number(
+    outcome.stdout
+      ?.split("\n")
+      .find((line) => line.startsWith(`# ${label} `))
+      ?.slice(`# ${label} `.length) ?? "-1",
   );
-  process.exit(1);
+
+const passed = summary("pass");
+const failed = summary("fail");
+
+if (passed < 0 || failed < 0) {
+  fail(`could not read a summary from the test runner:\n${outcome.stderr ?? ""}`);
+}
+if (failed > 0) {
+  fail(`${failed} test(s) failed, so the count means nothing. Fix those first.`);
+}
+if (passed < floor) {
+  fail(
+    `README.md says ${floor}+ tests, but the suite runs ${passed}.\n` +
+      "Lower the figure, or find out which tests stopped running.",
+  );
 }
 
 // A floor far below the truth is not wrong, but it is a number nobody updated.
-// Saying so is cheaper than discovering it two releases later.
 if (passed >= floor + 100) {
-  process.stdout.write(
-    `note: the suite runs ${passed} tests and README.md says ${floor}+. Worth raising.\n`,
-  );
+  process.stdout.write(`note: the suite runs ${passed} and README.md says ${floor}+. Worth raising.\n`);
 }
 
 process.stdout.write(`README.md says ${floor}+ tests; the suite runs ${passed}\n`);
