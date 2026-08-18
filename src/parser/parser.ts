@@ -83,6 +83,13 @@ const STATEMENT_STARTERS: ReadonlySet<TokenKind> = new Set<TokenKind>([
 
 const MAX_RECOVERED_ERRORS = 25;
 
+/** The leading `#!` line, if the file opens with one. Mirrors the lexer. */
+function shebangOf(text: string): string | null {
+  if (!text.startsWith("#!")) return null;
+  const end = text.indexOf("\n");
+  return end === -1 ? text : text.slice(0, end).replace(/\r$/, "");
+}
+
 /** How deeply expressions and blocks may nest before the parser gives up. */
 const MAX_NESTING = 400;
 
@@ -182,7 +189,7 @@ export class Parser {
     const trailingComments = this.#peek().leading;
     const span = this.#file.span(0, this.#file.text.length);
     return {
-      program: { kind: "Program", span, body, trailingComments },
+      program: { kind: "Program", span, body, trailingComments, shebang: shebangOf(this.#file.text) },
       diagnostics: this.#diagnostics,
     };
   }

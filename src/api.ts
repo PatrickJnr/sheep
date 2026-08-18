@@ -51,7 +51,13 @@ export function checkFile(file: SourceFile, options: CheckOptions = {}): CheckRe
     if (!(error instanceof BaaError)) throw error;
     return {
       file,
-      program: { kind: "Program", span: file.span(0, 0), body: [], trailingComments: [] },
+      program: {
+        kind: "Program",
+        span: file.span(0, 0),
+        body: [],
+        trailingComments: [],
+        shebang: null,
+      },
       diagnostics: [error.diagnostic],
       ok: false,
     };

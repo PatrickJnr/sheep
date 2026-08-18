@@ -43,6 +43,9 @@ export function formatProgram(program: Program, options: FormatOptions = {}): st
     lineWidth: options.lineWidth ?? 90,
   };
   const printer = new Printer(config);
+  // The shebang is not a statement and cannot move, so it is written out
+  // before anything else rather than being formatted.
+  if (program.shebang !== null) printer.printRaw(program.shebang);
   printer.printStatements(program.body, 0, true);
   printer.printTrailingComments(program.trailingComments, 0);
   return printer.finish();
@@ -54,6 +57,11 @@ class Printer {
 
   constructor(config: Config) {
     this.#config = config;
+  }
+
+  /** Write a line exactly as given, with no indentation or reflowing. */
+  printRaw(line: string): void {
+    this.#lines.push(line);
   }
 
   finish(): string {

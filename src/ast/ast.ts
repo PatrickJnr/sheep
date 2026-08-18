@@ -21,6 +21,14 @@ export type Program = {
   readonly body: readonly Statement[];
   /** Comments that follow the last statement in the file. */
   readonly trailingComments: readonly Comment[];
+  /**
+   * A leading `#!` line, without its newline, or `null`.
+   *
+   * Kept on the node rather than thrown away by the lexer so the formatter can
+   * put it back. Rewriting an executable page without its shebang would stop
+   * the operating system running it.
+   */
+  readonly shebang: string | null;
 };
 
 export type Block = {
