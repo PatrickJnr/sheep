@@ -32,7 +32,7 @@ import {
   resolveDependencies,
   writeLockfile,
 } from "../project/manifest.ts";
-import { createNodeHost } from "../runtime/host.ts";
+import { createNodeHost, describeFileError } from "../runtime/host.ts";
 import { Interpreter } from "../runtime/interpreter.ts";
 import { ExitSignal } from "../runtime/signals.ts";
 import { resolveProgram } from "../semantic/resolver.ts";
@@ -67,7 +67,7 @@ export function collectFiles(paths: readonly string[]): string[] {
     const full = resolve(path);
     if (!existsSync(full)) {
       throw BaaError.of("BAA404", [`${path} does not exist`], {
-        help: "Check the path, or run `baa run --help`.",
+        help: "Check the path. `baa --help` lists what each command expects.",
       });
     }
     if (statSync(full).isDirectory()) walkDirectory(full, files);
@@ -90,8 +90,20 @@ function shortPath(path: string): string {
   return rel.startsWith("..") || isAbsolute(rel) ? path : rel.split(sep).join("/");
 }
 
+/**
+ * Read a file as a `SourceFile`, reporting a missing or unreadable one as a
+ * diagnostic. Most commands reach this through `collectFiles`, which has
+ * already checked, but `baa run` takes its entry straight from the argument
+ * list: the check belongs here, where every caller passes.
+ */
 function readSource(path: string): SourceFile {
-  return new SourceFile(shortPath(path), readFileSync(path, "utf8"));
+  try {
+    return new SourceFile(shortPath(path), readFileSync(path, "utf8"));
+  } catch (error) {
+    throw BaaError.of("BAA404", [`${shortPath(path)}: ${describeFileError(error)}`], {
+      help: "Check the path and that the file is readable.",
+    });
+  }
 }
 
 /** Load the enclosing project, when there is one. */
@@ -236,7 +248,7 @@ export function commandLint(args: LintArgs, context: CommandContext): number {
     all.push(...checked.diagnostics);
     if (!checked.ok) continue;
     const analysis = resolveProgram(checked.program, file, { modules: names });
-    all.push(...lintProgram(checked.program, file, analysis, { disable: args.disable }));
+    all.push(...lintProgram(checked.program, analysis, { disable: args.disable }));
   }
   printDiagnostics(all, context.colour);
   const errors = all.filter((diagnostic) => diagnostic.severity === "error").length;
