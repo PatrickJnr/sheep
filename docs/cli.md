@@ -350,10 +350,10 @@ resolution and colour support. Exits `1` if anything is wrong.
 ok   Node.js           v24.13.0
 ok   Platform          win32 x64
 ok   Baa               0.3.2
-ok   Project           hill_farm 0.1.0 (.)
+ok   Project           hill_farm 0.1.0 ()
 ok   Wool              1 resolved
 ok   Entry             main.baa
-ok   Standard library  7 modules
+ok   Standard library  8 modules
 ok   Colour            enabled
 
 The flock is healthy.

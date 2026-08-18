@@ -417,6 +417,17 @@ describe("regression: counts the README states as fact", () => {
     for (const relative of files) {
       const text = readFileSync(join(ROOT, relative), "utf8");
       for (const [phrase, word] of text.matchAll(/\b(\w+) modules\b/g)) {
+        // Digits count too. A stale figure sat inside a sample `baa doctor`
+        // transcript in the CLI reference through every earlier sweep,
+        // because those looked only for the number written as a word.
+        if (/^\d+$/.test(word!)) {
+          assert.equal(
+            Number(word),
+            STDLIB_MODULES.length,
+            `${relative} says "${phrase}", but there are ${STDLIB_MODULES.length}`,
+          );
+          continue;
+        }
         if (!words.has(word!.toLowerCase())) continue;
         assert.fail(`${relative} says "${phrase}", but there are ${STDLIB_MODULES.length}`);
       }
@@ -564,6 +575,67 @@ describe("regression: commands the reference forgot", () => {
       assert.ok(
         headings.some((heading) => heading.includes(`\`baa ${command}\``)),
         `docs/cli.md has no section for \`baa ${command}\``,
+      );
+    }
+  });
+});
+
+describe("regression: claims the documentation makes about itself", () => {
+  // Each of these was written once and then quietly stopped being true. They
+  // are checked rather than trusted because that is the only thing that keeps
+  // documentation honest as the thing it describes moves.
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+
+  // The README said nine. The grammar defines fourteen.
+  it("counts the statement forms the grammar actually defines", () => {
+    const spec = readFileSync(join(ROOT, "SPEC.md"), "utf8");
+    const production = /^statement\s+::=([\s\S]*?)\n(?=\w+\s+::=)/m.exec(spec);
+    assert.ok(production, "could not find the statement production in SPEC.md");
+    const forms = production[1]!.split("|").map((form) => form.trim()).filter(Boolean);
+    const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+      "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen"];
+    const stated = /\*\*Small core\*\* \| (\w+) statement forms/.exec(readme)?.[1];
+    assert.equal(stated?.toLowerCase(), WORDS[forms.length], `the grammar defines ${forms.length}`);
+  });
+
+  // "no third-party packages" and "nothing is downloaded" are the two claims
+  // it would be worst to be wrong about, so they are the two worth checking.
+  it("has the runtime dependencies it says it has", () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    assert.deepEqual(pkg.dependencies ?? {}, {}, "the README promises no third-party packages");
+  });
+
+  it("spawns nothing through a shell, as the README promises", () => {
+    const sources = execFileSync("git", ["ls-files", "src/**/*.ts"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean);
+    let spawns = 0;
+    for (const relative of sources) {
+      const text = readFileSync(join(ROOT, relative), "utf8");
+      for (const [, call] of text.matchAll(/\b(spawnSync|spawn|execFile|execFileSync)\(/g)) {
+        void call;
+        spawns++;
+      }
+      assert.doesNotMatch(
+        text,
+        /\bexecSync\(|[^a-zA-Z]exec\(\s*["'`]/,
+        `${relative} runs a command through a shell`,
+      );
+      assert.doesNotMatch(text, /shell:\s*true/, `${relative} asks for a shell`);
+    }
+    assert.ok(spawns > 0, "expected to find the subprocess calls this is guarding");
+  });
+
+  // Said "recorded and asserted" for every example, while one is executed and
+  // not compared because it reads the clock.
+  it("describes how the examples are checked, accurately", () => {
+    const recorded = readdirSync(join(ROOT, "tests", "expected")).filter((n) => n.endsWith(".txt"));
+    const all = readdirSync(join(ROOT, "examples")).filter((n) => n.endsWith(".baa"));
+    if (recorded.length !== all.length) {
+      assert.match(
+        readme,
+        /All but one have their exact\noutput recorded/,
+        `${all.length - recorded.length} example(s) are run without their output being compared, and the README should say so`,
       );
     }
   });

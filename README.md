@@ -86,9 +86,9 @@ The joke is the name. Everything underneath is built to be used.
 
 |  | |
 | --- | --- |
-| **Small core** | Nine statement forms, one numeric type, no inheritance, no hidden coercions. You can hold the whole language in your head. |
+| **Small core** | Fourteen statement forms, one numeric type, no inheritance, no hidden coercions. You can hold the whole language in your head. |
 | **Diagnostics that help** | Every error has a stable `BAAnnn` code, a source span, an underlined excerpt and, where possible, a suggestion. |
-| **Fast enough to be practical** | Around 1.2 million function calls and 4.5 million loop iterations per second on a laptop. `baa run` starts in tens of milliseconds. |
+| **Fast enough to be practical** | Around 1.2 million function calls and 4.5 million loop iterations per second on a laptop. `baa run` starts in about a tenth of a second. |
 | **Tooling in the box** | `fmt`, `lint`, `check`, `test`, `repl`, `init`, `build`, `doctor`. No plugin hunt on day one. |
 | **Serious when it needs to be** | `--no-baa`, or `CI=true`, swaps every sheep joke for neutral wording and keeps the codes identical. |
 | **Nothing to trust** | No third-party packages. Nothing is downloaded, nothing runs implicitly, and no subprocess ever sees a shell. |
@@ -207,13 +207,14 @@ Baa spends real effort on being wrong helpfully.
 ```console
 $ baa check flock.baa
 error[BAA102]: `sheap` is not part of the current flock.
-  ┌─ examples/hello.baa:4:19
+  ┌─ flock.baa:4:19
   │
-3 │ const flock = ["Dolly", "Shaun"]
+3 │ fn greet() {
 4 │     baa "Baa, " + sheap
   │                   ^^^^^ not found in this pasture
   │
   = help: Did you mean `sheep`?
+1 file checked, 1 error
 ```
 
 Three things worth knowing:
@@ -272,8 +273,10 @@ Plus a ten-name prelude that needs no import. Full reference:
 ## Examples
 
 Every file in [`examples/`](examples/) is executable, formatted by `baa fmt`,
-clean under `baa lint`, and its output is recorded and asserted by the test
-suite. If one breaks, CI says so.
+clean under `baa lint`, and run by the test suite. All but one have their exact
+output recorded and compared byte for byte; `stdlib.baa` reads the clock, so it
+is executed and checked for errors rather than compared. If one breaks, CI says
+so.
 
 | File | Shows |
 | --- | --- |
