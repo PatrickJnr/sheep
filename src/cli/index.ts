@@ -28,6 +28,7 @@ import {
 } from "./commands.ts";
 import type { CommandContext } from "./commands.ts";
 import { BANNER, bold, detectColour, detectWoolly, dim, printDiagnostics, writeError, writeLine } from "./output.ts";
+import { commandServe } from "./serve.ts";
 import { startRepl } from "./repl.ts";
 
 export type GlobalFlags = {
@@ -57,6 +58,7 @@ COMMANDS
   test [paths...]       Run \`test "..." { ... }\` blocks
   fmt [paths...]        Format source files in place
   lint [paths...]       Report style and correctness warnings
+  serve [dir]           Serve a directory of .baa pages over HTTP
   repl                  Start an interactive session
   init [dir]            Create a new project
   build                 Validate the project and write baa.lock
@@ -131,6 +133,17 @@ const COMMAND_HELP: Record<string, string> = {
 
   Validate every file in the project, check the entry point exists and write
   baa.lock with a hash of each dependency.`,
+  serve: `baa serve [dir] [options]
+
+  Run a directory of .baa pages over HTTP, for development.
+
+  Each request executes the matching .baa file in a fresh process with the CGI
+  environment set, which is the same thing Apache does, so a page that works
+  here works on a real host. Not for production: one process per request, and
+  it binds to localhost unless told otherwise.
+
+  --port <n>        Port to listen on (default 8080)
+  --host <address>  Address to bind (default 127.0.0.1)`,
   repl: `baa repl [--no-banner]
 
   Start an interactive session. Bindings persist between lines.`,
@@ -148,6 +161,8 @@ type Parsed = {
 };
 
 const VALUE_FLAGS = new Set([
+  "port",
+  "host",
   "seed",
   "max-depth",
   "filter",
@@ -346,6 +361,15 @@ export async function main(argv: readonly string[]): Promise<number> {
         return commandDoctor(context, VERSION);
       case "modules":
         return commandModules(context);
+      case "serve":
+        return await commandServe(
+          {
+            dir: parsed.positionals[0] ?? null,
+            port: numberOption(parsed, "port"),
+            host: parsed.options.get("host")?.[0] ?? null,
+          },
+          context,
+        );
       case "repl":
         return await startRepl({
           colour,
