@@ -1,0 +1,46 @@
+/// A form: GET shows it, POST reads it. Demonstrates `gate.form` and
+/// replying with a status code when the input is wrong.
+
+import gate
+import ram
+import wool
+import { page } from "./layout.baa"
+
+// Baa has no multi-line string literal, so markup of any size is concatenated.
+// It reads well enough here and badly at three times the length.
+const FORM = wool.concat(
+    "<h1>Count sheep</h1>",
+    "<form method=\"post\">",
+    "<label>How many <input name=\"n\" value=\"42\"></label> ",
+    "<button>Count</button>",
+    "</form>",
+)
+
+if gate.method() != "POST" {
+    gate.html(page("Count sheep", FORM))
+} else {
+    const raw = gate.form().get("n", "")
+    const n = to_number(raw)
+    if n == nil {
+        // A bad value is the request's fault, not the program's, so it gets a
+        // 400 and the form back rather than a crash.
+        gate.status(400)
+        gate.html(
+            page(
+                "Not a number",
+                gate.format("<p class=\"warn\">%s is not a number.</p>", raw) + FORM,
+            ),
+        )
+    } else {
+        gate.html(
+            page(
+                "Counted",
+                gate.format(
+                    "<h1>%s sheep</h1><p>Square root: %s</p><p><a href=\"/count\">Count again</a></p>",
+                    n,
+                    ram.round(ram.sqrt(ram.abs(n)), 3),
+                ),
+            ),
+        )
+    }
+}

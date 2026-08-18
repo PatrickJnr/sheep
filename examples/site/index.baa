@@ -1,0 +1,35 @@
+/// The home page.
+///
+///     baa serve examples/site
+///     open http://localhost:8080/
+///
+/// Every request runs this file. `gate` reads the request out of the CGI
+/// environment and writes the reply to standard output, which is what Apache,
+/// nginx and `baa serve` all expect from a page.
+
+import gate
+import wool
+import { page } from "./layout.baa"
+
+const flock = ["Dolly", "Shaun", "Timmy", "Shirley"]
+
+// `gate.format` escapes each value it puts into a `%s`. That is the whole
+// reason it exists: `name` came from the query string, so it is the visitor's
+// text, not ours.
+const name = gate.query().get("name", "world")
+
+const items = flock.map(fn(sheep) { return gate.format("<li><a href=\"/sheep/%s\">%s</a></li>", sheep, sheep) }).join("\n")
+
+gate.html(
+    page(
+        "Baa",
+        wool.concat(
+            gate.format("<h1>Baa, %s!</h1>", name),
+            "<p>This page is a Baa program. It ran when you asked for it.</p>",
+            "<form><label>Your name <input name=\"name\"></label> <button>Say baa</button></form>",
+            "<h2>The flock</h2><ul>",
+            items,
+            "</ul><p><a href=\"/count\">Count some sheep</a></p>",
+        ),
+    ),
+)

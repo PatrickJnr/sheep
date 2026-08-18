@@ -1,0 +1,24 @@
+/// The shared page shell, imported by every page.
+///
+/// A page is a module like any other: `gate` is only the way in and out, so
+/// the parts of a site that repeat are just functions you export.
+
+import wool
+
+/// Wrap body HTML in the document shell. `title` is escaped; `body` is not,
+/// because it is markup the caller has already built.
+export fn page(title, body) {
+    return wool.concat(
+        "<!doctype html>\n",
+        "<html lang=\"en\"><head><meta charset=\"utf-8\">",
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">",
+        "<title>",
+        wool.escape_html(title),
+        "</title>",
+        "<link rel=\"stylesheet\" href=\"/style.css\">",
+        "</head><body><main>",
+        body,
+        "<footer><a href=\"/\">Home</a> &middot; served by Baa</footer>",
+        "</main></body></html>\n",
+    )
+}

@@ -1,0 +1,28 @@
+/// Serves `/sheep/<name>`.
+///
+/// One file handles the whole subtree: `gate.path()` is the part of the URL
+/// below this script, which is PATH_INFO in CGI terms.
+
+import gate
+import { page } from "./layout.baa"
+
+const known = {
+    Dolly: "The first mammal cloned from an adult somatic cell, 1996.",
+    Shaun: "Lives on Mossy Bottom Farm. Alarmingly capable.",
+    Timmy: "The youngest of the flock. Owns a blue blanket.",
+    Shirley: "Structurally significant. Holds a great deal of wool.",
+}
+
+const name = gate.path().slice(1)
+
+if !known.has(name) {
+    gate.status(404)
+    gate.html(
+        page(
+            "No such sheep",
+            gate.format("<h1>No sheep called %s</h1><p>Try one from the flock.</p>", name),
+        ),
+    )
+} else {
+    gate.html(page(name, gate.format("<h1>%s</h1><p>%s</p>", name, known.get(name))))
+}
