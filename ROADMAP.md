@@ -72,6 +72,53 @@ Ordered by how much they would improve a normal day.
 - [ ] **Doc generation.** `baa doc` producing a reference from `///` comments,
       which the standard library already carries internally.
 
+## Native applications ✅ shipped in 0.4
+
+Baa runs in a second place: a desktop application, in a real window, from one
+executable. `.baa` did not change meaning; a file is an application when it
+imports `barn`, exactly as it is a web page when it imports `gate`.
+
+- [x] **A native runtime.** `rust/crates/baa-native`, a Rust tree-walker with
+      no dependencies, running a resolved tree the reference implementation
+      hands it. Passes 49 of the 50 conformance programs byte for byte.
+- [x] **`baa app new | build | run | test`**, producing one Windows executable
+      with the runtime and the program inside it. No linker, no compiler on the
+      developer's machine, no Node on the user's.
+- [x] **`barn`:** windows, rows and columns with weights, labels, buttons,
+      inputs, text areas, lists, checkboxes, menu bars, message boxes, file
+      dialogs, clipboard, per-monitor DPI.
+- [x] **Two applications that are the tests.** The calculator imports the *web*
+      calculator's arithmetic module unchanged; the text editor's document
+      model has nine tests and no window in it.
+- [x] **Documentation**, an architecture record, and measurements rather than
+      adjectives.
+
+### Next, on this track
+
+Ordered by how much each would change what can be built.
+
+- [ ] **`shepherd` and `meadow` in the native runtime.** Arguments,
+      environment, clocks and seeded randomness. Their absence is the reason
+      one conformance program is skipped rather than run, and the reason an
+      application cannot read its own command line.
+- [ ] **An application icon and version metadata.** Both live in PE resources,
+      which the appending build deliberately does not touch. Doing it properly
+      means writing a resource section rather than shelling out to a tool.
+- [ ] **A Linux backend.** The window model has no Win32 in it and is tested
+      without a screen; `barn.show` on Linux reports that there is no backend.
+      GTK through its C ABI would keep the zero-dependency rule.
+- [ ] **Regular expressions**, which would complete `wool` natively. The five
+      functions that need them currently say so when called. The trap is that a
+      near-miss reimplementation of JavaScript's engine is worse than an
+      absence, so this wants a specified subset rather than a best effort.
+- [ ] **A table or grid control.** The first application that wants one will
+      say what it needs.
+- [ ] **Timers.** `barn` has no clock, so a pomodoro or an animation cannot be
+      written. This is small and only waits for an application that needs it.
+- [ ] **`[wool]` dependencies in a bundle.** Relative imports are bundled;
+      manifest dependencies are refused with a message rather than
+      half-supported.
+
 ## Parallel track: a Rust implementation 🦀 open for contributors
 
 Baa's reference implementation is TypeScript on Node, for the reasons in
@@ -90,10 +137,23 @@ exists and is kept fresh by CI:
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 
-**Status: planned, not started.** There is no Rust code in the repository, and
-the roadmap will not claim otherwise until there is. The milestone that counts
-is a conformant `baa run`: passing both halves of the conformance suite:
-rather than a partially-working pipeline.
+**Status: the runtime half exists, the frontend half does not.**
+
+`rust/crates/baa-native` is a working Rust runtime — values, the tree-walking
+interpreter, six standard-library modules, a window model and a Win32 backend
+— built for [native applications](#native-applications-shipped-in-04).
+It passes 49 of the 50 conformance programs, byte for byte; the one it does
+not run imports `shepherd`, which it does not have.
+
+It has no lexer, no parser, no resolver, no formatter, no linter and no CLI,
+and gains nothing from having them: the reference implementation analyses a
+program and hands the runtime a resolved tree, so there is exactly one frontend
+and it cannot disagree with itself.
+
+That leaves the interesting half of a second implementation still open, and
+the milestone unchanged: a conformant `baa run` from Rust source, passing both
+halves of the suite. Anyone taking it on starts with a runtime that already
+works and a conformance harness that already runs.
 
 If you want to start, open an issue tagged `rust` saying which crate you are
 taking, so nobody writes the lexer twice.
@@ -104,6 +164,13 @@ taking, so nobody writes the lexer twice.
       [ARCHITECTURE.md](ARCHITECTURE.md#path-to-a-bytecode-vm). To be built
       alongside the tree-walker, with both tested against the same programs,
       not as a replacement dropped in at once.
+
+      There is now a measurement to argue from. `node tools/bench-native.ts`
+      puts the native tree-walker 1.2x ahead of Node on a tight loop and 9.6x
+      ahead on process start: almost all of the win is starting up, and none of
+      it is the interpreter being cleverer, because it is the same algorithm in
+      a different language. A bytecode VM is where the interpreter itself would
+      get faster, and resolved variable slots are still the prerequisite.
 - [ ] **Constant folding and dead-branch elimination** as AST passes.
 - [ ] **Inline caches** for member and method lookup.
 - [ ] **A native-compilation study.** Baa is dynamically typed, so ahead-of-time

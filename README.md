@@ -92,8 +92,9 @@ The joke is the name. Everything underneath is built to be used.
 | **Tooling in the box** | `fmt`, `lint`, `check`, `test`, `repl`, `init`, `build`, `doctor`. No plugin hunt on day one. |
 | **Serious when it needs to be** | `--no-baa`, or `CI=true`, swaps every sheep joke for neutral wording and keeps the codes identical. |
 | **Nothing to trust** | No third-party packages. Nothing is downloaded, nothing runs implicitly, and no subprocess ever sees a shell. |
+| **Two places to run** | The same files serve [web pages](docs/web.md) and build [native Windows applications](docs/native-applications.md). One language, one set of tests, two targets. |
 
-Verified on every commit, across Windows, Linux and macOS: **580+ tests**, a
+Verified on every commit, across Windows, Linux and macOS: **620+ tests**, a
 formatter that must be a fixed point, a linter that must be clean, and a
 conformance suite that pins the exact output of 50 programs.
 
@@ -247,6 +248,8 @@ All 46 of them are listed in [docs/errors.md](docs/errors.md).
 | `baa add` / `baa remove` | Manage local dependencies |
 | `baa doctor` | Diagnose the installation |
 | `baa modules` | List the standard library |
+| `baa serve [dir]` | Serve a directory of `.baa` pages over HTTP |
+| `baa app <action>` | Native applications: `new`, `build`, `run`, `test` |
 
 Full reference, including exit codes and the manifest format:
 [docs/cli.md](docs/cli.md).
@@ -292,6 +295,59 @@ so.
 | [`site/`](examples/site/) | A website: pages that answer HTTP requests over CGI, [running here](https://sheep.grimtech.co.uk/baa/index.baa) |
 | [`fizzbuzz.baa`](examples/fizzbuzz.baa) | `match` on structural patterns |
 | [`large_program.baa`](examples/large_program.baa) | A ~200-line flock register: parsing, validation, statistics, a report and JSON |
+
+## Native applications
+
+A `.baa` file is a web page. It is also, when it imports `barn` instead of
+`gate`, a desktop application:
+
+```baa
+import barn
+
+const window = barn.window({ title: "Hello", width: 320, height: 140 })
+const layout = barn.column(window, { weight: 1 })
+const label = barn.label(layout, { text: "Baa", align: "center", size: 20 })
+const button = barn.button(layout, { text: "Again" })
+
+fn on_click() {
+    barn.set_text(label, "Baa baa")
+}
+
+barn.on(button, "click", on_click)
+barn.show(window)
+barn.run()
+```
+
+```console
+$ baa app build
+Built build/Hello.exe
+  1 module, using barn
+  649 KB, windowed
+```
+
+One executable. No Node.js on the machine that runs it, no browser inside it,
+no unpacking: a real Win32 window with the system's own controls, its own menu
+bar and its own file dialogs.
+
+`baa app build` analyses the program with exactly the code `baa check` uses,
+writes the resolved tree into an image, and appends that image to a runtime
+written in Rust. There is one frontend, so the two cannot disagree about what
+your program means, and the runtime passes 49 of the 50 conformance programs
+byte for byte.
+
+The calculator in
+[`examples/native/calculator/`](examples/native/calculator) imports the *web*
+calculator's arithmetic module unchanged — same tokeniser, same
+precedence-climbing parser, same tests, two front ends. That is the shape the
+platform is for.
+
+Windows today. The window model has no Win32 in it and a second backend is an
+addition rather than a rewrite, but until somebody writes one, `barn.show` on
+another platform says so.
+
+[Native applications](docs/native-applications.md) ·
+[`barn` reference](docs/gui.md) ·
+[Building for Windows](docs/building-windows-apps.md)
 
 ## Editor support
 

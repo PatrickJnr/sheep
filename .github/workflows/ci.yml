@@ -39,7 +39,7 @@ jobs:
         run: npm test
 
       - name: Baa's own test blocks
-        run: node src/cli/index.ts test tests/programs
+        run: node src/cli/index.ts test tests/programs examples/apps examples/native/notepad/tests
 
       - name: Run every example
         shell: bash
@@ -48,6 +48,55 @@ jobs:
             echo "--- $file"
             node src/cli/index.ts run "$file" > /dev/null
           done
+
+  native:
+    name: native runtime (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Linux proves the runtime is not secretly Windows-only; Windows is the
+        # only place the window backend exists, so it is the only place the
+        # application build and the window tests can run.
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.18"
+          cache: npm
+
+      - run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: The generated diagnostic catalogue is current
+        run: node tools/gen-native-codes.ts --check
+
+      - name: Runtime unit tests
+        run: cargo test --manifest-path rust/Cargo.toml
+
+      - name: Build the runtime
+        run: cargo build --release --manifest-path rust/Cargo.toml
+
+      - name: Conformance suite, on the native runtime
+        run: node tools/native-conformance.ts --verbose
+
+      - name: Drift guards, the bundler and the runtime
+        run: node --test tests/native.test.ts
+
+      - name: An application builds and carries its program
+        if: runner.os == 'Windows'
+        working-directory: examples/native/calculator
+        run: node ../../../src/cli/index.ts app build
+
+      - name: Clippy
+        run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 
   quality:
     name: format, lint and docs

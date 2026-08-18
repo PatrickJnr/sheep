@@ -16,7 +16,16 @@ pub struct Frame {
     pub module: usize,
 }
 
-pub struct BaaError {
+/// An error, boxed.
+///
+/// `BaaError` is the error half of the `Result` every expression evaluation
+/// returns, so its size is paid on every call whether or not anything fails.
+/// The fields add up to well over a hundred bytes; behind a box the `Result` is
+/// two words. The indirection costs one allocation on the path that was about
+/// to stop anyway.
+pub struct BaaError(Box<ErrorData>);
+
+pub struct ErrorData {
     pub code: &'static str,
     pub args: Vec<String>,
     pub span: Span,
@@ -26,9 +35,30 @@ pub struct BaaError {
     pub trace: Vec<Frame>,
 }
 
+impl std::ops::Deref for BaaError {
+    type Target = ErrorData;
+    fn deref(&self) -> &ErrorData {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for BaaError {
+    fn deref_mut(&mut self) -> &mut ErrorData {
+        &mut self.0
+    }
+}
+
 impl BaaError {
     pub fn new(code: &'static str, args: Vec<String>, span: Span, module: usize) -> BaaError {
-        BaaError { code, args, span, module, note: None, help: None, trace: Vec::new() }
+        BaaError(Box::new(ErrorData {
+            code,
+            args,
+            span,
+            module,
+            note: None,
+            help: None,
+            trace: Vec::new(),
+        }))
     }
 
     pub fn with_note(mut self, note: impl Into<String>) -> BaaError {

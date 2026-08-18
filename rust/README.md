@@ -1,11 +1,20 @@
 # baa-rs: a Rust implementation of Baa
 
-**Status: planned, not started.** This directory holds the plan and the shared
-material a Rust implementation would build on. There is no Rust code here yet,
-and nothing in this document should be read as "already works".
+**Status: half of it exists.** `crates/baa-native` is a working Rust *runtime*:
+values, the tree-walking interpreter, six standard-library modules and a Win32
+window backend. It passes 49 of the 50 conformance programs, byte for byte.
 
-If you would rather write Baa's toolchain in Rust than in TypeScript, this is
-the door. It is deliberately propped open.
+It is deliberately **not** a whole implementation. There is no lexer, no
+parser, no resolver, no formatter, no linter and no `baa` CLI in Rust, because
+the native application platform does not need them: the reference
+implementation analyses the program and hands the runtime a resolved tree (see
+[docs/native-runtime.md](../docs/native-runtime.md)). One frontend cannot
+disagree with itself.
+
+So the door this document props open is still open, and the interesting half
+is still the unwritten one. What follows is the plan for that half; what
+already exists is described in
+[ARCHITECTURE.md](../ARCHITECTURE.md#native-applications).
 
 ---
 
@@ -72,6 +81,18 @@ milestone than "it runs hello world".
 Mirroring the reference implementation's stages, because the separation is what
 makes each one testable on its own:
 
+The runtime that exists occupies one crate:
+
+```
+rust/
+├── Cargo.toml
+└── crates/
+    └── baa-native/             # values, interpreter, stdlib, window model, Win32
+```
+
+A full implementation would add the stages the runtime does not have, mirroring
+the reference's separation because that is what makes each one testable alone:
+
 ```
 rust/
 ├── Cargo.toml                  # workspace
@@ -92,8 +113,9 @@ rust/
 
 Suggested dependencies, and nothing beyond them: `clap` for the CLI (or keep
 the hand-rolled parser: it is only a hundred lines), `serde_json` for the
-conformance harness and the `lamb` module. Baa ships with zero runtime
-dependencies today; it would be a shame to lose that.
+conformance harness. Baa ships with zero runtime dependencies today; it would
+be a shame to lose that, and `baa-native` has managed it so far — its JSON
+module and its Win32 bindings are both written out by hand.
 
 ### Sketch of the conformance harness
 

@@ -1,6 +1,6 @@
 {
   "name": "baa-lang",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "A small, readable scripting language with fast tooling, genuinely good error messages, and extremely questionable sheep-related naming decisions. Real lexer, parser, resolver, interpreter, formatter and linter.",
   "keywords": [
     "baa",
@@ -45,16 +45,18 @@
   "scripts": {
     "baa": "node src/cli/index.ts",
     "bench": "node tools/bench.ts",
+    "bench:native": "node tools/bench-native.ts",
     "build": "tsc -p tsconfig.build.json",
     "check:playground": "node tools/check-playground.ts",
     "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
     "fmt": "node src/cli/index.ts fmt examples tests/programs",
     "fmt:check": "node src/cli/index.ts fmt --check examples tests/programs",
-    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:assets && npm run gen:playground && npm run gen:cgi && npm run gen:site",
+    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:native && npm run gen:assets && npm run gen:playground && npm run gen:cgi && npm run gen:site",
     "gen:assets": "node tools/render-assets.ts",
     "gen:cgi": "node tools/build-cgi.ts",
-    "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/render-assets.ts --check",
+    "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/gen-native-codes.ts --check && node tools/render-assets.ts --check",
     "gen:conformance": "node tools/gen-conformance.ts",
+    "gen:native": "node tools/gen-native-codes.ts",
     "gen:docs": "node tools/gen-docs.ts",
     "gen:playground": "node tools/build-playground.ts",
     "gen:site": "node tools/build-site.ts && node tools/check-site.ts",
@@ -62,7 +64,8 @@
     "prepack": "npm run build",
     "serve": "node tools/serve.ts",
     "test": "node --test \"tests/**/*.test.ts\"",
-    "test:baa": "node src/cli/index.ts test tests/programs examples/apps",
+    "test:baa": "node src/cli/index.ts test tests/programs examples/apps examples/native/notepad/tests",
+    "test:native": "node tools/native-conformance.ts --verbose && node --test tests/native.test.ts",
     "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

@@ -331,7 +331,7 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             }
             // Lossy, matching `TextDecoder`, which substitutes U+FFFD rather
             // than failing on bytes that are not valid UTF-8.
-            Value::str(String::from_utf8_lossy(&bytes).into_owned())
+            Value::str(String::from_utf8_lossy(&bytes))
         }
         "inspect" => Value::str(inspect(&args[0])),
         _ => Value::Nil,

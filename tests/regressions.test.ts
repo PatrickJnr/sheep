@@ -416,7 +416,12 @@ describe("regression: counts the README states as fact", () => {
       .filter(Boolean);
     for (const relative of files) {
       const text = readFileSync(join(ROOT, relative), "utf8");
-      for (const [phrase, word] of text.matchAll(/\b(\w+) modules\b/g)) {
+      for (const [phrase, word] of text.matchAll(/\b(\w+) modules\b[,.]?/g)) {
+        // `2 modules, using barn` in a `baa app build` transcript counts the
+        // program's own files, not the standard library. A comma after the
+        // word is what tells the two apart: a claim about the library ends the
+        // clause there, or continues with a verb.
+        if (phrase!.endsWith(",")) continue;
         // Digits count too. A stale figure sat inside a sample `baa doctor`
         // transcript in the CLI reference through every earlier sweep,
         // because those looked only for the number written as a word.

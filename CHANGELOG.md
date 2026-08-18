@@ -7,6 +7,87 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.4.0], 2026-08-18
+
+Baa runs in a second place. A `.baa` file has always been a web page, executed
+by a server per request; it is now also a desktop application, held open by a
+runtime that draws a real window. Nothing about the language changed to make
+that true.
+
+### Added
+
+- **Native applications.** `baa app new | build | run | test` turns a project
+  into a single Windows executable containing the runtime and the program. No
+  Node.js on the machine that runs it, no browser inside it, no unpacking.
+
+  The architecture, and the reasoning for it, is in
+  [ARCHITECTURE.md](ARCHITECTURE.md#native-applications). In short: the
+  reference implementation stays the only frontend. `baa app build` runs
+  exactly the analysis `baa check` runs, writes the resolved tree into a
+  `.fleece` image, and appends that image to a runtime written in Rust. One
+  frontend cannot disagree with itself, and a program that fails `baa check`
+  produces no executable.
+
+- **`barn`**, the ninth standard-library module: windows, rows and columns with
+  weights, labels, buttons, inputs, text areas, lists, checkboxes, a real menu
+  bar, message boxes, file dialogs, the clipboard, and per-monitor DPI so text
+  is sharp on a scaled display rather than stretched.
+
+  It is `gate`'s opposite number — a program imports one or the other — and
+  importing `gate` into an application is a build error naming it. `barn`
+  exists in the reference implementation too, where every function reports that
+  it needs the native runtime, so that `baa check`, the linter and the language
+  server all work on an application's source.
+
+- **The native runtime**, `rust/crates/baa-native`: a tree-walking interpreter
+  in Rust with no dependencies at all, including its own JSON parser and its
+  own Win32 declarations. It implements `barn`, `flock`, `lamb`, `pasture`,
+  `ram` and `wool`, and **passes 49 of the 50 conformance programs byte for
+  byte**. The one it does not run imports `shepherd`, which it does not have,
+  and the harness reports that as a skip rather than a pass.
+
+- **Two applications that are also the tests.**
+  [`examples/native/calculator`](examples/native/calculator) imports the *web*
+  calculator's arithmetic module unchanged — the same tokeniser and
+  precedence-climbing parser, the same tests, two front ends.
+  [`examples/native/notepad`](examples/native/notepad) is a text editor with
+  menus, file dialogs and unsaved-change tracking derived from the text rather
+  than from a flag. Both are driven through Win32 by the test suite, which
+  sends the messages a click actually is and reads back what the window says.
+
+- **Documentation**: [native applications](docs/native-applications.md),
+  [`barn`](docs/gui.md), [application projects](docs/application-projects.md),
+  [building for Windows](docs/building-windows-apps.md) and
+  [the runtime's insides](docs/native-runtime.md), plus `tools/bench-native.ts`
+  so the numbers in them can be checked rather than believed.
+
+### Changed
+
+- **A newline inside `{` ends a statement again, even inside `(`.** The lexer
+  counted open brackets and suppressed every newline while any `(` or `[` was
+  open. That made a multi-line function literal impossible to pass as an
+  argument:
+
+  ```baa
+  on(button, "click", fn() {
+      state = next(state)
+      refresh()          // BAA006: expected the end of the statement
+  })
+  ```
+
+  It now tracks which bracket is innermost: `(` and `[` suppress newlines, `{`
+  restores them. The rule in [SPEC.md §2.2](SPEC.md) is corrected to match.
+
+  **Migration:** nothing. The whole test suite passed unchanged, because the
+  old behaviour had no use — it turned working-looking code into a syntax error
+  reported against the wrong line. Map literals are unaffected: their entries
+  end in `,`, which a different rule already covers.
+
+### Fixed
+
+- `baa app build` over a running application says "it is running" rather than
+  printing `EBUSY: resource busy or locked` and a Node stack trace.
+
 ## [0.3.2], 2026-08-18
 
 ### Changed

@@ -37,6 +37,33 @@ and it explains why things are where they are.
 | `node tools/gen-docs.ts` | Regenerate the generated docs |
 | `node tools/record-examples.ts` | Re-record example output |
 
+### Working on the native runtime
+
+The Rust runtime in `rust/` is optional: everything in `src/` builds and tests
+without it, and the tests that need it skip with a stated reason.
+
+```bash
+cargo build --release --manifest-path rust/Cargo.toml   # once
+cargo test --manifest-path rust/Cargo.toml              # its own units
+npm run test:native                                     # conformance, then the drift guards
+npm run bench:native                                    # before claiming anything is faster
+```
+
+Two rules keep the two implementations from drifting apart, and both are
+enforced by tests rather than by discipline:
+
+- **The reference implementation is the definition.** Where the runtime and
+  `src/` disagree, the runtime is wrong, and `node tools/native-conformance.ts`
+  says so. If the *specification* is unclear, fix the specification first.
+- **Anything written twice is compared.** The module list, `barn`'s functions
+  and their arities, and the image format's version all exist on both sides;
+  `tests/native.test.ts` compares them. Adding a `barn` function means adding
+  it in `rust/.../stdlib/barn.rs` *and* `src/stdlib/barn.ts`, and the test will
+  tell you if you forget.
+
+The diagnostic catalogue is generated, not copied: change
+`src/diagnostics/codes.ts` and run `npm run gen`.
+
 ## What makes a good contribution
 
 **Bug fixes** are always welcome. A failing test in the pull request is worth

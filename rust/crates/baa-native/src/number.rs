@@ -61,7 +61,7 @@ pub fn format(value: f64) -> String {
         return out;
     }
 
-    let sign = if n - 1 >= 0 { '+' } else { '-' };
+    let sign = if n > 0 { '+' } else { '-' };
     let magnitude = (n - 1).abs();
     if k == 1 {
         format!("{}e{}{}", digits, sign, magnitude)

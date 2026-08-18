@@ -233,7 +233,7 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             let path = need_string(interp, &name, &args, 0, span)?;
             Value::Bool(std::path::Path::new(&*path).is_absolute())
         }
-        "cwd" => Value::str(std::env::current_dir().unwrap_or_default().to_string_lossy().into_owned()),
+        "cwd" => Value::str(std::env::current_dir().unwrap_or_default().to_string_lossy()),
         _ => Value::Nil,
     })
 }

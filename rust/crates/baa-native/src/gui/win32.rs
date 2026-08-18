@@ -21,6 +21,11 @@
 //! moment, so a stray message cannot find a stale tree.
 
 #![allow(non_snake_case)]
+// HWND, WPARAM, WNDCLASSEXW and friends keep the spellings the Windows
+// documentation uses. Renaming them to satisfy a naming lint would make every
+// declaration here harder to check against the page that defines it, which is
+// the only way to be sure an `extern` block is right.
+#![allow(clippy::upper_case_acronyms)]
 
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -349,7 +354,9 @@ unsafe extern "system" fn window_proc(hwnd: HWND, message: u32, wParam: WPARAM, 
         WM_DESTROY => {
             let id = GetWindowLongPtrW(hwnd, GWLP_USERDATA);
             if id > 0 {
-                ui.get_mut(id as usize - 1).map(|widget| widget.handle = 0);
+                if let Some(widget) = ui.get_mut(id as usize - 1) {
+                    widget.handle = 0;
+                }
             }
             ui.open = ui.open.saturating_sub(1);
             if ui.open == 0 {

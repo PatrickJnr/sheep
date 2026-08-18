@@ -667,11 +667,10 @@ fn array_method(interp: &mut Interpreter, name: &str, receiver: &Value, args: &[
                             return Ok(Value::Bool(true));
                         }
                     }
-                    "all" => {
-                        if !outcome.truthy() {
+                    "all"
+                        if !outcome.truthy() => {
                             return Ok(Value::Bool(false));
                         }
-                    }
                     _ => {}
                 }
             }

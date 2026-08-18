@@ -117,7 +117,7 @@ pub struct Interpreter {
     stack: Vec<Frame>,
     depth: usize,
     /// Collected `test` blocks, in declaration order.
-    pub tests: Vec<(Rc<str>, Rc<Block>, Rc<Environment>, usize)>,
+    pub tests: Vec<CollectedTest>,
     /// The window tree, empty until the program imports `barn`.
     pub ui: crate::gui::Ui,
     /// `(widget, event, handler)`, in the order they were registered. A widget
@@ -128,12 +128,16 @@ pub struct Interpreter {
     pub backend: Option<Box<dyn crate::gui::Backend>>,
 }
 
+/// A `test` block, with the scope and module it was declared in: running one
+/// later has to put it back where it came from.
+pub type CollectedTest = (Rc<str>, Rc<Block>, Rc<Environment>, usize);
+
 pub const DEFAULT_MAX_DEPTH: usize = 512;
 
 impl Interpreter {
     pub fn new(image: Rc<Image>, out: Box<dyn std::io::Write>) -> Interpreter {
         let globals = Environment::root();
-        let mut interpreter = Interpreter {
+        let interpreter = Interpreter {
             image,
             globals,
             out,

@@ -43,6 +43,37 @@ What Baa *does* promise:
 - **No shell.** Nothing in Baa or its standard library invokes a shell on your
   behalf.
 
+### Native applications
+
+A built application has the same threat model, with two differences that both
+narrow it.
+
+The **native runtime is smaller than the language**: it has no `shepherd`, so
+nothing in a native application can start a process, and it has no `eval`, no
+FFI, no plugin mechanism and no dynamic library loading. What an application
+can execute is fixed when it is built.
+
+It also **never parses at runtime**. A shipped application carries a resolved
+tree and resolves its imports to indices inside that tree at build time, so it
+does not consult the filesystem to find a module and cannot be redirected by a
+`.baa` file placed beside it.
+
+The image the runtime reads is treated as untrusted input, because it is
+whatever bytes are on the end of the executable: the version is checked before
+anything is decoded, every read is bounds-checked, and a malformed image is
+refused with a reason rather than guessed at.
+
+Two things the image is **not**: it is not encryption and it is not integrity
+protection. Anyone can read the strings in your program, as they can in a
+Python or JavaScript application, and anyone who can write to the file can
+replace the image in it. Do not put a secret in one, and sign the executable if
+its integrity matters.
+
+`pasture` in a native application reaches everything the person running it can
+reach. That is what a text editor needs, and there is no sandbox making it
+narrower. See
+[docs/native-applications.md](docs/native-applications.md#the-trust-boundary).
+
 ## Design decisions that exist for security reasons
 
 ### `shepherd.run` never uses a shell
@@ -124,6 +155,9 @@ building the sandbox on the roadmap:
 - `shepherd.run` blocks until the subprocess exits, with no timeout.
 - Importing a module executes its top-level code, so `import` of an untrusted
   file runs that file.
+- A `.fleece` image is not signed or checksummed. The runtime checks that it is
+  well-formed, not that it is the one you built. Sign the executable if that
+  matters.
 
 ## For people running Baa on untrusted input
 
