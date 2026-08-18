@@ -7,7 +7,11 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
-## [Unreleased]
+## [0.5.0], 2026-08-18
+
+An audit release. The largest gap between Baa's two runtimes is closed, and
+three things the documentation asserted turned out not to be true — including
+one the tooling had been asserting louder.
 
 ### Added
 
@@ -55,10 +59,14 @@ a migration note.
 
 - **A skipped conformance program was counted as a pass.** The native
   conformance harness marked a program it had decided not to run as passing, so
-  its summary line read `50/50` when 49 programs had executed. It now reports
-  `49/49 ... 1 skipped`, prints `SKIP` lines under `--verbose`, and a test
-  asserts a skip can never be counted as a pass. The documentation always said
-  49; the tool did not.
+  its summary line read `50/50` when 49 programs had executed. The
+  documentation had said 49 all along; the tool contradicted it and the tool
+  was believed.
+
+  Skips are counted separately now, printed as `SKIP` under `--verbose`, and a
+  test asserts a skip can never become a pass. With `shepherd` and `meadow`
+  landing in this same release the count is genuinely 50 of 50, which is the
+  point: the number is true rather than reworded.
 
 - **Heading anchors matched neither GitHub nor themselves.** The site's slug
   generator collapsed a run of spaces into one hyphen where GitHub emits one
@@ -81,6 +89,8 @@ a migration note.
   application guides and the files written for language models, and reads its
   module and diagnostic counts out of the implementation rather than stating
   them by hand.
+
+[0.5.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.5.0
 
 ## [0.4.0], 2026-08-18
 
