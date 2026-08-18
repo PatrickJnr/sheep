@@ -63,6 +63,7 @@
     "gen:playground": "node tools/build-playground.ts",
     "gen:site": "node tools/build-site.ts && node tools/check-site.ts",
     "lint": "node src/cli/index.ts lint examples tests/programs",
+    "lint:rust": "cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings",
     "prepack": "npm run build",
     "serve": "node tools/serve.ts",
     "test": "node --test \"tests/**/*.test.ts\"",

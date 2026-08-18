@@ -45,6 +45,7 @@ without it, and the tests that need it skip with a stated reason.
 ```bash
 cargo build --release --manifest-path rust/Cargo.toml   # once
 cargo test --manifest-path rust/Cargo.toml              # its own units
+npm run lint:rust                                       # clippy, with warnings denied
 npm run test:native                                     # conformance, then the drift guards
 npm run bench:native                                    # before claiming anything is faster
 ```

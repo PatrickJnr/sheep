@@ -481,11 +481,11 @@ fn digits(bytes: &[u8], at: &mut usize, count: usize) -> Option<i64> {
         return None;
     }
     let mut value = 0i64;
-    for index in *at..*at + count {
-        if !bytes[index].is_ascii_digit() {
+    for &byte in &bytes[*at..*at + count] {
+        if !byte.is_ascii_digit() {
             return None;
         }
-        value = value * 10 + i64::from(bytes[index] - b'0');
+        value = value * 10 + i64::from(byte - b'0');
     }
     *at += count;
     Some(value)
