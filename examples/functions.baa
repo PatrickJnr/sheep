@@ -1,0 +1,61 @@
+// Functions, defaults, rest parameters, closures and first-class values.
+
+/// Count the sheep in a flock.
+fn count_sheep(flock) {
+    return flock.length()
+}
+
+// Parameters can have defaults.
+fn greet(name, greeting = "Baa") {
+    return "{greeting}, {name}!"
+}
+
+// `..rest` collects everything left over into an array.
+fn tally(label, ..counts) {
+    return "{label}: {counts.sum()}"
+}
+
+// Functions are values. This one takes another function.
+fn apply_twice(f, value) {
+    return f(f(value))
+}
+
+// Closures capture the scope they were declared in.
+fn make_counter(start) {
+    let count = start
+    return fn() {
+        count += 1
+        return count
+    }
+}
+
+// Functions are hoisted, so this call to `double` resolves fine.
+baa apply_twice(double, 3)
+
+fn double(n) {
+    return n * 2
+}
+
+const FLOCK = ["Dolly", "Shaun", "Lambchop"]
+
+baa count_sheep(FLOCK)
+baa greet("Dolly")
+baa greet("Shaun", "Hello")
+baa tally("this week", 3, 4, 5)
+
+const next = make_counter(10)
+baa next(), next(), next()
+
+// Anonymous functions inline.
+const shout = fn(text) { return text.upper() + "!" }
+baa shout("baa")
+
+// Recursion.
+fn fib(n) {
+    if n < 2 {
+        return n
+    }
+    return fib(n - 1) + fib(n - 2)
+}
+
+baa "fib(20) = {fib(20)}"

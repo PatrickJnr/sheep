@@ -1,0 +1,17 @@
+// FizzBuzz, because a language is not real until it can do this.
+//
+// `match` compares patterns structurally, so a pair of booleans works as a
+// perfectly good pattern without any special destructuring syntax.
+
+fn fizzbuzz(n) {
+    return match [n % 3 == 0, n % 5 == 0] {
+        [true, true] => "FizzBuzz",
+        [true, false] => "Fizz",
+        [false, true] => "Buzz",
+        _ => to_string(n),
+    }
+}
+
+for n in 1..=20 {
+    baa fizzbuzz(n)
+}

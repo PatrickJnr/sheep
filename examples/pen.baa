@@ -1,0 +1,28 @@
+// A module. Anything marked `export` is visible to whoever imports this file.
+
+import ram
+
+export const CAPACITY = 40
+
+/// Add a sheep to the pen, returning the new pen.
+export fn admit(pen, name) {
+    if pen.length() >= CAPACITY {
+        throw "the pen is full"
+    }
+    pen.push(name)
+    return pen
+}
+
+export fn describe(pen) {
+    return match pen.length() {
+        0 => "an empty pen",
+        1 => "one lonely sheep",
+        n if n >= CAPACITY => "a very full pen ({percent_full(n)}% capacity)",
+        n => "{n} sheep",
+    }
+}
+
+// Not exported: private to this module. `import "./pen.baa"` cannot see it.
+fn percent_full(count) {
+    return ram.round(count / CAPACITY * 100)
+}

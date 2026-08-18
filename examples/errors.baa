@@ -1,0 +1,67 @@
+// Errors: throwing, catching, and what a caught runtime error looks like.
+
+// `throw` sends any value up the stack.
+fn admit(pen, name) {
+    if pen.length() >= 3 {
+        throw "the pen is full"
+    }
+    pen.push(name)
+    return pen.length()
+}
+
+const pen = []
+try {
+    for name in ["Dolly", "Shaun", "Timmy", "Shirley"] {
+        baa "admitted {admit(pen, name)}"
+    }
+} catch problem {
+    baa "could not admit: {problem}"
+}
+
+// Thrown values keep their type, so structured errors work.
+fn shear(sheep) {
+    if sheep.get("shorn", false) {
+        throw { code: "ALREADY_SHORN", sheep: sheep.name }
+    }
+    sheep.shorn = true
+    return sheep
+}
+
+try {
+    const dolly = { name: "Dolly", shorn: true }
+    shear(dolly)
+} catch problem {
+    baa "{problem.code}: {problem.sheep}"
+}
+
+// Runtime errors are catchable too. They arrive as a map with a stable code.
+try {
+    const flock = ["Dolly"]
+    baa flock[7]
+} catch problem {
+    baa "caught {problem.code} at line {problem.line}"
+    baa problem.message
+}
+
+// `finally` always runs, whether or not anything went wrong.
+fn guarded(shouldFail) {
+    try {
+        if shouldFail {
+            throw "trouble"
+        }
+        return "fine"
+    } catch problem {
+        return "handled: {problem}"
+    } finally {
+        baa "gate closed"
+    }
+}
+
+baa guarded(false)
+baa guarded(true)
+
+// `assert` and `assert_eq` fail loudly, which is what tests are built on.
+assert(pen.length() == 3, "the pen should hold three sheep")
+assert_eq(pen, ["Dolly", "Shaun", "Timmy"])
+
+baa "all good"

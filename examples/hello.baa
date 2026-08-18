@@ -1,0 +1,12 @@
+// The smallest Baa program that does something.
+// Run it with: baa run examples/hello.baa
+
+baa "Hello, flock!"
+
+const FLOCK = ["Dolly", "Shaun", "Lambchop"]
+
+for name in FLOCK {
+    baa "Baa, {name}!"
+}
+
+baa "That is {len(FLOCK)} sheep, all present and accounted for."

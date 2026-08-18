@@ -1,0 +1,71 @@
+// Arrays and maps, and the methods that come with them.
+
+import flock
+import ram
+
+// ---------------------------------------------------------------- arrays
+
+const names = ["Dolly", "Shaun", "Lambchop"]
+baa names.length(), names.first(), names.last()
+
+names.push("Timmy")
+baa names
+
+// Negative indexes count from the end.
+baa names[0], names[-1]
+
+// Slices are half-open: start included, end excluded.
+baa names.slice(1, 3)
+
+// The usual higher-order suspects.
+const weights = [46.5, 52.0, 38.25, 61.0]
+baa weights.map(fn(w) { return ram.round(w) })
+baa weights.filter(fn(w) { return w > 45 })
+baa weights.reduce(fn(total, w) { return total + w }, 0)
+baa weights.sum(), ram.mean(weights), ram.median(weights)
+
+// Sorting: natural order, or your own comparison.
+baa names.sort()
+baa names.sort(fn(a, b) { return a.length() - b.length() })
+
+// `flock` covers the shapes that are awkward as methods.
+baa flock.zip(names, weights)
+baa flock.chunk([1, 2, 3, 4, 5], 2)
+baa flock.partition([1, 2, 3, 4, 5, 6], fn(n) { return n % 2 == 0 })
+
+// ------------------------------------------------------------------ maps
+
+const sheep = { name: "Dolly", age: 6, woolly: true }
+
+// Fields read with a dot or with an index.
+baa sheep.name, sheep["age"]
+
+// Missing keys read as nil; `get` takes a fallback, `expect` insists.
+baa sheep.get("colour", "white")
+baa sheep.has("age"), sheep.keys(), sheep.values()
+
+sheep.field = "north"
+sheep["age"] = 7
+baa sheep
+
+// Grouping is the map operation people actually reach for.
+const HERD = [
+    { name: "Dolly", farm: "Hill" },
+    { name: "Shaun", farm: "Hill" },
+    { name: "Timmy", farm: "Dale" },
+]
+const by_farm = flock.group_by(HERD, fn(s) { return s.farm })
+for farm, members in by_farm {
+    // Inside `{ ... }` you write ordinary Baa, quotes and all.
+    baa "{farm}: {members.map(fn(s) { return s.name }).join(", ")}"
+}
+
+// Arrays and maps compare by value, not by identity.
+baa [1, 2] == [1, 2]
+baa { a: 1 } == { a: 1 }
+
+// `clone` copies deeply; assignment shares.
+const original = { flock: ["Dolly"] }
+const copy = clone(original)
+copy.flock.push("Shaun")
+baa original.flock, copy.flock

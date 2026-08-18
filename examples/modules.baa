@@ -1,0 +1,31 @@
+// Imports: standard modules, named imports, and local files.
+
+// A standard module, bound to its own name.
+import wool
+
+// Named imports pull individual values into scope.
+import { round, mean } from ram
+
+// A standard module under a different name.
+import meadow as clock
+
+// A local file. The path is relative to this file.
+import "./pen.baa"
+
+baa wool.title_case("the flock is thriving")
+baa round(3.14159, 2), mean([1, 2, 3, 4])
+baa clock.format(0, "YYYY-MM-DD")
+
+const my_pen = []
+pen.admit(my_pen, "Dolly")
+pen.admit(my_pen, "Shaun")
+
+baa pen.describe(my_pen)
+baa "capacity: {pen.CAPACITY}"
+
+// Modules are values: you can pass them around.
+fn report(module, pen) {
+    return module.describe(pen)
+}
+
+baa report(pen, my_pen)

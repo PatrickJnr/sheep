@@ -1,0 +1,42 @@
+// Bindings, constants, and the values Baa can hold.
+
+// `let` binds a name to a value and lets you change it later.
+let sheep = 12
+sheep = sheep + 1
+sheep += 1
+baa "sheep: {sheep}"
+
+// `const` binds a name once. Reassigning it is a BAA103 error.
+const MAX_SHEEP = 100
+baa "capacity: {MAX_SHEEP}"
+
+// The primitive types.
+const name = "Dolly"
+const woolly = true
+const weight = 46.5
+const owner = nil
+
+baa type_of(name), type_of(woolly), type_of(weight), type_of(owner)
+
+// Numbers are one type. Whole and fractional values live together.
+baa 7 / 2, 7 % 2, 2 ** 10
+baa 1_000_000, 0xFF, 0b1010, 0o17
+
+// Strings interpolate with braces, and escape a literal brace with \{.
+baa "The flock holds {sheep} of a maximum {MAX_SHEEP}."
+baa "A literal brace looks like \{this\}."
+
+// `??` supplies a fallback only when the left side is nil.
+baa owner ?? "nobody"
+
+// Strings and numbers concatenate when either side is text.
+baa "sheep #" + sheep
+
+// Comparison and logic.
+baa sheep > 10 && sheep < MAX_SHEEP
+baa !woolly
+
+// Only nil and false are falsy: 0 and "" are truthy.
+if 0 {
+    baa "zero is truthy in Baa"
+}

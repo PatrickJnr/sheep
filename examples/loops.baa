@@ -1,0 +1,64 @@
+// Loops, ranges, and the ways out of them.
+
+import shepherd
+
+const FLOCK = ["Dolly", "Shaun", "Lambchop", "Timmy"]
+
+// Iterate values.
+for name in FLOCK {
+    baa "Baa, {name}!"
+}
+
+// Two bindings give you the index as well.
+for index, name in FLOCK {
+    baa "{index}: {name}"
+}
+
+// Exclusive and inclusive ranges.
+for i in 0..3 {
+    baa "exclusive {i}"
+}
+for i in 1..=3 {
+    baa "inclusive {i}"
+}
+
+// Ranges count down too.
+for i in 3..0 {
+    baa "countdown {i}"
+}
+
+// Strings iterate by character.
+for letter in "baa" {
+    baa letter
+}
+
+// Maps iterate by key, or by key and value.
+const AGES = { Dolly: 6, Shaun: 4, Timmy: 1 }
+for name, age in AGES {
+    baa "{name} is {age}"
+}
+
+// `while`, `break` and `continue`.
+let remaining = 5
+while remaining > 0 {
+    remaining -= 1
+    if remaining == 2 {
+        continue
+    }
+    if remaining == 0 {
+        break
+    }
+    baa "remaining {remaining}"
+}
+
+// Nested loops: `break` leaves the innermost one.
+// `shepherd.write` prints without a newline, unlike `baa`.
+for row in 0..4 {
+    for column in 0..4 {
+        if column > row {
+            break
+        }
+        shepherd.write("#")
+    }
+    baa ""
+}

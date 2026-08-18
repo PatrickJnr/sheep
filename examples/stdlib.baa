@@ -1,0 +1,65 @@
+// A tour of the standard library.
+
+import wool
+import flock
+import ram
+import meadow
+import lamb
+import shepherd
+
+// ------------------------------------------------------------------- wool
+
+baa wool.title_case("a flock of sheep")
+baa wool.snake_case("MaxSheepPerPen")
+baa wool.camel_case("max sheep per pen")
+baa wool.kebab_case("MaxSheepPerPen")
+baa wool.format("%s of %s sheep are shorn", 3, 10)
+baa wool.center("BAA", 11, "-")
+baa wool.wrap("Wool is warm, waterproof and surprisingly good at insulating a small barn.", 30)
+
+// Most string work is a method on the string itself.
+baa "  Dolly  ".trim().upper()
+baa "Dolly,Shaun,Timmy".split(",")
+baa "baa".repeat(3), "dolly".starts_with("do")
+
+// -------------------------------------------------------------------- ram
+
+baa ram.round(3.14159, 3), ram.idiv(7, 2), ram.modulo(-7, 3)
+baa ram.min(4, 9, 2), ram.max(4, 9, 2), ram.clamp(11, 0, 10)
+baa ram.mean([2, 4, 6]), ram.median([5, 1, 9, 3])
+baa ram.to_hex(255), ram.parse("ff", 16)
+baa ram.PI > 3.14 && ram.PI < 3.15
+
+// ------------------------------------------------------------------ flock
+
+baa flock.range(5)
+baa flock.range(1, 10, 3)
+baa flock.to_map([["a", 1], ["b", 2]])
+baa flock.from_keys(["Dolly", "Shaun"], 0)
+baa flock.sort_by([{ n: "c" }, { n: "a" }], fn(x) { return x.n })
+
+// ----------------------------------------------------------------- meadow
+
+// Seeded runs are reproducible: try `baa run --seed 7 examples/stdlib.baa`.
+baa meadow.format(0, "YYYY-MM-DD hh:mm:ss")
+baa meadow.parts(86400000).weekday
+const roll = meadow.random_int(1, 6)
+baa "a die landed on {roll}", roll >= 1 && roll <= 6
+
+// ------------------------------------------------------------------- lamb
+
+const sheep = { name: "Dolly", age: 6, tags: ["ewe", "famous"] }
+const encoded = lamb.encode(sheep)
+baa encoded
+baa lamb.encode(sheep, 2)
+
+const decoded = lamb.decode(encoded)
+baa decoded.name, decoded.tags[1]
+// A literal brace in a string is escaped with a backslash.
+baa lamb.is_valid("\{not json"), lamb.try_decode("\{not json", "fallback")
+
+// --------------------------------------------------------------- shepherd
+
+baa "running on {shepherd.PLATFORM}"
+baa "arguments: {shepherd.args()}"
+baa "PATH is set: {shepherd.env("PATH") != nil}"

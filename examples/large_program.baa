@@ -1,0 +1,211 @@
+// A larger program: a flock register that parses records, validates them,
+// computes statistics and prints a report. It exercises most of the language
+// in one place, and it is the program `baa bench` times.
+//
+//     baa run examples/large_program.baa
+
+import wool
+import flock
+import ram
+import lamb
+
+const HEADER = "name,farm,age,weight,shorn"
+
+const RAW = [
+    "Dolly,Hill,6,46.5,true",
+    "Shaun,Hill,4,52.0,false",
+    "Lambchop,Dale,2,38.25,true",
+    "Timmy,Dale,1,21.0,false",
+    "Shirley,Hill,7,61.0,true",
+    "Nuts,Meadowbank,3,44.75,false",
+    "Hazel,Meadowbank,5,49.5,true",
+    "Bitzer,Hill,8,58.0,false",
+]
+
+// --------------------------------------------------------------- parsing
+
+/// Turn one CSV line into a sheep record, or throw a descriptive error.
+fn parse_sheep(line, line_number) {
+    const fields = line.split(",")
+    if fields.length() != 5 {
+        throw {
+            code: "BAD_RECORD",
+            line: line_number,
+            detail: "expected 5 fields, found {fields.length()}",
+        }
+    }
+
+    const age = fields[2].to_number()
+    const weight = fields[3].to_number()
+    if age == nil || weight == nil {
+        throw {
+            code: "BAD_NUMBER",
+            line: line_number,
+            detail: "age and weight must be numbers",
+        }
+    }
+
+    return {
+        name: fields[0],
+        farm: fields[1],
+        age: age,
+        weight: weight,
+        shorn: fields[4] == "true",
+    }
+}
+
+fn parse_all(lines) {
+    const register = []
+    const problems = []
+    for index, line in lines {
+        try {
+            register.push(parse_sheep(line, index + 1))
+        } catch problem {
+            problems.push(problem)
+        }
+    }
+    return { register: register, problems: problems }
+}
+
+// ------------------------------------------------------------ statistics
+
+fn stats_for(sheep) {
+    const weights = sheep.map(fn(s) { return s.weight })
+    const ages = sheep.map(fn(s) { return s.age })
+    return {
+        count: sheep.length(),
+        total_weight: ram.round(weights.sum(), 2),
+        mean_weight: ram.round(ram.mean(weights), 2),
+        median_weight: ram.round(ram.median(weights), 2),
+        oldest: ages.sort().last(),
+        shorn: sheep.count(fn(s) { return s.shorn }),
+    }
+}
+
+fn describe_size(count) {
+    return match count {
+        0 => "empty",
+        1 => "a single sheep",
+        2 || 3 => "a small flock",
+        n if n >= 8 => "a proper flock",
+        _ => "a decent flock",
+    }
+}
+
+// --------------------------------------------------------------- report
+
+fn column_widths(rows) {
+    const widths = []
+    for row in rows {
+        for index, cell in row {
+            const width = cell.length()
+            if index >= widths.length() {
+                widths.push(width)
+            } else if width > widths[index] {
+                widths[index] = width
+            }
+        }
+    }
+    return widths
+}
+
+fn render_table(rows) {
+    const widths = column_widths(rows)
+    const lines = []
+    for row_index, row in rows {
+        const cells = []
+        for index, cell in row {
+            cells.push(cell.pad_end(widths[index]))
+        }
+        lines.push(cells.join("  ").trim_end())
+        if row_index == 0 {
+            const rule = []
+            for width in widths {
+                rule.push("-".repeat(width))
+            }
+            lines.push(rule.join("  "))
+        }
+    }
+    return lines.join("\n")
+}
+
+// ----------------------------------------------------------------- main
+
+fn main() {
+    baa wool.center(" FLOCK REGISTER ", 46, "=")
+    baa ""
+
+    const parsed = parse_all(RAW)
+    const register = parsed.register
+
+    if parsed.problems.length() > 0 {
+        baa "Rejected {parsed.problems.length()} record(s):"
+        for problem in parsed.problems {
+            baa "  line {problem.line}: {problem.code}, {problem.detail}"
+        }
+        baa ""
+    }
+
+    // Table of every sheep, heaviest first.
+    const rows = [HEADER.split(",").map(fn(h) { return h.upper() })]
+    const heaviest_first = register.sort(fn(a, b) { return b.weight - a.weight })
+    for sheep in heaviest_first {
+        rows.push([
+            sheep.name,
+            sheep.farm,
+            to_string(sheep.age),
+            sheep.weight.to_fixed(2),
+            match sheep.shorn {
+                true => "yes",
+                _ => "no",
+            },
+        ])
+    }
+    baa render_table(rows)
+    baa ""
+
+    // Per-farm breakdown.
+    const by_farm = flock.group_by(register, fn(s) { return s.farm })
+    const farms = by_farm.keys().sort()
+    baa "By farm ({farms.length()} farms, {describe_size(register.length())}):"
+    for farm in farms {
+        const stats = stats_for(by_farm[farm])
+        const name = farm.pad_end(12)
+        const count = to_string(stats.count).pad_start(2)
+        const mean = to_string(stats.mean_weight).pad_start(6)
+        baa "  {name} {count} sheep, mean {mean}kg, {stats.shorn} shorn"
+    }
+    baa ""
+
+    // Whole-flock statistics.
+    const overall = stats_for(register)
+    baa "Whole flock:"
+    for key in overall.keys() {
+        baa "  {key.pad_end(14)} {overall[key]}"
+    }
+    baa ""
+
+    // Round-trip through JSON, because every real program eventually does.
+    const encoded = lamb.encode({ flock: register, stats: overall }, 0)
+    const decoded = lamb.decode(encoded)
+    assert_eq(decoded.flock.length(), register.length(), "JSON round trip")
+    baa "JSON round trip: {encoded.length()} bytes, {decoded.flock.length()} sheep recovered"
+
+    // A closure-driven tally, for the sake of closures.
+    const counter = make_tally()
+    for sheep in register {
+        if sheep.age >= 5 {
+            counter.add(sheep.name)
+        }
+    }
+    baa "Five years or older: {counter.names().join(", ")}"
+
+    return 0
+}
+
+fn make_tally() {
+    const names = []
+    return { add: fn(name) { names.push(name) }, names: fn() { return names } }
+}
+
+main()
