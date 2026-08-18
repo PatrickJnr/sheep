@@ -10,9 +10,14 @@
  */
 
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { check, lint, run } from "../src/api.ts";
+
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 function output(source: string): string {
   const result = run(source, "test.baa");
@@ -233,4 +238,38 @@ describe("regression: the linter reaches every expression", () => {
       );
     });
   }
+});
+
+describe("regression: files that must be identical on every platform", () => {
+  // The Windows CI runners check files out as CRLF unless told otherwise. The
+  // interpreter writes `\n`, so every recorded transcript mismatched there
+  // while passing on Linux, macOS and any Windows machine with
+  // `core.autocrlf=input`. `.gitattributes` pins the working tree to LF.
+  it("records example output with no carriage returns", () => {
+    const dir = join(ROOT, "tests", "expected");
+    for (const name of readdirSync(dir)) {
+      const text = readFileSync(join(dir, name), "utf8");
+      assert.ok(!text.includes("\r"), `${name} contains a carriage return`);
+    }
+  });
+
+  it("pins line endings so a checkout cannot introduce them", () => {
+    const attributes = readFileSync(join(ROOT, ".gitattributes"), "utf8");
+    assert.match(attributes, /^\* text=auto eol=lf$/m);
+  });
+
+  // `shepherd.PLATFORM` was rendered as its value on the generating machine,
+  // so the committed table read `win32`: `--check` failed on Linux, and every
+  // reader not on Windows was told something untrue.
+  it("generates documentation that names no particular machine", () => {
+    const docs = readFileSync(join(ROOT, "docs", "stdlib.md"), "utf8");
+    for (const [row] of docs.matchAll(/^\|.*$/gm)) {
+      if (!/shepherd\.(PLATFORM|ARCH)/.test(row)) continue;
+      assert.doesNotMatch(
+        row,
+        /\|\s*`(win32|linux|darwin|x64|arm64|ia32)`\s*\|/,
+        `a host-specific value reached the generated docs: ${row}`,
+      );
+    }
+  });
 });

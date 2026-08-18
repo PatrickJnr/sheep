@@ -1,0 +1,29 @@
+# Line endings.
+#
+# Every text file is LF in the repository *and* in the working tree, on every
+# platform. `eol=lf` is the part that matters: without it, git on Windows
+# checks files out as CRLF, and the recorded example transcripts in
+# `tests/expected/` then differ from what the interpreter produces, which is
+# `\n`. That failed on the Windows CI runners while passing everywhere else.
+#
+# This also keeps `tools/gen-docs.ts --check` honest: a generator that writes
+# LF must not be compared against a working tree that has been rewritten to
+# CRLF behind its back.
+* text=auto eol=lf
+
+# Binary, so git never inspects or rewrites the contents.
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff2 binary
+
+# Generated, and not worth reviewing line by line in a diff.
+package-lock.json linguist-generated=true
+tests/conformance/*.json linguist-generated=true
+docs/stdlib.md linguist-generated=true
+docs/errors.md linguist-generated=true
+
+# Baa is the point of the repository, so let it count towards the language
+# statistics rather than being written off as unrecognised text.
+*.baa linguist-language=Baa

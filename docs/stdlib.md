@@ -324,8 +324,8 @@ import shepherd
 
 | Constant | Value |
 | --- | --- |
-| `shepherd.PLATFORM` | `win32` |
-| `shepherd.ARCH` | `x64` |
+| `shepherd.PLATFORM` | the host platform: `win32`, `linux`, `darwin`, ... |
+| `shepherd.ARCH` | the host architecture: `x64`, `arm64`, ... |
 
 | Function | Arguments | Description |
 | --- | --- | --- |
