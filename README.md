@@ -18,7 +18,7 @@ messages, and extremely questionable sheep-related naming decisions.
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F4B3F)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.18-2F4B3F)](https://nodejs.org)
 [![npm](https://img.shields.io/npm/v/baa-lang?color=2F4B3F&label=npm)](https://www.npmjs.com/package/baa-lang)
-[![VS Code](https://img.shields.io/visual-studio-marketplace/v/baa-lang.baa-lang?color=2F4B3F&label=vs%20code)](https://marketplace.visualstudio.com/items?itemName=baa-lang.baa-lang)
+[![VS Code](https://img.shields.io/badge/vs%20code-marketplace-2F4B3F)](https://marketplace.visualstudio.com/items?itemName=baa-lang.baa-lang)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-none-2F4B3F)](package.json)
 
 **[Website](https://sheep.grimtech.co.uk)** ·

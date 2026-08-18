@@ -170,6 +170,29 @@ describe("brand images", () => {
       "embed brand images from the site, not from raw.githubusercontent.com",
     );
   });
+
+  it("uses no badge endpoint that has been retired", () => {
+    // The marketplace badge rendered the words "retired badge" in the README
+    // for a day: Shields withdrew its `visual-studio-marketplace` family, and
+    // a withdrawn badge still answers 200 with a picture, so nothing looked
+    // broken from here. A badge whose *content* is the failure cannot be
+    // caught by a link check, only by knowing which ones are gone.
+    const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+    const retired = [
+      "img.shields.io/visual-studio-marketplace",
+      // Shields' own list of withdrawn services; add to this when one goes,
+      // rather than discovering it in a screenshot.
+      "img.shields.io/bower",
+      "img.shields.io/david",
+      "img.shields.io/snyk",
+    ];
+    for (const endpoint of retired) {
+      assert.ok(
+        !readme.includes(endpoint),
+        `${endpoint} is retired and renders "retired badge"; use a static badge instead`,
+      );
+    }
+  });
 });
 
 describe("website build", needsSite, () => {
