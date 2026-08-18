@@ -8,3 +8,15 @@ baa.lock
 # The website is built and deployed separately, and is not published here.
 # Everything under it, sources and build output alike, stays out of the repo.
 website/
+
+# Rust build output. The native runtime's source lives in rust/crates/; its
+# target directory is several hundred megabytes of intermediate objects and is
+# rebuilt from source by `cargo build`.
+rust/target/
+**/*.rs.bk
+*.pdb
+
+# Built native applications: `baa app build` writes here, and an executable is
+# a build artefact like any other.
+build/
+*.fleece

@@ -1,0 +1,17 @@
+[package]
+name = "baa-native"
+version = "0.4.0"
+edition = "2021"
+rust-version = "1.74"
+description = "The Baa native application runtime: runs a .fleece image and draws a real window."
+license = "MIT"
+
+# No dependencies, on purpose. Baa ships none, and the Win32 functions this
+# needs are declared in src/gui/win32.rs: a few dozen lines of extern block
+# against a stable operating-system ABI, rather than a bindings crate whose
+# version becomes something to maintain.
+[dependencies]
+
+[lib]
+name = "baa_native"
+path = "src/lib.rs"

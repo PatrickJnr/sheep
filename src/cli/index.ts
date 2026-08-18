@@ -61,6 +61,7 @@ COMMANDS
   repl                  Start an interactive session
   init [dir]            Create a new project
   build                 Validate the project and write baa.lock
+  app <action>          Native applications: new, build, run, test
   add <name> --path P   Add a local dependency
   remove <name>         Remove a dependency
   doctor                Check the installation and project
@@ -182,6 +183,8 @@ const VALUE_FLAGS = new Set([
   "name",
   "path",
   "disable",
+  "entry",
+  "out",
 ]);
 
 function parseArgs(argv: readonly string[]): Parsed {
@@ -343,6 +346,20 @@ export async function main(argv: readonly string[]): Promise<number> {
         );
       case "build":
         return commandBuild({ locked: parsed.booleans.has("locked") }, context);
+      case "app": {
+        const { commandApp } = await import("./app.ts");
+        return commandApp(
+          {
+            action: parsed.positionals[0] ?? "",
+            positionals: parsed.positionals.slice(1),
+            flags: parsed.booleans,
+            options: new Map(
+              [...parsed.options.entries()].map(([key, values]) => [key, values[values.length - 1] ?? ""]),
+            ),
+          },
+          context,
+        );
+      }
       case "init":
         return commandInit(
           {

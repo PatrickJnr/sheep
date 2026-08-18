@@ -55,8 +55,25 @@ export class Lexer {
   readonly #end: number;
   #pos: number;
   #tokens: Token[];
-  /** Nesting depth of `(` and `[`, inside which newlines are insignificant. */
-  #groupDepth: number;
+  /**
+   * The brackets currently open, innermost last.
+   *
+   * A newline inside `(` or `[` is insignificant, because an argument list or
+   * an array literal that spans lines is still one expression. Inside `{` it
+   * is significant again, because a block that spans lines is several
+   * statements. Only the innermost bracket decides, which is what lets a
+   * multi-line function body be an argument:
+   *
+   *     barn.on(button, "click", fn() {
+   *         state = next(state)
+   *         refresh()
+   *     })
+   *
+   * A depth counter cannot express that: it would suppress the newline after
+   * `next(state)` because a `(` is open somewhere further out, and the two
+   * statements would run together into a syntax error pointing at `refresh`.
+   */
+  #groups: string[];
   #pendingComments: Comment[];
   #pendingBlankLines: number;
   /** Whether a token or comment has appeared on the current physical line. */
@@ -73,7 +90,7 @@ export class Lexer {
     this.#end = end;
     this.#pos = start;
     this.#tokens = [];
-    this.#groupDepth = 0;
+    this.#groups = [];
     this.#pendingComments = [];
     this.#pendingBlankLines = 0;
     this.#lineOpen = false;
@@ -195,7 +212,8 @@ export class Lexer {
   }
 
   #suppressNewline(): boolean {
-    if (this.#groupDepth > 0) return true;
+    const bracket = this.#groups[this.#groups.length - 1];
+    if (bracket === "(" || bracket === "[") return true;
     const last = this.#tokens[this.#tokens.length - 1];
     if (last !== undefined && CONTINUES_AFTER.has(last.kind)) return true;
     return this.#nextLineContinues();
@@ -386,8 +404,8 @@ export class Lexer {
     };
     const kind = singles[ch];
     if (kind !== undefined) {
-      if (ch === "(" || ch === "[") this.#groupDepth++;
-      if (ch === ")" || ch === "]") this.#groupDepth = Math.max(0, this.#groupDepth - 1);
+      if (ch === "(" || ch === "[" || ch === "{") this.#groups.push(ch);
+      if (ch === ")" || ch === "]" || ch === "}") this.#groups.pop();
       this.#push(kind, ch, this.#span(start));
       return;
     }

@@ -1,0 +1,359 @@
+/**
+ * `baa app`: native applications.
+ *
+ * Baa is a web and scripting language, and `.baa` keeps meaning what it always
+ * meant. A native application is not a different kind of file, it is a
+ * different way of running the same files: instead of a web server executing a
+ * page per request, a runtime built for the desktop holds the program open and
+ * draws a window for it.
+ *
+ * So there is no new extension and no second language. What `baa app build`
+ * produces is one executable containing this runtime and the program, and the
+ * only thing that makes a program an application rather than a script is that
+ * it imports `barn` and asks for a window.
+ */
+
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { basename, dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+import { bundle, BundleError, NATIVE_MODULES } from "../native/bundle.ts";
+import { findManifest, parseToml, readManifest } from "../project/manifest.ts";
+import type { CommandContext } from "./commands.ts";
+import { printDiagnostics, writeError, writeLine } from "./output.ts";
+
+/** Marks the end of an executable that has an image appended to it. */
+const FOOTER = "BAAFLEECE";
+
+export type AppArgs = {
+  readonly action: string;
+  readonly positionals: readonly string[];
+  readonly flags: ReadonlySet<string>;
+  readonly options: ReadonlyMap<string, string>;
+};
+
+export function commandApp(args: AppArgs, context: CommandContext): number {
+  switch (args.action) {
+    case "new":
+      return appNew(args);
+    case "build":
+      return appBuild(args, context, { run: false });
+    case "run":
+      return appBuild(args, context, { run: true });
+    case "test":
+      return appBuild(args, context, { run: true, tests: true });
+    case "":
+    case "help":
+      writeLine(usage());
+      return 0;
+    default:
+      writeError(`Unknown \`baa app\` action \`${args.action}\`.\n\n${usage()}`);
+      return 2;
+  }
+}
+
+function usage(): string {
+  return `baa app <action>
+
+  new <dir>     Create a native application project
+  build         Build a Windows executable
+  run           Build and run, with output on this terminal
+  test          Run the project's \`test\` blocks on the native runtime
+
+Options:
+  --out <dir>   Where to write the executable (default: build/)
+  --console     Build the console runtime, so \`baa\` output has somewhere to go
+  --entry <f>   Entry file, when there is no baa.toml
+
+A native application imports \`barn\` and draws a window. Standard modules a
+native application can use: ${NATIVE_MODULES.join(", ")}.
+See docs/native-applications.md.
+`;
+}
+
+// ------------------------------------------------------------------ scaffold
+
+function appNew(args: AppArgs): number {
+  const target = resolve(args.positionals[0] ?? ".");
+  const name = args.options.get("name") ?? basename(target);
+  mkdirSync(target, { recursive: true });
+
+  if (existsSync(join(target, "baa.toml")) && !args.flags.has("force")) {
+    writeError(`${join(target, "baa.toml")} already exists. Use --force to overwrite.`);
+    return 1;
+  }
+
+  writeFileSync(join(target, "baa.toml"), manifestFor(name), "utf8");
+  writeFileSync(join(target, "main.baa"), STARTER, "utf8");
+  mkdirSync(join(target, "tests"), { recursive: true });
+  writeFileSync(join(target, "tests", "counter_test.baa"), STARTER_TEST, "utf8");
+  writeFileSync(join(target, "counter.baa"), STARTER_LOGIC, "utf8");
+
+  writeLine(
+    `Created ${name}.\n\n` +
+      `  cd ${basename(target)}\n` +
+      "  baa app run          # build and run it\n" +
+      "  baa test             # its logic, with no window involved\n",
+  );
+  return 0;
+}
+
+function manifestFor(name: string): string {
+  return `# Baa project manifest.
+[flock]
+name = "${name}"
+version = "0.1.0"
+description = "A native Baa application."
+entry = "main.baa"
+
+# Everything under [app] describes the executable rather than the program.
+[app]
+title = "${name}"
+width = "420"
+height = "260"
+`;
+}
+
+const STARTER = `/// A native application: a window, a label and a button.
+///
+/// The counting lives in counter.baa, which imports no \`barn\` and so can be
+/// tested without a screen. That split is the point: the window is the part
+/// that needs a person to look at it, and it should be the smallest part.
+import barn
+import "./counter.baa" as counter
+
+let state = counter.start()
+
+const window = barn.window({ title: "Counter", width: 320, height: 160 })
+const layout = barn.column(window, { weight: 1, spacing: 12 })
+const display = barn.label(layout, { text: counter.label(state), align: "center", size: 22, weight: 1 })
+const buttons = barn.row(layout, { spacing: 8 })
+const down = barn.button(buttons, { text: "Fewer" })
+const up = barn.button(buttons, { text: "More" })
+
+fn refresh() {
+    barn.set_text(display, counter.label(state))
+}
+
+barn.on(up, "click", fn() {
+    state = counter.up(state)
+    refresh()
+})
+
+barn.on(down, "click", fn() {
+    state = counter.down(state)
+    refresh()
+})
+
+barn.show(window)
+barn.run()
+`;
+
+const STARTER_LOGIC = `/// The counting. No window in sight, which is what makes it testable.
+
+export fn start() {
+    return { sheep: 0 }
+}
+
+export fn up(state) {
+    return { sheep: state.sheep + 1 }
+}
+
+export fn down(state) {
+    if state.sheep == 0 {
+        return state
+    }
+    return { sheep: state.sheep - 1 }
+}
+
+export fn label(state) {
+    if state.sheep == 1 {
+        return "1 sheep"
+    }
+    return "{state.sheep} sheep"
+}
+`;
+
+const STARTER_TEST = `import "../counter.baa" as counter
+
+test "starts empty" {
+    assert_eq(counter.start().sheep, 0)
+}
+
+test "counts up and down" {
+    let state = counter.up(counter.up(counter.start()))
+    assert_eq(state.sheep, 2)
+    assert_eq(counter.down(state).sheep, 1)
+}
+
+test "never counts below zero" {
+    assert_eq(counter.down(counter.start()).sheep, 0)
+}
+
+test "says sheep properly" {
+    assert_eq(counter.label({ sheep: 1 }), "1 sheep")
+    assert_eq(counter.label({ sheep: 4 }), "4 sheep")
+}
+`;
+
+// --------------------------------------------------------------------- build
+
+function appBuild(
+  args: AppArgs,
+  context: CommandContext,
+  mode: { run: boolean; tests?: boolean },
+): number {
+  const cwd = process.cwd();
+  const manifestPath = findManifest(cwd);
+  let entry = args.options.get("entry");
+  let root = cwd;
+  let name = basename(cwd);
+  let app: Record<string, string> = {};
+
+  if (manifestPath !== null) {
+    const manifest = readManifest(manifestPath);
+    root = manifest.root;
+    name = manifest.name;
+    entry = entry ?? join(manifest.root, manifest.entry);
+    app = appSection(manifestPath);
+    app.name = app.name ?? manifest.name;
+    app.version = app.version ?? manifest.version;
+    app.title = app.title ?? manifest.name;
+  }
+  if (entry === undefined) {
+    writeError(
+      "No `baa.toml` here and no `--entry`.\n" +
+        "Run `baa app new .` to create a project, or name the file: `baa app build --entry main.baa`.",
+    );
+    return 2;
+  }
+  entry = resolve(root, entry);
+
+  let built;
+  try {
+    built = bundle({ entry, root, app });
+  } catch (error) {
+    if (error instanceof BundleError) {
+      writeError(error.message);
+      printDiagnostics(error.diagnostics, context.colour);
+      return 1;
+    }
+    throw error;
+  }
+
+  // Running is a build to a temporary image plus the console runtime, so that
+  // `baa` output lands on this terminal. Nothing is written to the project.
+  if (mode.run) {
+    const host = findHost({ windowed: false });
+    if (host === null) return 1;
+    const image = join(tmpdir(), `baa-${process.pid}.fleece`);
+    writeFileSync(image, built.bytes);
+    const runArgs = mode.tests ? ["--test", image] : [image];
+    const outcome = spawnSync(host, runArgs, { stdio: "inherit" });
+    if (outcome.error) {
+      writeError(`could not run ${host}: ${outcome.error.message}`);
+      return 1;
+    }
+    return outcome.status ?? 0;
+  }
+
+  const windowed = !args.flags.has("console");
+  const host = findHost({ windowed });
+  if (host === null) return 1;
+
+  const outDir = resolve(root, args.options.get("out") ?? "build");
+  mkdirSync(outDir, { recursive: true });
+  const executable = join(outDir, `${app.name ?? name}${process.platform === "win32" ? ".exe" : ""}`);
+
+  try {
+    copyFileSync(host, executable);
+    appendImage(executable, built.bytes);
+  } catch (error) {
+    // Windows locks a running executable, so the second build of an
+    // application you left open fails here. The system's message for that is
+    // `EBUSY: resource busy or locked`, which is true and unhelpful.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "EBUSY" || code === "EPERM" || code === "ETXTBSY") {
+      writeError(
+        `Cannot write ${executable}: it is running.
+` +
+          "Close the application and build again.",
+      );
+      return 1;
+    }
+    throw error;
+  }
+  if (process.platform !== "win32") chmodSync(executable, 0o755);
+
+  const size = statSync(executable).size;
+  writeLine(
+    `Built ${executable}\n` +
+      `  ${built.modules.length} module${built.modules.length === 1 ? "" : "s"}` +
+      (built.stdlib.length > 0 ? `, using ${built.stdlib.join(", ")}` : "") +
+      `\n  ${(size / 1024).toFixed(0)} KB, ${windowed ? "windowed" : "console"}\n`,
+  );
+  return 0;
+}
+
+/**
+ * Appends the image and a footer naming its length.
+ *
+ * Appending rather than embedding as a resource means `baa app build` needs no
+ * compiler and no linker: it copies a file and adds bytes to the end of it,
+ * which Windows ignores and which the runtime knows to look for. The cost is
+ * that the icon and version metadata belong to the runtime rather than to the
+ * application; ROADMAP.md has that as the next piece of work here.
+ */
+function appendImage(executable: string, image: Uint8Array): void {
+  const host = readFileSync(executable);
+  const length = Buffer.alloc(8);
+  length.writeBigUInt64LE(BigInt(image.length));
+  writeFileSync(executable, Buffer.concat([host, Buffer.from(image), length, Buffer.from(FOOTER, "ascii")]));
+}
+
+function appSection(manifestPath: string): Record<string, string> {
+  const document = parseToml(readFileSync(manifestPath, "utf8"), manifestPath);
+  const table = document.app ?? {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(table)) {
+    if (typeof value === "string") out[key] = value;
+    else if (typeof value === "number" || typeof value === "boolean") out[key] = String(value);
+  }
+  return out;
+}
+
+/**
+ * The native runtime binary.
+ *
+ * It is a compiled artefact, so it is either built from `rust/` in this
+ * repository or shipped beside the CLI. When it is missing, saying how to
+ * build it is more useful than saying it is missing.
+ */
+function findHost(options: { windowed: boolean }): string | null {
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const name = `${options.windowed ? "baa-nativew" : "baa-native"}${exe}`;
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.BAA_NATIVE_HOST ? join(process.env.BAA_NATIVE_HOST, name) : null,
+    join(here, "..", "..", "native", name),
+    join(here, "..", "..", "rust", "target", "release", name),
+    join(here, "..", "..", "rust", "target", "debug", name),
+    join(process.cwd(), "rust", "target", "release", name),
+    join(process.cwd(), "rust", "target", "debug", name),
+  ].filter((candidate): candidate is string => candidate !== null);
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+
+  writeError(
+    `The native runtime (${name}) is not built.\n\n` +
+      "  cargo build --release --manifest-path rust/Cargo.toml\n\n" +
+      "Or point BAA_NATIVE_HOST at the directory holding it. The runtime is\n" +
+      "Rust and needs a Rust toolchain; the language itself does not.",
+  );
+  return null;
+}

@@ -1,0 +1,146 @@
+/// The Baa calculator, as a native Windows application.
+///
+/// The arithmetic is not written here. It is
+/// [`examples/apps/calculator/expression.baa`](../../apps/calculator/expression.baa),
+/// the same tokeniser and precedence-climbing parser the web calculator uses,
+/// imported unchanged. That module imports no `gate` and no `barn`: it takes
+/// text and returns a number, which is why it can have two front ends and one
+/// set of tests.
+///
+/// The arrangement is the point of the whole native platform. A window is a
+/// way of showing a program to somebody, not a different kind of program.
+///
+///     baa app run     # from this directory
+///     baa app build   # build/Calculator.exe
+import barn
+import { evaluate, present } from "../../apps/calculator/expression.baa"
+
+/// The buttons, row by row. The layout comes out of this shape rather than
+/// being described twice.
+const KEYS = [
+    ["(", ")", "%", "^"],
+    ["7", "8", "9", "/"],
+    ["4", "5", "6", "*"],
+    ["1", "2", "3", "-"],
+    ["0", ".", "=", "+"],
+]
+
+const HISTORY_LIMIT = 8
+
+let expression = ""
+let history = []
+
+const window = barn.window({ title: "Calculator", width: 340, height: 460 })
+const layout = barn.column(window, { weight: 1, spacing: 8 })
+
+const display = barn.label(layout, { text: "0", align: "right", size: 26, height: 44 })
+const entry = barn.input(layout, { text: "", align: "right" })
+const past = barn.list(layout, { weight: 1 })
+
+/// Show what the display should say for the current expression.
+///
+/// Evaluating on every keystroke is what makes the top line a preview rather
+/// than a thing you have to ask for. `evaluate` never fails, it returns a map
+/// saying whether it worked, so a half-typed expression shows the last good
+/// answer instead of an error.
+fn refresh() {
+    barn.set_text(entry, expression)
+    if expression.trim() == "" {
+        barn.set_text(display, "0")
+        return
+    }
+    const result = evaluate(expression)
+    if result.ok {
+        barn.set_text(display, present(result.value))
+    } else {
+        barn.set_text(display, "…")
+    }
+}
+
+fn remember(text, value) {
+    history = [text + " = " + value] + history
+    if history.length() > HISTORY_LIMIT {
+        history = history.slice(0, HISTORY_LIMIT)
+    }
+    barn.set_items(past, history)
+}
+
+/// What a key does. Everything except `=` appends, which is the whole of the
+/// input model: the parser deals with what the text means.
+fn press(key) {
+    if key == "=" {
+        const result = evaluate(expression)
+        if result.ok {
+            const answer = present(result.value)
+            remember(expression, answer)
+            barn.set_text(display, answer)
+            expression = answer
+            barn.set_text(entry, expression)
+        } else {
+            barn.set_text(display, result.message)
+        }
+        return
+    }
+    expression += key
+    refresh()
+}
+
+for row in KEYS {
+    const line = barn.row(layout, { spacing: 6 })
+    for key in row {
+        const button = barn.button(line, { text: key })
+        // Bound to a name so the handler captures this key rather than
+        // whatever `key` holds when the loop has finished.
+        const label = key
+        fn on_press() {
+            press(label)
+        }
+        barn.on(button, "click", on_press)
+    }
+}
+
+const controls = barn.row(layout, { spacing: 6 })
+const back = barn.button(controls, { text: "Back" })
+const clear = barn.button(controls, { text: "Clear" })
+const copy = barn.button(controls, { text: "Copy" })
+
+fn on_back() {
+    if expression.length() > 0 {
+        expression = expression.slice(0, expression.length() - 1)
+        refresh()
+    }
+}
+
+fn on_clear() {
+    expression = ""
+    refresh()
+}
+
+/// Copies the answer rather than the expression: what somebody wants out of a
+/// calculator is the number.
+fn on_copy() {
+    barn.set_clipboard(barn.text(display))
+}
+
+/// Typing into the field is the same input path as the buttons, so the two
+/// cannot disagree about what the expression is.
+fn on_typed() {
+    expression = barn.text(entry)
+    const result = evaluate(expression)
+    if expression.trim() == "" {
+        barn.set_text(display, "0")
+    } else if result.ok {
+        barn.set_text(display, present(result.value))
+    } else {
+        barn.set_text(display, "…")
+    }
+}
+
+barn.on(back, "click", on_back)
+barn.on(clear, "click", on_clear)
+barn.on(copy, "click", on_copy)
+barn.on(entry, "change", on_typed)
+
+barn.show(window)
+barn.focus(entry)
+barn.run()

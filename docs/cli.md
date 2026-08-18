@@ -309,6 +309,55 @@ question is whether the tree still matches what was committed:
 baa build --locked   # exits non-zero if any dependency has changed
 ```
 
+## `baa app`
+
+```
+baa app new <dir>
+baa app build [--out <dir>] [--console]
+baa app run
+baa app test
+```
+
+Native applications: a Baa program that opens a real window instead of
+answering a web request. `build` produces a single Windows executable with the
+runtime and the program inside it, needing no Node.js on the machine that runs
+it.
+
+| Action | Effect |
+| --- | --- |
+| `new <dir>` | Create an application project: manifest, entry point, a logic module and its tests |
+| `build` | Write `build/<name>.exe` |
+| `run` | Build to a temporary image and run it with a console attached |
+| `test` | Run the project's `test` blocks on the native runtime |
+
+| Option | Effect |
+| --- | --- |
+| `--out <dir>` | Where to write the executable. Default `build/` |
+| `--console` | Build on the console runtime, so `baa` output has somewhere to go |
+| `--entry <file>` | Entry point, when there is no `baa.toml` |
+
+```bash
+baa app new pen_counter
+cd pen_counter
+baa test          # the logic, with no window involved
+baa app run       # the window
+baa app build     # build/pen_counter.exe
+```
+
+An application imports [`barn`](gui.md) and draws its window. `gate`, which
+serves web pages, is not available to one: those are different targets, and
+importing the wrong one is a build error naming the module rather than a
+failure in front of a user.
+
+Building needs the native runtime, which is Rust and is compiled separately:
+
+```bash
+cargo build --release --manifest-path rust/Cargo.toml
+```
+
+The language itself needs no Rust. See
+[native-applications.md](native-applications.md).
+
 ## `baa add` / `baa remove`
 
 ```

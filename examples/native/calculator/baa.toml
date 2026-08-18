@@ -1,0 +1,11 @@
+# The native calculator.
+[flock]
+name = "Calculator"
+version = "0.4.0"
+description = "The Baa calculator, as a native Windows application."
+entry = "main.baa"
+
+[app]
+title = "Calculator"
+width = "340"
+height = "460"
