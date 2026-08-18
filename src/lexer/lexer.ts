@@ -89,6 +89,7 @@ export class Lexer {
   }
 
   run(): Token[] {
+    this.#skipShebang();
     for (;;) {
       this.#skipTrivia();
       if (this.#pos >= this.#end) break;
@@ -96,6 +97,23 @@ export class Lexer {
     }
     this.#push("eof", "", this.#file.span(this.#end, this.#end));
     return this.#tokens;
+  }
+
+  /**
+   * Ignore a `#!` line at the very start of a file.
+   *
+   * `#` is not otherwise part of Baa, so this cannot be confused with anything
+   * else, and only the first two characters of the file qualify. It is what
+   * lets a `.baa` file be an executable script: a CGI page under Apache, or
+   * anything else the operating system runs by shebang.
+   *
+   * Skipped rather than tokenized as a comment, because the formatter would
+   * then be free to move it, and a shebang anywhere but the first line is not
+   * a shebang.
+   */
+  #skipShebang(): void {
+    if (this.#pos !== 0 || this.#text[0] !== "#" || this.#text[1] !== "!") return;
+    while (this.#pos < this.#end && this.#peek() !== "\n") this.#pos++;
   }
 
   // ------------------------------------------------------------------ chars
@@ -368,7 +386,7 @@ export class Lexer {
     throw BaaError.of("BAA002", [JSON.stringify(ch)], {
       span: this.#span(start),
       note: "unexpected here",
-      help: "Baa source is plain ASCII outside of strings and comments.",
+      help: helpForStrayCharacter(ch),
     });
   }
 
@@ -594,6 +612,42 @@ export class Lexer {
       });
     }
     return { kind: "expr", source, offset: exprStart };
+  }
+}
+
+/**
+ * Advice for a character Baa does not use.
+ *
+ * The old blanket answer was "Baa source is plain ASCII outside of strings and
+ * comments", which is unhelpful when the character *is* ASCII: `?` used to be
+ * told it was not ASCII, which is both wrong and no help at all in working out
+ * what to write instead.
+ */
+function helpForStrayCharacter(ch: string): string {
+  switch (ch) {
+    case "?":
+      return "Baa has no `?:` conditional. Use `if`/`else`, or `??` for a fallback when a value is nil.";
+    case "&":
+    case "|":
+      return `Baa spells this \`${ch}${ch}\`. There are no bitwise operators.`;
+    case "~":
+    case "^":
+      return "Baa has no bitwise operators. `**` is the power operator.";
+    case "@":
+    case "$":
+      return "Baa names are letters, digits and underscores, with no prefix character.";
+    case "'":
+      return "Baa strings use double quotes.";
+    case "`":
+      return "Baa strings use double quotes. `\"{expr}\"` interpolates.";
+    case "#":
+      return "Baa comments start with `//`. A `#!` line is only allowed as the very first line of a file.";
+    case "\\":
+      return "A backslash only has meaning inside a string literal.";
+    default:
+      return ch.codePointAt(0)! > 127
+        ? "Baa source is plain ASCII outside of strings and comments."
+        : "That character is not part of any Baa operator.";
   }
 }
 
