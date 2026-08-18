@@ -14,6 +14,7 @@
  */
 
 import type {
+  Binding,
   Block,
   Expression,
   MapEntry,
@@ -80,6 +81,27 @@ class Printer {
     this.#lines.push(text.length === 0 ? "" : `${this.#pad(depth)}${text}`);
   }
 
+  /**
+   * Move a block string to a new indentation without changing its value.
+   *
+   * The opening delimiter stays where the caller put it; every following line,
+   * the closing delimiter included, is shifted by the same amount. Since the
+   * closing delimiter is what the language subtracts from each line, an equal
+   * shift cancels out exactly.
+   */
+  #reindentBlock(raw: string, depth: number): string {
+    const lines = raw.split("\n");
+    if (lines.length < 2) return raw;
+    const closing = lines[lines.length - 1]!;
+    const oldIndent = closing.slice(0, closing.length - closing.trimStart().length);
+    const newIndent = this.#pad(depth);
+    const shifted = lines.slice(1).map((line) => {
+      if (line.trim().length === 0) return "";
+      return newIndent + (line.startsWith(oldIndent) ? line.slice(oldIndent.length) : line.trimStart());
+    });
+    return [lines[0], ...shifted].join("\n");
+  }
+
   printTrailingComments(comments: readonly Comment[], depth: number): void {
     for (const comment of comments) {
       if (comment.blankLinesBefore > 0) this.#lines.push("");
@@ -114,7 +136,7 @@ class Printer {
         const prefix = statement.exported ? "export " : "";
         this.#push(
           depth,
-          `${prefix}${keyword} ${statement.name} = ${this.#expression(statement.value, depth)}${trailing}`,
+          `${prefix}${keyword} ${printBinding(statement.binding)} = ${this.#expression(statement.value, depth)}${trailing}`,
         );
         return;
       }
@@ -282,6 +304,18 @@ class Printer {
       case "NilLiteral":
         return "nil";
       case "StringLiteral": {
+        // Copied from the source rather than rebuilt from the segments, which
+        // would lose the distinction between a raw newline and a `\n` escape
+        // and, for a raw string, between a backslash and an escape.
+        if (expression.block || expression.raw) {
+          const { file, start, end } = expression.span;
+          const raw = file.text.slice(start, end);
+          // A block string is re-indented to sit with the code around it. That
+          // is safe precisely because the closing delimiter defines the
+          // indentation: shifting every line by the same amount leaves the
+          // value identical. A single-line raw string has nothing to shift.
+          return expression.block ? this.#reindentBlock(raw, depth + 1) : raw;
+        }
         let out = '"';
         for (const segment of expression.segments) {
           out +=
@@ -555,6 +589,29 @@ function quote(text: string): string {
 /** Trim trailing whitespace and split block comments into lines. */
 function normaliseComment(comment: Comment): string[] {
   return comment.text.split("\n").map((line, index) => (index === 0 ? line.trimEnd() : line.trim()));
+}
+
+/**
+ * Print a binding. Kept flat: a destructuring pattern that needs wrapping is a
+ * sign the value should be taken apart in steps instead.
+ */
+function printBinding(binding: Binding): string {
+  switch (binding.kind) {
+    case "NameBinding":
+      return binding.name;
+    case "ArrayBinding":
+      return `[${binding.elements
+        .map((element) => `${element.rest ? ".." : ""}${printBinding(element.binding)}`)
+        .join(", ")}]`;
+    case "MapBinding":
+      return `{ ${binding.entries
+        .map((entry) =>
+          entry.binding.kind === "NameBinding" && entry.binding.name === entry.key
+            ? entry.key
+            : `${entry.key} as ${printBinding(entry.binding)}`,
+        )
+        .join(", ")} }`;
+  }
 }
 
 function defaultAliasFor(path: string): string {

@@ -286,7 +286,7 @@ export class Lexer {
     kind: TokenKind,
     text: string,
     span: Span,
-    extra: { value?: number; parts?: readonly StringPart[] } = {},
+    extra: { value?: number; parts?: readonly StringPart[]; block?: boolean; raw?: boolean } = {},
   ): void {
     this.#tokens.push({
       kind,
@@ -311,6 +311,14 @@ export class Lexer {
       this.#scanNumber();
       return;
     }
+    // `r"..."` before identifiers, since `r` is also a name start. There is no
+    // implicit concatenation in Baa, so a name followed directly by a quote is
+    // never anything else.
+    if (ch === "r" && this.#text[start + 1] === '"') {
+      this.#pos = start;
+      this.#scanRawString();
+      return;
+    }
     if (isIdentStart(ch)) {
       this.#pos = start;
       this.#scanIdentifier();
@@ -318,7 +326,8 @@ export class Lexer {
     }
     if (ch === '"') {
       this.#pos = start;
-      this.#scanString();
+      if (this.#text.startsWith('"""', start)) this.#scanBlockString();
+      else this.#scanString();
       return;
     }
 
@@ -521,6 +530,240 @@ export class Lexer {
     }
     this.#push("string", this.#text.slice(start, this.#pos), this.#span(start), {
       parts,
+    });
+  }
+
+  /**
+   * A block string: `"""` ... `"""`, spanning lines.
+   *
+   * The closing delimiter sets the indentation. Every content line must begin
+   * with at least that much whitespace, and exactly that much is removed from
+   * each. Writing it this way means the text does not change when the code
+   * around it is re-indented, which is what lets a formatter touch the lines
+   * around a string without silently editing the string.
+   *
+   *     const page = """
+   *         <h1>Baa</h1>
+   *         <p>{name}</p>
+   *         """
+   *
+   * is `<h1>Baa</h1>\n<p>{name}</p>`, with no trailing newline: add one with a
+   * blank line before the closing delimiter, or with `\n`.
+   *
+   * Escapes and `{...}` interpolation behave exactly as in an ordinary string,
+   * which is one rule to learn rather than two. The scan walks the original
+   * source rather than a de-indented copy, so every span still points at the
+   * characters that produced it and the ordinary escape and interpolation
+   * scanners are reused unchanged.
+   */
+  #scanBlockString(): void {
+    const start = this.#pos;
+    this.#pos += 3;
+
+    // The opening delimiter owns the rest of its line.
+    const trailing = this.#readToNewline();
+    if (trailing.trim().length > 0) {
+      throw BaaError.of("BAA012", [], {
+        span: this.#file.span(start, this.#pos),
+        note: "text after the opening delimiter",
+        help: "A block string's content starts on the following line.",
+      });
+    }
+    if (this.#pos >= this.#end) throw this.#unclosedBlock(start);
+    this.#pos++; // the newline
+
+    const close = this.#findBlockClose(start);
+    const indent = this.#text.slice(close.lineStart, close.at);
+    if (indent.trim().length > 0) {
+      throw BaaError.of("BAA012", [], {
+        span: this.#file.span(close.lineStart, close.at + 3),
+        note: "the closing delimiter needs a line to itself",
+        help: "Only whitespace may come before it, and that whitespace sets the indentation.",
+      });
+    }
+
+    const parts: StringPart[] = [];
+    let literal = "";
+    let first = true;
+
+    while (this.#pos < close.lineStart) {
+      if (!first) literal += "\n";
+      first = false;
+
+      const lineStart = this.#pos;
+      let lineEnd = lineStart;
+      while (lineEnd < this.#end && this.#text[lineEnd] !== "\n") lineEnd++;
+      const line = this.#text.slice(lineStart, lineEnd);
+
+      if (line.trim().length === 0) {
+        // A blank line contributes nothing but its newline, whatever
+        // whitespace happens to be sitting on it.
+        this.#pos = lineEnd + 1;
+        continue;
+      }
+      if (!line.startsWith(indent)) {
+        throw BaaError.of("BAA012", [], {
+          span: this.#file.span(lineStart, lineEnd),
+          note: "less indented than the closing delimiter",
+          help: "Every line must start with at least the closing delimiter's indentation.",
+        });
+      }
+      this.#pos = lineStart + indent.length;
+
+      while (this.#pos < lineEnd) {
+        const ch = this.#peek();
+        if (ch === "\\") {
+          literal += this.#scanEscape();
+          continue;
+        }
+        if (ch === "{") {
+          if (literal.length > 0) {
+            parts.push({ kind: "text", value: literal });
+            literal = "";
+          }
+          parts.push(this.#scanInterpolation());
+          continue;
+        }
+        literal += ch;
+        this.#pos++;
+      }
+      this.#pos = lineEnd + 1;
+    }
+
+    if (literal.length > 0 || parts.length === 0) {
+      parts.push({ kind: "text", value: literal });
+    }
+
+    this.#pos = close.at + 3;
+    this.#push("string", this.#text.slice(start, this.#pos), this.#span(start), {
+      parts,
+      block: true,
+    });
+  }
+
+  /** Locate the line holding the closing `"""`. */
+  #findBlockClose(openedAt: number): { lineStart: number; at: number } {
+    for (let scan = this.#pos; scan <= this.#end; ) {
+      let cursor = scan;
+      while (cursor < this.#end && this.#text[cursor] !== "\n") cursor++;
+      const line = this.#text.slice(scan, cursor);
+      const trimmed = line.trimStart();
+      if (trimmed.startsWith('"""')) {
+        return { lineStart: scan, at: scan + (line.length - trimmed.length) };
+      }
+      if (cursor >= this.#end) break;
+      scan = cursor + 1;
+    }
+    throw this.#unclosedBlock(openedAt);
+  }
+
+  /**
+   * A raw string: `r"..."`, or `r"""..."""` across lines.
+   *
+   * No escapes and no interpolation: every character between the delimiters is
+   * itself. This exists for the two things that otherwise fight Baa's ordinary
+   * string rules:
+   *
+   *   - Regular expressions. `\d` is not a Baa escape, so an ordinary string
+   *     needs `\\d`, and `{2}` is read as an interpolation of `2`. A pattern
+   *     written normally is wrong in two different ways at once.
+   *   - CSS and anything else full of braces, for the same reason.
+   *
+   * Because there are no escapes, a raw string cannot contain its own closing
+   * delimiter. Use an ordinary string when you need one.
+   */
+  #scanRawString(): void {
+    const start = this.#pos;
+    this.#pos++; // r
+    const block = this.#text.startsWith('"""', this.#pos);
+    const delimiter = block ? '"""' : '"';
+    this.#pos += delimiter.length;
+
+    let indent = "";
+    if (block) {
+      if (this.#readToNewline().trim().length > 0) {
+        throw BaaError.of("BAA012", [], {
+          span: this.#file.span(start, this.#pos),
+          note: "text after the opening delimiter",
+          help: "A block string's content starts on the following line.",
+        });
+      }
+      if (this.#pos >= this.#end) throw this.#unclosedBlock(start);
+      this.#pos++; // the newline
+    }
+
+    const contentStart = this.#pos;
+    const closeAt = this.#text.indexOf(delimiter, this.#pos);
+    if (closeAt === -1 || closeAt >= this.#end) {
+      throw block
+        ? this.#unclosedBlock(start)
+        : BaaError.of("BAA003", [], {
+            span: this.#file.span(start, start + 2),
+            note: "opened here",
+            help: 'A raw string ends at the next `"`, and cannot contain one.',
+          });
+    }
+
+    let value = this.#text.slice(contentStart, closeAt);
+    if (block) {
+      const lineStart = this.#text.lastIndexOf("\n", closeAt) + 1;
+      indent = this.#text.slice(lineStart, closeAt);
+      if (indent.trim().length > 0) {
+        throw BaaError.of("BAA012", [], {
+          span: this.#file.span(lineStart, closeAt + 3),
+          note: "the closing delimiter needs a line to itself",
+          help: "Only whitespace may come before it, and that whitespace sets the indentation.",
+        });
+      }
+      value = this.#deindent(value.slice(0, Math.max(0, value.length - indent.length - 1)), indent, contentStart);
+    } else if (value.includes("\n")) {
+      throw BaaError.of("BAA003", [], {
+        span: this.#file.span(start, start + 2),
+        note: "opened here",
+        help: 'Use `r"""` for a raw string that spans lines.',
+      });
+    }
+
+    this.#pos = closeAt + delimiter.length;
+    this.#push("string", this.#text.slice(start, this.#pos), this.#span(start), {
+      parts: [{ kind: "text", value }],
+      block,
+      raw: true,
+    });
+  }
+
+  /** Remove the closing delimiter's indentation from every line. */
+  #deindent(text: string, indent: string, from: number): string {
+    if (text.length === 0) return "";
+    const out: string[] = [];
+    let offset = from;
+    for (const line of text.split("\n")) {
+      if (line.trim().length === 0) out.push("");
+      else if (line.startsWith(indent)) out.push(line.slice(indent.length));
+      else {
+        throw BaaError.of("BAA012", [], {
+          span: this.#file.span(offset, offset + line.length),
+          note: "less indented than the closing delimiter",
+          help: "Every line must start with at least the closing delimiter's indentation.",
+        });
+      }
+      offset += line.length + 1;
+    }
+    return out.join("\n");
+  }
+
+  /** Read to the end of the current line without consuming the newline. */
+  #readToNewline(): string {
+    const from = this.#pos;
+    while (this.#pos < this.#end && this.#peek() !== "\n") this.#pos++;
+    return this.#text.slice(from, this.#pos);
+  }
+
+  #unclosedBlock(openedAt: number): BaaError {
+    return BaaError.of("BAA003", [], {
+      span: this.#file.span(openedAt, openedAt + 3),
+      note: "opened here",
+      help: 'Close it with `"""` on a line of its own.',
     });
   }
 

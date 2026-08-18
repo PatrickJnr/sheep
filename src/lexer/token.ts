@@ -132,6 +132,10 @@ export type Token = {
   readonly value?: number;
   /** Segments for `string` tokens. */
   readonly parts?: readonly StringPart[];
+  /** True for a `"""` block string, which the formatter re-emits verbatim. */
+  readonly block?: boolean;
+  /** True for an `r"..."` raw string: no escapes, no interpolation. */
+  readonly raw?: boolean;
   /** Comments appearing before this token. */
   readonly leading: readonly Comment[];
   /** A comment on the same line, after this token. */

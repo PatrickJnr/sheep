@@ -76,10 +76,61 @@ type StatementBase = {
   readonly blankLinesBefore: number;
 };
 
+/**
+ * The left of a `let` or `const`.
+ *
+ * A plain name is the common case; the array and map forms take a value apart
+ * on the way in. Bindings nest, so `let [{ name }, ..rest] = people` is one
+ * binding rather than a special case.
+ */
+export type Binding = NameBinding | ArrayBinding | MapBinding;
+
+export type NameBinding = {
+  readonly kind: "NameBinding";
+  readonly span: Span;
+  readonly name: string;
+};
+
+export type ArrayBinding = {
+  readonly kind: "ArrayBinding";
+  readonly span: Span;
+  readonly elements: readonly ArrayBindingElement[];
+};
+
+export type ArrayBindingElement = {
+  readonly binding: Binding;
+  /** `..rest` takes the remaining items. Only the last element may have it. */
+  readonly rest: boolean;
+};
+
+export type MapBinding = {
+  readonly kind: "MapBinding";
+  readonly span: Span;
+  readonly entries: readonly MapBindingEntry[];
+};
+
+export type MapBindingEntry = {
+  readonly key: string;
+  readonly keySpan: Span;
+  /** `{ name as who }` binds under a different name. */
+  readonly binding: Binding;
+};
+
+/** Every name a binding introduces, in source order. */
+export function bindingNames(binding: Binding): Array<{ name: string; span: Span }> {
+  switch (binding.kind) {
+    case "NameBinding":
+      return [{ name: binding.name, span: binding.span }];
+    case "ArrayBinding":
+      return binding.elements.flatMap((element) => bindingNames(element.binding));
+    case "MapBinding":
+      return binding.entries.flatMap((entry) => bindingNames(entry.binding));
+  }
+}
+
 export type LetStatement = StatementBase & {
   readonly kind: "LetStatement";
-  readonly name: string;
-  readonly nameSpan: Span;
+  readonly binding: Binding;
   readonly value: Expression;
   /** `false` for `const`. */
   readonly mutable: boolean;
@@ -225,6 +276,16 @@ export type StringLiteral = {
   readonly kind: "StringLiteral";
   readonly span: Span;
   readonly segments: readonly StringSegment[];
+  /**
+   * True for a `"""` block string.
+   *
+   * The formatter re-emits one verbatim from the source rather than rebuilding
+   * it, because its indentation is part of its value: reconstructing it from
+   * the segments would risk changing the text it denotes.
+   */
+  readonly block: boolean;
+  /** True for an `r"..."` raw string, also re-emitted verbatim. */
+  readonly raw: boolean;
 };
 
 export type BoolLiteral = {

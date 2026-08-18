@@ -109,6 +109,12 @@ export const CATALOGUE = {
     "This is nested deeper than the flock can follow: more than {0} levels.",
     "Nesting depth exceeds the limit of {0}.",
   ),
+  BAA012: spec(
+    "BAA012",
+    "error",
+    "This block string isn't laid out the way the sheep expect.",
+    "Malformed block string literal.",
+  ),
 
   // ---------------------------------------------------------------- BAA1xx
   BAA101: spec(

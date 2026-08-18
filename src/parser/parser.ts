@@ -16,15 +16,18 @@
  */
 
 import type {
+  ArrayBindingElement,
   ArrayLiteral,
   AssignmentOperator,
   AssignmentTarget,
   BinaryOperator,
+  Binding,
   Block,
   Expression,
   IfStatement,
   ImportSpecifier,
   LogicalOperator,
+  MapBindingEntry,
   MapEntry,
   MatchArm,
   Param,
@@ -292,10 +295,7 @@ export class Parser {
     const keyword = this.#advance(); // let | const
     const start = exportToken ?? keyword;
     const mutable = keyword.kind === "let";
-    const nameToken = this.#expect(
-      "ident",
-      "Bindings look like `let flock = [\"Dolly\"]`.",
-    );
+    const binding = this.#parseBinding();
     this.#expect(
       "=",
       mutable
@@ -307,14 +307,75 @@ export class Parser {
     return {
       kind: "LetStatement",
       span: joinSpans(start.span, value.span),
-      name: nameToken.text,
-      nameSpan: nameToken.span,
+      binding,
       value,
       mutable,
       exported,
       trailing,
       ...this.#trivia(start),
     };
+  }
+
+  /**
+   * The left of a binding: a name, `[a, b, ..rest]` or `{ x, y as z }`.
+   *
+   * Nesting falls out of the recursion, so `let [{ name }, ..rest] = people`
+   * needs no special handling here or anywhere downstream.
+   */
+  #parseBinding(): Binding {
+    if (this.#at("[")) return this.#parseArrayBinding();
+    if (this.#at("{")) return this.#parseMapBinding();
+    const name = this.#expect("ident", 'Bindings look like `let flock = ["Dolly"]`.');
+    return { kind: "NameBinding", span: name.span, name: name.text };
+  }
+
+  #parseArrayBinding(): Binding {
+    const open = this.#advance(); // [
+    const elements: ArrayBindingElement[] = [];
+    this.#skipNewlines();
+    while (!this.#at("]")) {
+      const rest = this.#eat("..") !== null;
+      const binding = this.#parseBinding();
+      if (rest && binding.kind !== "NameBinding") {
+        throw BaaError.of("BAA006", ["a name", "a pattern"], {
+          span: binding.span,
+          note: "`..` collects into a single name",
+        });
+      }
+      elements.push({ binding, rest });
+      this.#skipNewlines();
+      if (!this.#eat(",")) break;
+      this.#skipNewlines();
+    }
+    const close = this.#expect("]", "An array binding looks like `let [a, b] = pair`.");
+    // Anything after `..rest` can never be reached: the rest has taken it.
+    const restAt = elements.findIndex((element) => element.rest);
+    if (restAt !== -1 && restAt !== elements.length - 1) {
+      throw BaaError.of("BAA204", ["the rest of an array binding must come last"], {
+        span: elements[restAt]!.binding.span,
+        note: "takes every remaining item",
+      });
+    }
+    return { kind: "ArrayBinding", span: joinSpans(open.span, close.span), elements };
+  }
+
+  #parseMapBinding(): Binding {
+    const open = this.#advance(); // {
+    const entries: MapBindingEntry[] = [];
+    this.#skipNewlines();
+    while (!this.#at("}")) {
+      const key = this.#expect("ident", "A map binding names the keys to take out.");
+      // `{ name as who }` reads the same way as it does in an import.
+      const binding: Binding = this.#eat("as")
+        ? this.#parseBinding()
+        : { kind: "NameBinding", span: key.span, name: key.text };
+      entries.push({ key: key.text, keySpan: key.span, binding });
+      this.#skipNewlines();
+      if (!this.#eat(",")) break;
+      this.#skipNewlines();
+    }
+    const close = this.#expect("}", "A map binding looks like `let { name, age } = sheep`.");
+    return { kind: "MapBinding", span: joinSpans(open.span, close.span), entries };
   }
 
   #parseFunctionDeclaration(exported: boolean, exportToken?: Token): Statement {
@@ -974,7 +1035,7 @@ export class Parser {
       }
       segments.push({ kind: "expr", expression });
     }
-    return { kind: "StringLiteral", span: token.span, segments };
+    return { kind: "StringLiteral", span: token.span, segments, block: token.block === true, raw: token.raw === true };
   }
 
   #parseArray(): ArrayLiteral {
@@ -1017,6 +1078,8 @@ export class Parser {
           kind: "StringLiteral",
           span: keyToken.span,
           segments: [{ kind: "text", value: keyToken.text }],
+          block: false,
+          raw: false,
         };
       } else {
         throw BaaError.of("BAA006", ["a map key", describeToken(keyToken)], {
