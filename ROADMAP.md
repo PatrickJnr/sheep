@@ -39,17 +39,25 @@ with a migration note.
 - [x] Documentation and website
 - [x] VS Code syntax highlighting and snippets
 
-## Phase 3: Sharper tools 🚧 next
+## Phase 3: Sharper tools 🚧 in progress
 
 Ordered by how much they would improve a normal day.
 
+- [x] **Language server**, shipped in 0.2 as `baa lsp`. Diagnostics, whole-file
+      formatting, a document outline and hover for top-level declarations, all
+      driven by the existing analysis rather than a second copy of it.
+- [ ] **A symbol table the language server can read.** The resolver records the
+      declaration and every use of each name while analysing, and keeps it
+      internal. Exposing it is what go-to-definition, find-references, rename
+      and scope-aware hover are all waiting on, and it is one interface rather
+      than four features.
+- [ ] **A VS Code client.** The extension is declarative, so it highlights but
+      does not start the server. VS Code needs a JavaScript entry point using
+      `vscode-languageclient`; Neovim, Helix and Emacs already work today.
 - [ ] **Resolved variable slots.** The resolver already knows which scope
       declares each name; recording a (depth, index) pair turns lookup from a
       map walk into an array index. The largest available speed-up, and a
       prerequisite for a bytecode VM.
-- [ ] **Language server.** Diagnostics, hover, go-to-definition, completion and
-      formatting over LSP. Every piece exists, spans, the resolver's symbol
-      table, doc comments, the formatter, but nothing wires them together yet.
 - [ ] **Incremental `baa check --watch`.** Re-check only what changed.
 - [ ] **`baa fmt --diff`.** Show what would change instead of rewriting.
 - [ ] **Structured diagnostic output.** `--format json` for editors and CI
@@ -71,10 +79,10 @@ This is not a vague someday. The material a second implementation needs already
 exists and is kept fresh by CI:
 
 - [`SPEC.md`](SPEC.md): the complete language definition, with grammar
-- [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
+- [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 44 diagnostics, both wordings, ready to embed
+  all 46 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 

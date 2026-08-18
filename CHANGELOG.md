@@ -7,6 +7,64 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.2.0], 2026-08-18
+
+An audit release. Nothing in the language changed shape; several things that
+were wrong about it are now right, and the tooling grew a language server.
+
+### Added
+
+- **`baa lsp`**, a language server over stdin and stdout: diagnostics as you
+  type, whole-file formatting, a document outline, and hover for top-level
+  declarations. It runs the same analysis as `baa check` and `baa lint` rather
+  than a second copy of it. Go to definition, find references and rename are
+  not implemented and are not advertised. See [docs/editors.md](docs/editors.md).
+- **`baa build --locked`**, which verifies `baa.lock` instead of rewriting it
+  and reports `BAA406` naming the wool that arrived, changed, moved or went
+  away. Every build previously rewrote the file, so a dependency whose contents
+  had changed silently updated its own recorded hash.
+- `BAA406`, for a lockfile that no longer describes the project.
+- Eight conformance programs covering the semantics newly written down below.
+
+### Fixed
+
+- **Diagnostic messages no longer double their articles.** Four templates wrote
+  the article themselves while every call site also supplied one, so programs
+  were told "You can't add a an array and a a number", "A an array has no field
+  called `merge`" and "expected a count of 0 or more, but got a a negative
+  number". `BAA302`, `BAA305`, `BAA309` and `BAA311` are affected. Codes and
+  spans are unchanged; only the wording is.
+- **Two diagnostics reported JavaScript type names**, so `ram.parse([1])` and
+  `shepherd.exit("x")` could tell a program it had passed "a object".
+- **Array growth is bounded.** `push`, `unshift`, `insert` and `concat` had no
+  size limit, though `repeat` and `flock.range` have had one since 0.1.
+  Appending to an array while iterating it allocated for about forty seconds
+  and then surfaced a JavaScript `RangeError` wrapped in `BAA301`. It is now
+  `BAA312`, reported against the call.
+- The standard-library module count said seven in seven different files, in
+  `SPEC.md` among them, while eight were listed. The diagnostic count was given
+  as 41 in one place and 44 in another, against 45. The dependencies badge said
+  "none" while three development dependencies are installed.
+
+### Documented
+
+- `SPEC.md` now states what `for` binds (one name is the value, two are the
+  position and the value, and for a `map` a single name binds the *value*), that
+  `for` re-reads a collection's length rather than taking a snapshot, how a
+  `finally` block that returns or throws replaces the outcome that was pending,
+  and that map keys are not coerced so `1` and `"1"` are two entries. All four
+  were well defined in the implementation and absent from the document a second
+  implementation would be written against.
+- `docs/editors.md`, covering the language server and configuration for Neovim,
+  Helix and Emacs.
+
+### Changed
+
+- Diagnostic wording only, as above. No code, span, severity or exit code
+  changed, so anything grepping CI logs for `BAAnnn` is unaffected.
+
+[0.2.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.2.0
+
 ## [0.1.0], 2026-08-17
 
 The first release. Baa is a complete, working language rather than a prototype:
@@ -56,7 +114,7 @@ program in `examples/`.
 
 ### Diagnostics
 
-- 44 diagnostic codes across six ranges, each with a stable `BAAnnn` code.
+- 45 diagnostic codes across six ranges, each with a stable `BAAnnn` code.
 - Rendered with the file, line, column, the source line and an underline of the
   exact span, plus suggestions where possible.
 - Runtime errors carry a real call stack captured at the point of failure.

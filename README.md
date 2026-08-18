@@ -94,7 +94,7 @@ The joke is the name. Everything underneath is built to be used.
 
 Verified on every commit, across Windows, Linux and macOS: **400+ tests**, a
 formatter that must be a fixed point, a linter that must be clean, and a
-conformance suite that pins the exact output of 42 programs.
+conformance suite that pins the exact output of 50 programs.
 
 ## Install
 

@@ -416,6 +416,28 @@ describe("regression: counts the README states as fact", () => {
     assert.deepEqual(diagnostics.map(Number), [suite.diagnostics.length]);
   });
 
+  // The same numbers appear in ROADMAP.md and rust/README.md, which are the
+  // documents somebody starting a second implementation actually reads. They
+  // were stale in both, so the sweep covers every tracked document rather than
+  // the one file that happened to be checked.
+  it("does not state a stale suite size anywhere in the repository", () => {
+    const files = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean)
+      .filter((relative) => relative !== "CHANGELOG.md");
+    for (const relative of files) {
+      const text = readFileSync(join(ROOT, relative), "utf8");
+      // "27 programs with the diagnostic codes" is the other half of the
+      // suite, so only a count of programs-with-output is checked here.
+      for (const [phrase, count] of text.matchAll(/\b(\d+) programs\b(?! with the diagnostic)/g)) {
+        assert.equal(Number(count), suite.programs.length, `${relative}: "${phrase}"`);
+      }
+      for (const [phrase, count] of text.matchAll(/\b(?:all|All) (\d+) diagnostics\b/g)) {
+        assert.equal(Number(count), ALL_CODES.length, `${relative}: "${phrase}"`);
+      }
+    }
+  });
+
   // There are no runtime dependencies, but there are three development ones,
   // so a badge reading "dependencies: none" was not true as written.
   it("does not claim to have no dependencies at all", () => {
