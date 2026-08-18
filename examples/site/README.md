@@ -25,6 +25,10 @@ baa serve examples/site
 Then open <http://localhost:8080/>. Edit a file and refresh: every request runs
 the file again, so there is nothing to restart.
 
+The home page also lists any applications published beside it, discovered by
+looking for `apps/*/index.baa` rather than from a list somebody has to keep up
+to date. The calculator is the first.
+
 | URL | What it shows |
 | --- | --- |
 | `/` | The home page. Submit the form to pass a query string |

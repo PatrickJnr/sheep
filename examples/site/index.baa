@@ -9,6 +9,8 @@
 
 import gate
 import wool
+import pasture
+import shepherd
 import { base, page } from "./layout.baa"
 
 const flock = ["Dolly", "Shaun", "Timmy", "Shirley"]
@@ -22,6 +24,45 @@ const items = flock.map(fn(sheep) {
     return gate.format("<li><a href=\"%ssheep.baa/%s\">%s</a></li>", base(), sheep, sheep)
 }).join("\n")
 
+/// Applications published beside this page, discovered rather than listed.
+///
+/// CGI sets `SCRIPT_FILENAME` to the file being run, so a page can find its
+/// own directory and look at what is next to it. A directory under `apps/`
+/// counts as an application when it has an `index.baa` to answer with.
+fn applications() {
+    const script = shepherd.env("SCRIPT_FILENAME") ?? ""
+    if script == "" {
+        return []
+    }
+    const root = pasture.join(pasture.dir_name(script), "apps")
+    if !pasture.exists(root) {
+        return []
+    }
+    const found = []
+    for name in pasture.list(root) {
+        if pasture.exists(pasture.join(root, name, "index.baa")) {
+            found.push(name)
+        }
+    }
+    return found.sort()
+}
+
+const apps = applications()
+let apps_html = ""
+if apps.length() > 0 {
+    apps_html = "<h2>Applications</h2><p>Written in Baa, running here. Each one is a"
+    apps_html += " program that answers a request; none of them contains any JavaScript.</p><ul>"
+    for name in apps {
+        apps_html += gate.format(
+            "<li><a href=\"%sapps/%s/\">%s</a></li>",
+            base(),
+            name,
+            wool.title_case(name.replace_all("-", " ")),
+        )
+    }
+    apps_html += "</ul>"
+}
+
 gate.html(
     page(
         "Baa",
@@ -32,6 +73,7 @@ gate.html(
             "<h2>The flock</h2><ul>",
             items,
             gate.format("</ul><p><a href=\"%scount.baa\">Count some sheep</a></p>", base()),
+            apps_html,
         ),
     ),
 )
