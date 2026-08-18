@@ -45,7 +45,11 @@ function why() {
   const { existsSync } = require("node:fs");
   const { dirname, join } = require("node:path");
 
-  const lines = [`platform: ${process.platform}`];
+  const lines = [
+    `platform: ${process.platform}`,
+    `BAA_SERVER_PATH: ${process.env.BAA_SERVER_PATH || "(unset)"}`,
+    `PATH: ${(process.env.PATH || "").split(";").slice(0, 8).join(" | ")}`,
+  ];
   const finder = process.platform === "win32" ? "where" : "which";
   const found = spawnSync(finder, ["baa"], { encoding: "utf8", shell: false });
   lines.push(`${finder} baa -> status ${found.status}: ${(found.stdout || "").trim() || "(nothing)"}`);

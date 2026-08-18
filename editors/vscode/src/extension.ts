@@ -57,6 +57,17 @@ function findServer(): Server | null {
       : { kind: "command", command: configured, args: ["lsp"], source };
   }
 
+  // An explicit path from the environment, for the cases that have no settings
+  // UI to type one into: a container, a CI job, a remote host started by a
+  // script. Checked after the setting, so a user's own configuration wins.
+  const fromEnvironment = process.env["BAA_SERVER_PATH"]?.trim();
+  if (fromEnvironment !== undefined && fromEnvironment !== "") {
+    const source = "the BAA_SERVER_PATH environment variable";
+    return fromEnvironment.endsWith(".js")
+      ? { kind: "module", module: fromEnvironment, args: ["lsp"], source }
+      : { kind: "command", command: fromEnvironment, args: ["lsp"], source };
+  }
+
   if (process.platform !== "win32") {
     const probe = spawnSync("baa", ["--version"], { encoding: "utf8", shell: false });
     if (probe.status === 0) {

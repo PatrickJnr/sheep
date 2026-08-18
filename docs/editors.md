@@ -137,6 +137,10 @@ references and rename all work with no configuration, provided `baa` is on your
 | `baa.server.path` | Path to `baa`, or to a `.js` entry point. Empty means "find it on `PATH`". |
 | `baa.trace.server` | `off`, `messages` or `verbose`. Logs the traffic to the **Baa Language Server** output channel. |
 
+`BAA_SERVER_PATH` does the same job as the setting, for places with no settings
+UI to type one into: a container, a CI job, a remote host started by a script.
+The setting wins when both are present.
+
 The extension is not on the marketplace, so there is no publisher to trust and
 no auto-update; the `.vsix` on each release is built by the same workflow that
 publishes the npm package.
