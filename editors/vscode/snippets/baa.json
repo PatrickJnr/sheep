@@ -1,0 +1,57 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": ["fn ${1:name}(${2:params}) {", "\t$0", "}"],
+    "description": "Declare a function"
+  },
+  "Exported function": {
+    "prefix": "efn",
+    "body": ["/// ${1:What it does.}", "export fn ${2:name}(${3:params}) {", "\t$0", "}"],
+    "description": "Declare an exported function with a doc comment"
+  },
+  "If / else": {
+    "prefix": "if",
+    "body": ["if ${1:condition} {", "\t$0", "} else {", "\t", "}"],
+    "description": "Conditional"
+  },
+  "For loop": {
+    "prefix": "for",
+    "body": ["for ${1:item} in ${2:collection} {", "\t$0", "}"],
+    "description": "Iterate a collection"
+  },
+  "Range loop": {
+    "prefix": "forr",
+    "body": ["for ${1:i} in ${2:0}..${3:10} {", "\t$0", "}"],
+    "description": "Iterate a range"
+  },
+  "While loop": {
+    "prefix": "while",
+    "body": ["while ${1:condition} {", "\t$0", "}"],
+    "description": "Loop while a condition holds"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": [
+      "match ${1:subject} {",
+      "\t${2:pattern} => ${3:value},",
+      "\t_ => ${4:fallback},",
+      "}"
+    ],
+    "description": "Match expression"
+  },
+  "Try / catch": {
+    "prefix": "try",
+    "body": ["try {", "\t$1", "} catch ${2:problem} {", "\t$0", "}"],
+    "description": "Handle an error"
+  },
+  "Test": {
+    "prefix": "test",
+    "body": ["test \"${1:what it does}\" {", "\tassert_eq($0, )", "}"],
+    "description": "A test block"
+  },
+  "Print": {
+    "prefix": "baa",
+    "body": ["baa $0"],
+    "description": "Print a value"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "baa-lang",
+  "displayName": "Baa",
+  "description": "Syntax highlighting and editing support for the Baa programming language (.baa)",
+  "version": "0.1.0",
+  "publisher": "baa-lang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Programming Languages"],
+  "keywords": ["baa", "sheep", "language"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PatrickJnr/sheep.git",
+    "directory": "editors/vscode"
+  },
+  "contributes": {
+    "languages": [
+      {
+        "id": "baa",
+        "aliases": ["Baa", "baa"],
+        "extensions": [".baa"],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/baa-file.svg",
+          "dark": "./icons/baa-file.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "baa",
+        "scopeName": "source.baa",
+        "path": "./syntaxes/baa.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "baa",
+        "path": "./snippets/baa.json"
+      }
+    ],
+    "configurationDefaults": {
+      "[baa]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.wordBasedSuggestions": "currentDocument"
+      }
+    }
+  }
+}
