@@ -83,6 +83,9 @@ const STATEMENT_STARTERS: ReadonlySet<TokenKind> = new Set<TokenKind>([
 
 const MAX_RECOVERED_ERRORS = 25;
 
+/** How deeply expressions and blocks may nest before the parser gives up. */
+const MAX_NESTING = 400;
+
 export type ParseResult = {
   readonly program: Program;
   readonly diagnostics: readonly Diagnostic[];
@@ -93,12 +96,14 @@ export class Parser {
   readonly #tokens: readonly Token[];
   #index: number;
   #diagnostics: Diagnostic[];
+  #depth: number;
 
   constructor(file: SourceFile, tokens: readonly Token[]) {
     this.#file = file;
     this.#tokens = tokens;
     this.#index = 0;
     this.#diagnostics = [];
+    this.#depth = 0;
   }
 
   // ---------------------------------------------------------------- cursor
@@ -356,20 +361,34 @@ export class Parser {
   }
 
   #parseBlock(): Block {
+    // Blocks nest through statements rather than expressions, so they need the
+    // same bound: a few thousand nested `if`s overflow the stack just as well.
+    if (this.#depth >= MAX_NESTING) {
+      throw BaaError.of("BAA011", [String(MAX_NESTING)], {
+        span: this.#peek().span,
+        note: "nested too deeply",
+        help: "Pull the inner blocks out into functions.",
+      });
+    }
     const open = this.#expect("{", "Blocks are wrapped in `{` and `}`.");
     const body: Statement[] = [];
-    this.#skipNewlines();
-    while (!this.#at("}") && !this.#at("eof")) {
-      const before = this.#index;
-      try {
-        body.push(this.#parseStatement());
-      } catch (error) {
-        if (!(error instanceof BaaError)) throw error;
-        if (this.#diagnostics.length >= MAX_RECOVERED_ERRORS) throw error;
-        this.#diagnostics.push(error.diagnostic);
-        this.#synchronize(before);
-      }
+    this.#depth++;
+    try {
       this.#skipNewlines();
+      while (!this.#at("}") && !this.#at("eof")) {
+        const before = this.#index;
+        try {
+          body.push(this.#parseStatement());
+        } catch (error) {
+          if (!(error instanceof BaaError)) throw error;
+          if (this.#diagnostics.length >= MAX_RECOVERED_ERRORS) throw error;
+          this.#diagnostics.push(error.diagnostic);
+          this.#synchronize(before);
+        }
+        this.#skipNewlines();
+      }
+    } finally {
+      this.#depth--;
     }
     const trailingComments = this.#peek().leading;
     const close = this.#expect("}", "This block is never closed.");
@@ -685,8 +704,28 @@ export class Parser {
     return this.#parseExpression();
   }
 
+  /**
+   * Every nested expression funnels through here, which makes it the one place
+   * that has to bound recursion. The parser descends the JavaScript stack once
+   * per level, so source nested a few thousand deep would otherwise overflow it
+   * and surface as a stack trace from the host language rather than a
+   * diagnostic. The limit is far above anything a person writes by hand and far
+   * below where the stack actually gives out.
+   */
   #parseExpression(): Expression {
-    return this.#parseAssignment();
+    if (this.#depth >= MAX_NESTING) {
+      throw BaaError.of("BAA011", [String(MAX_NESTING)], {
+        span: this.#peek().span,
+        note: "nested too deeply",
+        help: "Split this into named parts with `let`.",
+      });
+    }
+    this.#depth++;
+    try {
+      return this.#parseAssignment();
+    } finally {
+      this.#depth--;
+    }
   }
 
   #parseAssignment(): Expression {
