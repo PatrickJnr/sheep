@@ -72,9 +72,63 @@ jobs:
           path: editors/vscode/baa-lang.vsix
           if-no-files-found: error
 
+  runtimes:
+    name: native runtime (${{ matrix.target }})
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows-x64
+            # Two binaries on Windows: the subsystem is a link-time flag, which
+            # is the same reason python.exe and pythonw.exe both exist. The
+            # windowed one has no console behind the application.
+            binaries: baa-native.exe baa-nativew.exe
+          - os: ubuntu-latest
+            target: linux-x64
+            binaries: baa-native
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --release --manifest-path rust/Cargo.toml
+
+      - name: Collect, with checksums
+        shell: bash
+        run: |
+          mkdir -p dist
+          for binary in ${{ matrix.binaries }}; do
+            cp "rust/target/release/$binary" dist/
+          done
+          cd dist
+          # The checksum file is the point of publishing binaries at all: an
+          # artefact nobody can verify is an artefact nobody should run.
+          sha256sum * > "baa-native-${{ matrix.target }}.sha256"
+          cat "baa-native-${{ matrix.target }}.sha256"
+
+      - name: Archive
+        shell: bash
+        run: |
+          cd dist
+          tar -czf "../baa-native-${{ matrix.target }}.tar.gz" .
+          cd ..
+          sha256sum "baa-native-${{ matrix.target }}.tar.gz"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-${{ matrix.target }}
+          path: baa-native-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
+
   release:
     name: publish release
-    needs: [verify, extension]
+    needs: [verify, extension, runtimes]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -123,6 +177,12 @@ jobs:
         with:
           name: baa-lang-vsix
 
+      - name: Collect the native runtimes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: runtime-*
+          merge-multiple: true
+
       - name: Create the GitHub release
         uses: softprops/action-gh-release@v2
         with:
@@ -133,6 +193,7 @@ jobs:
           files: |
             *.tgz
             baa-lang.vsix
+            baa-native-*.tar.gz
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
 

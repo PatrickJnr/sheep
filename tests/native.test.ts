@@ -159,6 +159,49 @@ describe("native: the two implementations describe the same thing", () => {
   });
 });
 
+describe("native: finding a runtime that was downloaded rather than built", () => {
+  // Releases publish the runtime, so most people will never compile it. The
+  // search order and the message that replaces it are the whole of that
+  // feature from a user's side, and both are easy to change without noticing.
+  const app = readFileSync(join(ROOT, "src", "cli", "app.ts"), "utf8");
+
+  it("looks in the directory a release archive unpacks to", () => {
+    assert.match(app, /homedir\(\), "\.baa", "runtime"/);
+  });
+
+  it("prefers a downloaded runtime to one left in a checkout", () => {
+    // A stale `cargo build` in a clone should not shadow the runtime somebody
+    // just installed, so the home directory has to be checked first.
+    const order = [...app.matchAll(/join\((?:homedir\(\), "\.baa"|here, "\.\.", "\.\.", "rust")/g)];
+    assert.ok(order.length >= 2, "could not find both candidates");
+    assert.match(order[0]![0]!, /homedir/, "the checkout is searched before the download");
+  });
+
+  it("names an archive that the release workflow actually publishes", () => {
+    const workflow = readFileSync(join(ROOT, ".github", "workflows", "release.yml"), "utf8");
+    const targets = [...app.matchAll(/"(windows-x64|linux-x64)"/g)].map((match) => match[1]!);
+    assert.ok(targets.length > 0, "the CLI names no download targets");
+    for (const target of new Set(targets)) {
+      assert.ok(
+        workflow.includes(`target: ${target}`),
+        `the CLI offers baa-native-${target}.tar.gz, which no release job builds`,
+      );
+    }
+    assert.match(app, /baa-native-\$\{target\}\.tar\.gz/);
+  });
+
+  it("says so, rather than naming a file, on a platform with no runtime", () => {
+    assert.match(app, /no runtime is published for \$\{process\.platform\}/);
+  });
+
+  it("warns when it builds a windowed application for a platform with no backend", () => {
+    // The executable is real and runs; it simply cannot draw. A build that
+    // stays silent about that is a program someone ships and then discovers.
+    assert.match(app, /built\.stdlib\.includes\("barn"\) && process\.platform !== "win32"/);
+    assert.match(app, /has no window backend yet/);
+  });
+});
+
 describe("native: what a build refuses", () => {
   const work = mkdtempSync(join(tmpdir(), "baa-native-"));
 

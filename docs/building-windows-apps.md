@@ -33,8 +33,33 @@ development with C++" workload provides.
 
 **The npm package does not carry the runtime.** `npm install -g baa-lang` gives
 you the whole language and every other command; it does not give you a compiled
-Rust binary, because that would be one per platform. Building applications
-means cloning the repository once:
+Rust binary, because that would be one per platform.
+
+You do not have to build one. Every release publishes them:
+
+| Archive | Contains |
+| --- | --- |
+| `baa-native-windows-x64.tar.gz` | `baa-native.exe` and `baa-nativew.exe` |
+| `baa-native-linux-x64.tar.gz` | `baa-native` |
+
+Unpack it where Baa looks, and nothing else needs configuring:
+
+```bash
+mkdir -p ~/.baa/runtime
+curl -L https://github.com/PatrickJnr/sheep/releases/latest/download/baa-native-linux-x64.tar.gz   | tar -xz -C ~/.baa/runtime
+```
+
+Each archive carries a `.sha256` beside the binaries, because an artefact
+nobody can verify is an artefact nobody should run.
+
+**The Linux runtime has no window backend.** It runs a Baa application that
+does not import `barn` — arguments, files, JSON, subprocesses, the whole
+language — and `barn.show` reports that there is nothing to draw with.
+`baa app build` warns at build time rather than letting you find out when the
+window does not appear. Windows is the only target that can show a window
+today; the Linux backend is on [ROADMAP.md](../ROADMAP.md).
+
+Building it yourself still works, and is what a contributor does:
 
 ```bash
 git clone https://github.com/PatrickJnr/sheep
@@ -43,14 +68,15 @@ cargo build --release --manifest-path rust/Cargo.toml
 export BAA_NATIVE_HOST=$PWD/rust/target/release
 ```
 
-`baa app build` says exactly this when it cannot find the runtime, and
-`baa doctor` reports whether it has one. Shipping prebuilt runtimes with the
-package is on [ROADMAP.md](../ROADMAP.md).
+`baa app build` names the archive for your platform when it cannot find a
+runtime, and `baa doctor` reports whether it has one.
 
-`baa app build` looks for the runtime in `rust/target/release`, then
-`rust/target/debug`, then beside the installed CLI. `BAA_NATIVE_HOST` points it
-somewhere else. When it cannot find one, it prints the `cargo` command rather
-than an error about a missing file.
+`baa app build` looks for the runtime in this order: `BAA_NATIVE_HOST`, a
+`native/` directory beside the installed CLI, `~/.baa/runtime`, then
+`rust/target/release` and `rust/target/debug`. A downloaded runtime is checked
+before a checkout's, so an old `cargo build` in a clone cannot shadow the one
+you just installed. When it finds none, it prints the download for your
+platform rather than an error about a missing file.
 
 ## Every time
 

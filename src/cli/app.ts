@@ -25,7 +25,7 @@ import {
 } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -319,6 +319,19 @@ function appBuild(
       (built.stdlib.length > 0 ? `, using ${built.stdlib.join(", ")}` : "") +
       `\n  ${(size / 1024).toFixed(0)} KB, ${windowed ? "windowed" : "console"}\n`,
   );
+
+  // The window model is platform-independent and only Windows has a backend,
+  // so this executable is real, runs, and cannot open a window. Saying that at
+  // build time is the difference between a documented limit and a program that
+  // starts and does nothing.
+  if (built.stdlib.includes("barn") && process.platform !== "win32") {
+    writeError(
+      `This build runs on ${process.platform}, where \`barn\` has no window backend yet.\n` +
+        "The executable works, but `barn.show` will report that there is nothing to\n" +
+        "draw with. Only Windows can run a Baa application with a window today; see\n" +
+        "ROADMAP.md for the Linux backend.\n",
+    );
+  }
   return 0;
 }
 
@@ -416,6 +429,20 @@ function appSection(manifestPath: string): Record<string, string> {
  * repository or shipped beside the CLI. When it is missing, saying how to
  * build it is more useful than saying it is missing.
  */
+/**
+ * The release archive for this machine, named so the message can be followed
+ * rather than interpreted. A platform with no published runtime says so
+ * instead of naming a file that does not exist.
+ */
+function platformArchive(): string {
+  const target =
+    process.platform === "win32" ? "windows-x64" : process.platform === "linux" ? "linux-x64" : null;
+  const releases = "https://github.com/PatrickJnr/sheep/releases";
+  return target === null
+    ? `no runtime is published for ${process.platform}; build it from the repository`
+    : `${releases}/latest/download/baa-native-${target}.tar.gz`;
+}
+
 function findHost(options: { windowed: boolean }): string | null {
   const exe = process.platform === "win32" ? ".exe" : "";
   const name = `${options.windowed ? "baa-nativew" : "baa-native"}${exe}`;
@@ -423,6 +450,10 @@ function findHost(options: { windowed: boolean }): string | null {
   const candidates = [
     process.env.BAA_NATIVE_HOST ? join(process.env.BAA_NATIVE_HOST, name) : null,
     join(here, "..", "..", "native", name),
+    // Where the archive from a release unpacks to, if somebody put it in the
+    // obvious place. Checked before the repository paths so a downloaded
+    // runtime is not shadowed by a stale `cargo build` in a checkout.
+    join(homedir(), ".baa", "runtime", name),
     join(here, "..", "..", "rust", "target", "release", name),
     join(here, "..", "..", "rust", "target", "debug", name),
     join(process.cwd(), "rust", "target", "release", name),
@@ -444,12 +475,10 @@ function findHost(options: { windowed: boolean }): string | null {
           "Or point BAA_NATIVE_HOST at the directory holding it. The runtime is\n" +
           "Rust and needs a Rust toolchain; the language itself does not."
       : `The native runtime (${name}) does not ship with the npm package.\n\n` +
-          "Building native applications needs it, and it is Rust, compiled from\n" +
-          "the repository:\n\n" +
-          "  git clone https://github.com/PatrickJnr/sheep\n" +
-          "  cd sheep\n" +
-          "  cargo build --release --manifest-path rust/Cargo.toml\n" +
-          "  export BAA_NATIVE_HOST=$PWD/rust/target/release\n\n" +
+          "Download it from a release and unpack it where Baa looks:\n\n" +
+          `  ${platformArchive()}\n` +
+          `  -> ${join(homedir(), ".baa", "runtime")}\n\n` +
+          "Or point BAA_NATIVE_HOST at whichever directory holds it.\n\n" +
           "Everything else in Baa works from the npm package. See\n" +
           "https://sheep.grimtech.co.uk/docs/building-windows-apps.html",
   );

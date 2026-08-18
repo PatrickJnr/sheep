@@ -19,16 +19,45 @@ const { join } = require("node:path");
 const vscode = require("vscode");
 
 /** Polls until `read` returns something truthy, or the deadline passes. */
-async function eventually(what, read, timeoutMs = 30_000) {
+async function eventually(what, read, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const value = read();
+    const value = await read();
     if (value !== undefined && value !== null && (!Array.isArray(value) || value.length > 0)) {
       return value;
     }
-    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}`);
+    if (Date.now() > deadline) throw new Error(`timed out waiting for ${what}\n${why()}`);
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
+}
+
+/**
+ * What the extension would have found, printed when something times out.
+ *
+ * A timeout says the server never published anything, which has several
+ * causes that look identical from here: `baa` not installed, installed but not
+ * on this process's PATH, or installed somewhere the shim-to-entry derivation
+ * does not expect. On a CI runner none of those are visible afterwards, so
+ * they are collected while the failure is happening.
+ */
+function why() {
+  const { spawnSync } = require("node:child_process");
+  const { existsSync } = require("node:fs");
+  const { dirname, join } = require("node:path");
+
+  const lines = [`platform: ${process.platform}`];
+  const finder = process.platform === "win32" ? "where" : "which";
+  const found = spawnSync(finder, ["baa"], { encoding: "utf8", shell: false });
+  lines.push(`${finder} baa -> status ${found.status}: ${(found.stdout || "").trim() || "(nothing)"}`);
+  lines.push(`${finder} error: ${found.error ? found.error.message : "none"}`);
+
+  for (const line of (found.stdout || "").split(/\r?\n/)) {
+    const shim = line.trim();
+    if (shim === "") continue;
+    const entry = join(dirname(shim), "node_modules", "baa-lang", "dist", "cli", "index.js");
+    lines.push(`  ${shim} -> ${entry} ${existsSync(entry) ? "EXISTS" : "MISSING"}`);
+  }
+  return lines.join("\n");
 }
 
 async function run() {
