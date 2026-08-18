@@ -1,138 +1,150 @@
 # Roadmap
 
-What is done, what is next, and what is deliberately not being built yet.
+What Baa is today, what is being built next, and what has been considered and
+left out. Rewritten against the repository on 2026-08-18; every claim below is
+either checked by CI or marked as unbuilt.
 
 Baa follows semantic versioning from 1.0. Before then, minor versions may
-change the language; every change will appear in [CHANGELOG.md](CHANGELOG.md)
-with a migration note.
+change the language; every change appears in [CHANGELOG.md](CHANGELOG.md) with
+a migration note.
+
+**How to read this.** The first half is ordered by *when*: what is done, what is
+being worked on, what comes next. The second half is ordered by *area*, for
+when you want the state of one subsystem rather than a schedule. Milestones
+carry a status label:
+
+| Label | Means |
+| --- | --- |
+| **COMPLETED** | Shipped, tested, documented. |
+| **IN PROGRESS** | Code exists in the repository and is not finished. |
+| **NEXT** | Chosen, specified, not started. |
+| **PLANNED** | Agreed as worth doing, not yet scheduled or specified. |
+| **RESEARCH** | Not known to be a good idea yet. An answer is needed before a plan. |
+| **BLOCKED** | Waiting on something outside the repository. |
 
 ---
 
-## Phase 1: Foundation ✅ shipped in 0.1
+## Current State
 
-- [x] Project structure, no build step, zero runtime dependencies
-- [x] Lexer with spans, comment trivia and significant-newline handling
-- [x] Recursive-descent parser with a precedence table and error recovery
-- [x] AST with source locations and generic walkers
-- [x] Semantic analysis: scopes, mutability, arity, use-before-declare
-- [x] Tree-walking interpreter with real stack traces
-- [x] Variables, constants, all primitives, arrays, maps, ranges
-- [x] Functions, defaults, rest parameters, closures, first-class functions
-- [x] `if` / `else if` / `else`, `while`, `for`, `break`, `continue`
-- [x] String interpolation
-- [x] `baa` print statement
-- [x] CLI with `run`, `check` and `--help`
+Version **0.4.0**. The reference implementation is TypeScript running on
+Node.js 22.18+ with no build step and no runtime dependencies; the native
+runtime is Rust with no dependencies either.
 
-## Phase 2: A usable language ✅ shipped in 0.1
+| | |
+| --- | --- |
+| Automated tests | 644, across Windows, Linux and macOS on every commit |
+| Diagnostics | 46 `BAAnnn` codes, each with a default and a professional wording |
+| Standard library | 9 modules |
+| Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
+| Native runtime conformance | All 50 conformance programs, byte for byte, none skipped |
+| Executable targets | Windows x86-64 |
+| Runtime dependencies | None, on either implementation |
 
-- [x] Modules: local files, standard library, named imports, aliases, cycles
-- [x] Eight standard-library modules
-- [x] `try` / `catch` / `finally`, `throw`, catchable runtime errors
-- [x] `match` with alternatives, guards and structural patterns
-- [x] Deterministic formatter that preserves comments
-- [x] Linter with six rules and an escape hatch
-- [x] REPL with persistent scope and multi-line input
-- [x] Test framework (`test` blocks, `baa test`)
-- [x] Project manifest, lockfile, local dependencies
-- [x] Full diagnostic catalogue with professional mode
-- [x] 536 automated tests, benchmarks, recorded example output
-- [x] Web pages over CGI (`gate`, `baa serve`), with a
-      [live example](https://sheep.grimtech.co.uk/baa/index.baa) on shared
-      hosting
-- [x] Documentation and website
-- [x] VS Code syntax highlighting and snippets
+**Baa runs in two places, and a file's imports decide which.** A file that
+imports `gate` is a web page, executed per request under CGI. A file that
+imports `barn` is a native application, built into one Windows executable. A
+file that imports neither is an ordinary module and works in both. `.baa` is
+one language with two hosts; it is not an executable format, and `baa app
+build` does not turn a source file into an `.exe` — it writes a resolved tree
+into an image and appends that image to a runtime.
 
-## Phase 3: Sharper tools 🚧 in progress
+**What is not built, stated plainly.** There is no browser runtime and no DOM.
+There is no package registry. There is no bytecode VM. There is no static type
+system. Native applications run on Windows only. The native runtime has no
+regular expressions, so five `wool` functions report that when called. Each of
+these appears below with its status.
 
-Ordered by how much they would improve a normal day.
+---
 
-- [x] **Language server**, shipped in 0.2 as `baa lsp`. Diagnostics, whole-file
-      formatting, a document outline and hover for top-level declarations, all
-      driven by the existing analysis rather than a second copy of it.
-- [x] **A symbol table the language server can read**, shipped in 0.3. The
-      resolver records each declaration with the span of every use that binds
-      to it, and `check` hands it back. Go-to-definition, find-references,
-      rename and scope-aware hover all read it, so shadowed names resolve the
-      way the interpreter resolves them rather than the way a text search
-      would.
-- [ ] **A VS Code client.** The extension is declarative, so it highlights but
-      does not start the server. VS Code needs a JavaScript entry point using
-      `vscode-languageclient`; Neovim, Helix and Emacs already work today.
-- [ ] **Resolved variable slots.** The resolver already knows which scope
-      declares each name; recording a (depth, index) pair turns lookup from a
-      map walk into an array index. The largest available speed-up, and a
-      prerequisite for a bytecode VM.
-- [ ] **Incremental `baa check --watch`.** Re-check only what changed.
-- [ ] **`baa fmt --diff`.** Show what would change instead of rewriting.
-- [ ] **Structured diagnostic output.** `--format json` for editors and CI
-      annotations.
-- [ ] **Stdlib growth.** `pasture` recursive walk
-      and globbing, `flock` set operations, `meadow` durations and time zones.
-- [ ] **Neovim and JetBrains highlighting**, once the grammar has settled.
-- [ ] **Doc generation.** `baa doc` producing a reference from `///` comments,
-      which the standard library already carries internally.
+## Recently Completed
 
-## Native applications ✅ shipped in 0.4
+### Native application platform — **COMPLETED** in 0.4.0
 
-Baa runs in a second place: a desktop application, in a real window, from one
-executable. `.baa` did not change meaning; a file is an application when it
-imports `barn`, exactly as it is a web page when it imports `gate`.
+**Goal.** Let a Baa program open a real window and ship as one executable,
+without changing what `.baa` means.
 
-- [x] **A native runtime.** `rust/crates/baa-native`, a Rust tree-walker with
-      no dependencies, running a resolved tree the reference implementation
-      hands it. Passes 49 of the 50 conformance programs byte for byte.
-- [x] **`baa app new | build | run | test`**, producing one Windows executable
-      with the runtime and the program inside it. No linker, no compiler on the
-      developer's machine, no Node on the user's.
-- [x] **`barn`:** windows, rows and columns with weights, labels, buttons,
-      inputs, text areas, lists, checkboxes, menu bars, message boxes, file
-      dialogs, clipboard, per-monitor DPI.
-- [x] **Two applications that are the tests.** The calculator imports the *web*
-      calculator's arithmetic module unchanged; the text editor's document
-      model has nine tests and no window in it.
-- [x] **Documentation**, an architecture record, and measurements rather than
-      adjectives.
+**Why it matters.** Baa could produce web pages and command-line programs and
+nothing a person double-clicks. Doing it by wrapping a browser would have made
+the claim true and the artefact dishonest.
 
-### Next, on this track
+**Delivered.**
 
-Ordered by how much each would change what can be built.
+- `rust/crates/baa-native`: a Rust tree-walking interpreter with no
+  dependencies, including its own JSON parser and its own Win32 declarations.
+- The `.fleece` image format, and a build that appends the image to the runtime
+  binary. No linker and no compiler on the developer's machine, no Node.js on
+  the user's.
+- `baa app new | build | run | test`.
+- `barn`, the ninth standard-library module: windows, rows and columns with
+  weights, labels, buttons, inputs, text areas, lists, checkboxes, a menu bar,
+  message boxes, file dialogs, the clipboard, per-monitor DPI.
+- Three applications that are also the tests: a calculator that imports the
+  *web* calculator's arithmetic module unchanged, a text editor, and a JSON
+  viewer. All three are driven through real Win32 messages by the suite.
+- Documentation, an architecture record, and `tools/bench-native.ts` so the
+  performance claims can be checked rather than believed.
 
-- [ ] **`shepherd` and `meadow` in the native runtime.** Arguments,
-      environment, clocks and seeded randomness. Their absence is the reason
-      one conformance program is skipped rather than run, and the reason an
-      application cannot read its own command line.
-- [ ] **An application icon and version metadata.** Both live in PE resources,
-      which the appending build deliberately does not touch. Doing it properly
-      means writing a resource section rather than shelling out to a tool.
-- [ ] **A Linux backend.** The window model has no Win32 in it and is tested
-      without a screen; `barn.show` on Linux reports that there is no backend.
-      GTK through its C ABI would keep the zero-dependency rule.
-- [ ] **Regular expressions**, which would complete `wool` natively. The five
-      functions that need them currently say so when called. The trap is that a
-      near-miss reimplementation of JavaScript's engine is worse than an
-      absence, so this wants a specified subset rather than a best effort.
-- [ ] **A table or grid control.** The first application that wants one will
-      say what it needs.
-- [ ] **Timers.** `barn` has no clock, so a pomodoro or an animation cannot be
-      written. This is small and only waits for an application that needs it.
-- [ ] **Prebuilt runtimes in the npm package.** Today `npm install -g baa-lang`
-      gives you the language but not the runtime, so building an application
-      means cloning the repository. Fixing it means one binary per platform,
-      which is the `optionalDependencies` pattern every native npm package
-      uses, and a release workflow that cross-compiles.
-- [ ] **`[wool]` dependencies in a bundle.** Relative imports are bundled;
-      manifest dependencies are refused with a message rather than
-      half-supported.
+**Definition of done — met.** Applications build and run on a machine with no
+toolchain; the conformance harness runs the suite against the native runtime in
+CI; every documented `barn` function has a test that drives a real window.
 
-## Parallel track: a Rust implementation 🦀 open for contributors
+### `shepherd` and `meadow` in the native runtime — **COMPLETED**
 
-Baa's reference implementation is TypeScript on Node, for the reasons in
-[ARCHITECTURE.md](ARCHITECTURE.md#why-typescript-on-node). Plenty of people
-would rather have a single self-contained binary that starts in a millisecond,
-and plenty of people would rather write a compiler in Rust. Both are reasonable.
+**Goal.** Give native applications arguments, environment variables, standard
+input, subprocesses, clocks, calendars and randomness.
 
-This is not a vague someday. The material a second implementation needs already
-exists and is kept fresh by CI:
+**Why it matters.** It was the largest gap between the two runtimes. An
+application could not read its own command line, know what time it was, or
+shuffle a list, and it was the reason one conformance program was skipped
+rather than run.
+
+**Delivered.** Both modules in Rust, function for function and arity for
+arity, with the calendar arithmetic written out rather than pulled in so the
+zero-dependency rule holds. `shepherd.run` starts a process without ever
+building a command line, exactly as the reference does. A drift guard now
+compares *every* native module's functions and arities against the reference,
+not just `barn`'s.
+
+**Definition of done — met.** `node tools/native-conformance.ts` reports 50 of
+50, with nothing skipped, and a built application reads `shepherd.args()`.
+
+One thing is deliberately absent rather than approximated:
+`meadow.parse_iso` on a date-time with no zone. JavaScript reads it as local
+time, so the same program would produce different numbers on different
+machines; the native runtime raises `BAA301` naming the fix instead of guessing
+an offset.
+
+### Documentation for language models — **COMPLETED**
+
+`/llms.txt` and `/llms-full.txt`, generated by `tools/gen-llms.ts` from the same
+catalogue the compiler uses. Every signature in them exists, the examples are
+compiled by the test suite, and `npm run gen:check` fails when the published
+copy drifts.
+
+### Web-page modules are no longer served as source — **COMPLETED**
+
+A `.baa` module a CGI handler could not execute answered with a 500 that leaked
+the server's absolute path. Modules now deploy as `.baalib`, which the handler
+does not claim and `.htaccess` refuses outright.
+
+---
+
+## In Progress
+
+### Rust track: the frontend half — **IN PROGRESS**, open for contributors
+
+The runtime half exists and is used by every built application. The frontend
+half — lexer, parser, resolver, formatter, linter, CLI — does not, and
+deliberately: the reference implementation analyses a program and hands the
+runtime a resolved tree, so there is exactly one frontend and it cannot
+disagree with itself.
+
+A conformant `baa run` written entirely in Rust remains an open milestone for
+anyone who wants a single self-contained binary. Whoever takes it starts with a
+working runtime and a conformance harness that already runs. Open an issue
+tagged `rust` naming the crate you are taking, so nobody writes the lexer twice.
+
+The material a second implementation needs is kept fresh by CI:
 
 - [`SPEC.md`](SPEC.md): the complete language definition, with grammar
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
@@ -142,59 +154,312 @@ exists and is kept fresh by CI:
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 
-**Status: the runtime half exists, the frontend half does not.**
+**Definition of done.** `cargo run -- program.baa` passes both halves of the
+conformance suite: 50 programs byte for byte, and 27 diagnostic programs with
+matching codes.
 
-`rust/crates/baa-native` is a working Rust runtime — values, the tree-walking
-interpreter, six standard-library modules, a window model and a Win32 backend
-— built for [native applications](#native-applications-shipped-in-04).
-It passes 49 of the 50 conformance programs, byte for byte; the one it does
-not run imports `shepherd`, which it does not have.
+---
 
-It has no lexer, no parser, no resolver, no formatter, no linter and no CLI,
-and gains nothing from having them: the reference implementation analyses a
-program and hands the runtime a resolved tree, so there is exactly one frontend
-and it cannot disagree with itself.
+## Immediate Next
 
-That leaves the interesting half of a second implementation still open, and
-the milestone unchanged: a conformant `baa run` from Rust source, passing both
-halves of the suite. Anyone taking it on starts with a runtime that already
-works and a conformance harness that already runs.
+### 1. A VS Code language client — **NEXT**
 
-If you want to start, open an issue tagged `rust` saying which crate you are
-taking, so nobody writes the lexer twice.
+**Goal.** Make the language server that already exists start automatically in
+the editor most people use.
 
-## Phase 4, Faster 🔭 later
+**Why it matters.** `baa lsp` provides diagnostics, formatting, an outline,
+hover, go-to-definition, find-references and rename, driven by the same
+analysis the compiler runs. Neovim, Helix and Emacs can already use it. The VS
+Code extension is declarative, so it highlights and does nothing else, which
+makes the best tooling Baa has invisible to most of its users.
 
-- [ ] **Bytecode compiler and VM.** See
-      [ARCHITECTURE.md](ARCHITECTURE.md#path-to-a-bytecode-vm). To be built
-      alongside the tree-walker, with both tested against the same programs,
-      not as a replacement dropped in at once.
+**Deliverables.** A JavaScript entry point using `vscode-languageclient`, a
+`main` field and activation events, a packaged `.vsix`, and instructions in
+[docs/editors.md](docs/editors.md).
 
-      There is now a measurement to argue from. `node tools/bench-native.ts`
-      puts the native tree-walker 1.2x ahead of Node on a tight loop and 10x
-      ahead on process start: almost all of the win is starting up, and none of
-      it is the interpreter being cleverer, because it is the same algorithm in
-      a different language. A bytecode VM is where the interpreter itself would
-      get faster, and resolved variable slots are still the prerequisite.
-- [ ] **Constant folding and dead-branch elimination** as AST passes.
-- [ ] **Inline caches** for member and method lookup.
-- [ ] **A native-compilation study.** Baa is dynamically typed, so ahead-of-time
-      native code needs type feedback or a type system. This is a research
-      question, not a scheduled feature.
-- [ ] **Self-hosting investigation.** Writing the Baa lexer in Baa is a good
-      test of whether the language is pleasant at scale, and a bad way to ship
-      a compiler. Worth doing as an exercise, not as the plan.
+**Definition of done.** Installing the extension and opening a `.baa` file
+produces diagnostics with no configuration.
 
-## Phase 5: Ecosystem 🌱 someday
+**Dependencies.** None. It adds the editor extension's first dependency; that
+package is not something `baa` executes, and the no-dependency rule is about
+what runs a program.
 
-- [ ] **A package registry.** The blocker is not code, it is operations:
-      naming, publishing, verification, revocation, supply-chain integrity and
-      who pays for the bandwidth. Until that has an answer, `baa add` says so
-      instead of pretending. Local path dependencies work today and cover the
-      "split this project in two" case that most people actually have.
-- [ ] **Signed releases and reproducible builds.**
-- [ ] **A standard-library RFC process**, so the small core stays small on
-      purpose rather than by neglect.
+### 2. Prebuilt native runtimes in the npm package — **NEXT**
+
+**Goal.** `npm install -g baa-lang` should be enough to build an application.
+
+**Why it matters.** Today the language installs from npm but the runtime does
+not, so building an application means cloning the repository and installing
+Rust. That is a documented instruction rather than a working install, and it
+undercuts the whole native platform.
+
+**Deliverables.** One binary per supported platform published as an
+`optionalDependencies` package, the pattern every native npm package uses; a
+release workflow that cross-compiles; and `baa app build` finding the binary
+without an environment variable.
+
+**Definition of done.** On a machine with Node.js and no Rust,
+`npm install -g baa-lang && baa app new demo && baa app build` produces a
+running executable.
+
+**Dependencies.** Sensible once there is more than one target platform to
+publish, so it pairs naturally with the Linux backend.
+
+---
+
+## Near Term
+
+| Milestone | Status | Definition of done |
+| --- | --- | --- |
+| **Resolved variable slots.** The resolver already knows which scope declares each name; recording a `(depth, index)` pair turns a lookup from a map walk into an array index. | PLANNED | The interpreter never hashes a name at runtime; the benchmark shows the change; both runtimes agree. |
+| **Structured diagnostic output**, `--format json`, for editors and CI annotations. | PLANNED | Every command that reports diagnostics can emit them as JSON with a documented schema, asserted by a test. |
+| **`baa fmt --diff`.** Show what would change instead of rewriting it. | PLANNED | Exit code matches `--check`; output is a unified diff. |
+| **Incremental `baa check --watch`.** Re-check only what changed. | PLANNED | Editing one file in a large project re-analyses that file and its dependents, not the project. |
+| **Application icon and version metadata.** Both live in PE resources, which the appending build deliberately does not touch. | PLANNED | A built `.exe` shows the application's icon in Explorer and its version in Properties, with no external tool involved. |
+| **Standard-library growth**: `pasture` recursive walk and globbing, `flock` set operations, `meadow` durations and time zones. | PLANNED | Each function is generated into the reference, has tests, and exists in both runtimes. |
+| **`baa doc`.** A reference generated from `///` comments, which the standard library already carries internally. | PLANNED | The generated standard-library page is produced by `baa doc` rather than by a bespoke tool. |
+
+---
+
+## Medium Term
+
+### A Linux backend for `barn` — **PLANNED**
+
+The window model in `gui/mod.rs` has no Win32 in it and is unit-tested without
+a screen; `gui/win32.rs` is one implementation of a `Backend` trait. On Linux,
+`barn.show` reports that there is no backend rather than pretending. GTK
+through its C ABI would keep the zero-dependency rule, at the cost of
+hand-declaring another platform's functions — the Windows backend is 878 lines,
+which is the honest scale of the job.
+
+**Definition of done.** The three example applications build and run on Linux,
+and the smoke tests drive them there.
+
+### Regular expressions in the native runtime — **PLANNED**
+
+Five `wool` functions need an engine, and currently say so when called. The
+trap is that a near-miss reimplementation of JavaScript's engine is worse than
+an absence: a pattern that quietly means something different is a bug that
+survives review. This wants a specified subset written into SPEC.md first.
+
+**Definition of done.** SPEC.md defines the supported subset; both runtimes
+implement exactly it; a pattern outside it is a diagnostic rather than a
+difference.
+
+### Timers, and a table control, in `barn` — **PLANNED**
+
+`meadow` can tell an application what time it is, but `barn` has no periodic
+callback, so nothing can happen while the program is waiting for an event: an
+animation or a countdown still cannot be written. Neither
+is difficult; both wait for an application that needs them, so the API is
+shaped by a real use rather than guessed.
+
+### `[wool]` dependencies inside a bundle — **PLANNED**
+
+Relative imports are bundled into an application image. Manifest dependencies
+are refused with a message rather than half-supported.
+
+---
+
+## Long Term
+
+### Bytecode compiler and VM — **PLANNED**
+
+See [ARCHITECTURE.md](ARCHITECTURE.md#path-to-a-bytecode-vm). To be built
+alongside the tree-walker, with both tested against the same programs, not
+dropped in as a replacement.
+
+There is a measurement to argue from. `node tools/bench-native.ts` puts the
+native tree-walker 1.2x ahead of Node on a tight loop and 10x ahead on process
+start: almost all of the win is starting up, and none of it is the interpreter
+being cleverer, because it is the same algorithm in a different language. A
+bytecode VM is where the interpreter itself would get faster. Resolved variable
+slots are the prerequisite.
+
+### A package registry — **BLOCKED**
+
+The blocker is not code, it is operations: naming, publishing, verification,
+revocation, supply-chain integrity, and who pays for the bandwidth. Until that
+has an answer, `baa add` says so instead of pretending. Local path dependencies
+work today and cover the "split this project in two" case that most people
+actually have.
+
+### Signed releases and reproducible builds — **PLANNED**
+
+npm provenance is already in place for the published package. Extending that to
+the native runtime binaries depends on the release workflow that ships them.
+
+### A standard-library RFC process — **PLANNED**
+
+So the small core stays small on purpose rather than by neglect.
+
+---
+
+## By area
+
+### Native applications
+
+**State: shipped for Windows, 0.4.0.** One executable, a real window, no
+browser and no wrapper. Three example applications are the tests.
+
+Queued: [prebuilt runtimes](#2-prebuilt-native-runtimes-in-the-npm-package--next),
+[a Linux backend](#a-linux-backend-for-barn--planned), icon and version
+metadata, timers, a table control.
+
+Not planned: a browser-based application model. If a Baa program should run in
+a browser, it should be a web page, which is what `gate` is for.
+
+### Web platform
+
+**State: shipped and in use.** A `.baa` file that imports `gate` is executed
+per request under CGI, reads the request and writes the reply, and runs on
+ordinary shared hosting with no daemon and no Node.js process to supervise.
+`baa serve` runs the same programs locally over HTTP.
+
+Provided: request line, headers, query, form and JSON bodies, cookies, status
+and header control, HTML escaping by default, `wool.safe_url` and
+`wool.escape_html` for the cases that need it, and file-backed state.
+
+Not provided, deliberately: a browser runtime, a DOM API, client-side Baa, a
+router, a template language, or a long-lived server process. Pages compose with
+functions and string interpolation; state lives in files or cookies. See
+[docs/web-applications.md](docs/web-applications.md).
+
+Queued: nothing structural. The web model is considered complete for what it
+sets out to do; work here is standard-library growth and documentation.
+
+### Language
+
+**State: stable enough to be worth breaking rarely.** Bindings, functions with
+defaults and rest parameters, closures, arrays, maps, ranges, `if`/`while`/
+`for`, `match` with alternatives, guards and structural patterns,
+`try`/`catch`/`finally`, `throw`, string interpolation, modules with named
+imports, aliases and cycles.
+
+The last language change was in 0.4.0: a newline inside `{` ends a statement
+again, even inside `(`. SPEC.md §2.2 records the rule.
+
+Queued: nothing. New syntax needs a program that is awkward to write without
+it, attached to an issue. See
+[deliberately not planned](#deliberately-not-planned).
+
+### Runtime
+
+**State: two tree-walking interpreters that agree.** The TypeScript one is the
+reference; the Rust one runs a resolved tree the reference hands it and is
+checked against the same conformance suite.
+
+Queued: [resolved variable slots](#near-term), then a
+[bytecode VM](#bytecode-compiler-and-vm--planned). Both are performance work,
+and both are to be built with the tree-walker still present and still tested.
+
+### Tooling
+
+**State: `run`, `check`, `test`, `fmt`, `lint`, `serve`, `lsp`, `repl`, `init`,
+`build`, `app`, `add`, `remove`, `doctor`, `modules`, `version`.** The formatter
+is deterministic and preserves comments; the linter has six rules and an escape
+hatch; the language server is around 470 lines with no dependencies and reads
+the resolver's symbol table rather than a second copy of the analysis.
+
+Queued: [a VS Code client](#1-a-vs-code-language-client--next), `--format json`,
+`fmt --diff`, `check --watch`, `baa doc`.
+
+### Standard library
+
+**State: 9 modules** — `wool`, `flock`, `ram`, `meadow`, `pasture`, `shepherd`,
+`lamb`, `gate`, `barn`. Small on purpose. Every function is documented from the
+implementation, so the reference cannot drift from the code.
+
+Native availability today: everything except `gate`, which is refused in an
+application by design. Five `wool` functions report that they need a
+regular-expression engine.
+
+Queued: `pasture` walk and globbing, `flock` set operations, `meadow` durations
+and time zones.
+
+### Developer experience
+
+**State: no build step, no dependencies to install, `npm test` runs
+everything.** Diagnostics carry a code, a span, a note and usually a fix, in two
+wordings. The playground runs the real interpreter in the browser.
+
+Queued: the VS Code client, structured diagnostics, `fmt --diff`. The largest
+single improvement available is making `npm install -g baa-lang` sufficient to
+build a native application, which is
+[milestone 2](#2-prebuilt-native-runtimes-in-the-npm-package--next).
+
+### Cross-platform
+
+**State, stated plainly.** The language, CLI and web platform run wherever
+Node.js 22.18+ runs, and CI proves it on Windows, Linux and macOS every commit.
+Native applications are Windows x86-64 only. The window model is
+platform-independent and tested without a screen, so a second backend is work
+rather than a rewrite, but until one exists Baa is not a cross-platform
+application platform and this document will not call it one.
+
+Queued: [a Linux backend](#a-linux-backend-for-barn--planned). macOS would need
+a third backend against Cocoa and has no volunteer; it is not scheduled.
+
+### Performance
+
+**State: measured, not asserted.** `npm run bench` covers the front end and the
+reference runtime; `npm run bench:native` compares the two runtimes. The native
+runtime starts about 10x faster and runs a tight loop about 1.2x faster —
+almost all of the win is process start, because it is the same algorithm in a
+different language.
+
+Queued: resolved variable slots, then a bytecode VM, then inline caches and
+constant folding. Ordered that way because each is the prerequisite for the
+next being worth measuring.
+
+### Security
+
+**State: one capability surface.** Every filesystem, clock, randomness,
+environment and process operation goes through `RuntimeHost`
+(`src/runtime/host.ts`), so an audit is a single file. `shepherd.run` never uses
+a shell: a program that wants one has to name it, which puts the decision in the
+source and in review. `gate` escapes by default. See [SECURITY.md](SECURITY.md).
+
+Queued: `baa run --deny-fs` and friends, which the single capability surface
+exists to make possible; signed native-runtime binaries alongside the release
+workflow that ships them.
+
+### Testing
+
+**State: 644 automated tests**, plus Baa's own `test` blocks, recorded example
+transcripts, a conformance suite of 50 programs and 27 diagnostic programs, and
+smoke tests that drive all three native applications through real Win32
+messages.
+
+The rule the suite is built on: a claim in the documentation should be checked
+by a test, not maintained by hand. Counts, module lists, generated files, site
+links and the examples in `llms-full.txt` all have guards, because each of them
+has drifted at least once.
+
+Queued: a Linux path for the native smoke tests, once there is a Linux backend
+for them to drive.
+
+### Documentation
+
+**State: generated where it can be.** The standard-library reference, the
+diagnostic catalogue, the conformance suite, the native diagnostic codes, the
+site and both `llms` files are generated from the implementation, and
+`npm run gen:check` fails when a published copy is stale.
+
+Queued: `baa doc`, so the generation is a Baa command rather than a script in
+`tools/`.
+
+### Open research
+
+- **Ahead-of-time native compilation** — **RESEARCH.** Baa is dynamically
+  typed, so native code needs type feedback or a type system. The question is
+  which, and whether the answer is worth the language it would produce.
+- **A gradual `--strict` type mode** — **RESEARCH.** More interesting than a
+  full static type system and much less certain. It needs a design before it
+  needs a schedule.
+- **Self-hosting** — **RESEARCH.** Writing Baa's lexer in Baa is a good test of
+  whether the language is pleasant at scale and a bad way to ship a compiler.
+  Worth doing as an exercise, not as the plan.
 
 ---
 
@@ -212,6 +477,8 @@ a stronger argument than "other languages have it".
 | `async` / `await` | The runtime is synchronous by design. Concurrency needs a whole coherent model, not a keyword. |
 | A second numeric type | See [FAQ](docs/faq.md#why-is-there-only-one-number-type). |
 | Macros | Too easy to make every codebase a different language. |
+| A browser runtime | Baa on the client would be a second, worse JavaScript. `gate` renders on the server; the browser gets HTML. |
+| An Electron-style application shell | A browser tab shipped as an `.exe` is not a native application. `barn` draws real windows instead. |
 
 ## How to influence this
 

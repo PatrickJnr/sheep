@@ -332,8 +332,8 @@ bar and its own file dialogs.
 `baa app build` analyses the program with exactly the code `baa check` uses,
 writes the resolved tree into an image, and appends that image to a runtime
 written in Rust. There is one frontend, so the two cannot disagree about what
-your program means, and the runtime passes 49 of the 50 conformance programs
-byte for byte.
+your program means, and the runtime passes all 50 conformance programs byte for
+byte.
 
 The calculator in
 [`examples/native/calculator/`](examples/native/calculator) imports the *web*
@@ -386,8 +386,19 @@ Everything a port needs already exists and is kept fresh by CI:
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 
-Passing the conformance suite is the milestone. There is no Rust code in the
-repository yet, and this README will not pretend there is.
+**Half of it now exists.** `rust/crates/baa-native` is a working Rust
+*runtime* — values, the tree-walking interpreter, eight standard-library
+modules, a window model and a Win32 backend — written for
+[native applications](docs/native-applications.md). It passes all 50
+conformance programs byte for byte.
+
+It has no lexer, no parser, no resolver, no formatter, no linter and no CLI,
+and gains nothing from having them: the reference implementation hands it a
+resolved tree, so there is one frontend and it cannot disagree with itself.
+That leaves the interesting half of a second implementation open, and the
+milestone unchanged — a conformant `baa run` from Rust source, passing both
+halves of the suite. Whoever takes it on starts with a runtime that already
+works and a conformance harness that already runs.
 
 ## Development
 

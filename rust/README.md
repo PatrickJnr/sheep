@@ -1,8 +1,8 @@
 # baa-rs: a Rust implementation of Baa
 
 **Status: half of it exists.** `crates/baa-native` is a working Rust *runtime*:
-values, the tree-walking interpreter, six standard-library modules and a Win32
-window backend. It passes 49 of the 50 conformance programs, byte for byte.
+values, the tree-walking interpreter, eight standard-library modules and a Win32
+window backend. It passes all 50 conformance programs, byte for byte.
 
 It is deliberately **not** a whole implementation. There is no lexer, no
 parser, no resolver, no formatter, no linter and no `baa` CLI in Rust, because

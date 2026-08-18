@@ -397,6 +397,10 @@ function renderFull(): string {
     "`wool`'s five pattern functions (`matches`, `find`, `find_all`, `substitute`, `split_on`) need a regular-expression engine and are unavailable in native applications; they report that when called. Everything else in `wool` works in both.",
   );
   out.push("");
+  out.push(
+    "`meadow.parse_iso` reads a date-only string, or a date-time carrying `Z` or an offset, identically on both targets. A date-time with neither (`2026-08-18T09:30`) means *local* time on the web target and is a `BAA301` error in a native application, because the same program would otherwise mean a different instant on a different machine. Always write the zone.",
+  );
+  out.push("");
 
   for (const name of STDLIB_MODULES) {
     const module = interpreter.loadModule(name, false, {

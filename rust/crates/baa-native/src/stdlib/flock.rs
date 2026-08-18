@@ -12,7 +12,7 @@ use crate::interp::{Flow, Interpreter, Res, MAX_SIZE};
 use crate::number;
 use crate::value::{BaaMap, MapKey, Module, Native, Value};
 
-use super::{module_of, need_array, need_number};
+use super::{module_of, need_array, need_int};
 
 const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("of", 0, usize::MAX),
@@ -49,19 +49,6 @@ pub fn module() -> Rc<Module> {
         })
         .collect();
     module_of("flock", exports)
-}
-
-/// Whole-number argument, for counts and bounds.
-fn need_int(interp: &Interpreter, name: &str, args: &[Value], index: usize, span: Span) -> Res<f64> {
-    let value = need_number(interp, name, args, index, span)?;
-    if !value.is_finite() || value.fract() != 0.0 {
-        return Err(Flow::Err(interp.error(
-            "BAA311",
-            vec![name.to_string(), "a whole number".into(), (index + 1).to_string(), "a fraction".into()],
-            span,
-        )));
-    }
-    Ok(value)
 }
 
 fn check_size(interp: &Interpreter, name: &str, count: f64, span: Span) -> Res<()> {

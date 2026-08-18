@@ -126,6 +126,15 @@ pub struct Interpreter {
     /// The platform backend, `None` on a platform without one, and taken out
     /// of here while the event loop is borrowing it.
     pub backend: Option<Box<dyn crate::gui::Backend>>,
+    /// Arguments after `--`, which `shepherd.args` returns. The reference
+    /// implementation passes the program's arguments and not its own; so does
+    /// this.
+    pub argv: Vec<String>,
+    /// `meadow`'s source of chance. One generator for the whole run, so a
+    /// seeded sequence is reproducible in the order the program draws it.
+    pub rng: crate::stdlib::meadow::Rng,
+    /// When the run started, which `meadow.clock` measures from.
+    started: std::time::Instant,
 }
 
 /// A `test` block, with the scope and module it was declared in: running one
@@ -152,9 +161,33 @@ impl Interpreter {
             ui: crate::gui::Ui::new(),
             handlers: Vec::new(),
             backend: default_backend(),
+            argv: Vec::new(),
+            rng: crate::stdlib::meadow::Rng::seeded(entropy()),
+            started: std::time::Instant::now(),
         };
         stdlib::install_prelude(&interpreter.globals);
         interpreter
+    }
+
+    /// Milliseconds since 1970-01-01 UTC, as a whole number, which is what
+    /// `Date.now()` returns.
+    pub fn now(&self) -> f64 {
+        match std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH) {
+            Ok(since) => since.as_millis() as f64,
+            // Before the epoch: a clock set to 1969 is unusual but not a
+            // reason to abort a program.
+            Err(error) => -(error.duration().as_millis() as f64),
+        }
+    }
+
+    /// Milliseconds since the run started, for measuring a duration. Monotonic
+    /// where `now` is not, the same distinction `performance.now` draws.
+    pub fn clock(&self) -> f64 {
+        self.started.elapsed().as_secs_f64() * 1000.0
+    }
+
+    pub fn random(&mut self) -> f64 {
+        self.rng.next_f64()
     }
 
     pub fn error(&self, code: &'static str, args: Vec<String>, span: Span) -> BaaError {
@@ -1344,6 +1377,24 @@ impl Interpreter {
     pub fn stack_trace(&self) -> Vec<Frame> {
         self.stack.iter().rev().cloned().collect()
     }
+}
+
+/// A seed for the run. There is no entropy source in the standard library, so
+/// this mixes the wall clock with an address the allocator chose: enough that
+/// two runs started in the same millisecond do not shuffle a list the same
+/// way, and not pretending to be more than that. Nothing in `meadow` is a
+/// security boundary, and its documentation says so.
+fn entropy() -> u64 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|since| since.as_nanos() as u64)
+        .unwrap_or(0);
+    let boxed = Box::new(0u8);
+    let address = Box::into_raw(boxed) as u64;
+    // Safety: the pointer came from `Box::into_raw` one line above and has not
+    // been used for anything else.
+    unsafe { drop(Box::from_raw(address as *mut u8)) };
+    nanos ^ address.rotate_left(32)
 }
 
 #[cfg(windows)]

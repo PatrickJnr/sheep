@@ -36,13 +36,20 @@ import type { ImageModule } from "./image.ts";
  * against the runtime's own list by `tests/native.test.ts`, so the two cannot
  * drift apart without a test failing.
  */
-export const NATIVE_MODULES: readonly string[] = ["barn", "flock", "lamb", "pasture", "ram", "wool"];
+export const NATIVE_MODULES: readonly string[] = [
+  "barn",
+  "flock",
+  "lamb",
+  "meadow",
+  "pasture",
+  "ram",
+  "shepherd",
+  "wool",
+];
 
 /** Why a standard module is not available natively, when there is more to say. */
 const UNAVAILABLE: Readonly<Record<string, string>> = {
   gate: "`gate` serves web pages over CGI. A native application draws its own window: use `barn`.",
-  meadow: "`meadow` is not in the native runtime yet. Track it in ROADMAP.md.",
-  shepherd: "`shepherd` is not in the native runtime yet. Track it in ROADMAP.md.",
 };
 
 export class BundleError extends Error {

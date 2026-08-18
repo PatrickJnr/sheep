@@ -30,8 +30,11 @@ import { fileURLToPath } from "node:url";
 
 import { bundle, BundleError, NATIVE_MODULES } from "../src/native/bundle.ts";
 import { IMAGE_VERSION, MAGIC } from "../src/native/image.ts";
+import { createCapturingHost } from "../src/runtime/host.ts";
+import { Interpreter } from "../src/runtime/interpreter.ts";
+import { NativeFunction } from "../src/runtime/values.ts";
 import { BARN_FUNCTIONS } from "../src/stdlib/barn.ts";
-import { STDLIB_MODULES } from "../src/stdlib/index.ts";
+import { loadBuiltinModule, STDLIB_MODULES } from "../src/stdlib/index.ts";
 import { hostPath, runSuite } from "../tools/native-conformance.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -56,7 +59,7 @@ describe("native: the two implementations describe the same thing", () => {
 
   it("agrees on which standard modules a native application has", () => {
     const source = rust("stdlib/mod.rs");
-    const declared = /pub const MODULES: &\[&str\] = &\[([^\]]*)\]/.exec(source);
+    const declared = /pub const MODULES: &\[&str\] =\s*&\[([^\]]*)\]/.exec(source);
     assert.ok(declared, "could not find MODULES in stdlib/mod.rs");
     const fromRust = [...declared[1]!.matchAll(/"([a-z]+)"/g)].map((match) => match[1]!).sort();
     assert.deepEqual(fromRust, [...NATIVE_MODULES].sort());
@@ -106,6 +109,47 @@ describe("native: the two implementations describe the same thing", () => {
     );
     for (const [name, arity] of fromTs) {
       assert.equal(fromRust.get(name), arity, `\`barn.${name}\` has a different arity in Rust`);
+    }
+  });
+
+  // `barn` had this check on its own, and `barn` is the module least likely to
+  // drift, because it is the one the applications exercise. `shepherd` and
+  // `meadow` arrived as ports of modules that already existed, where a
+  // function quietly taking one argument fewer would compile on both sides and
+  // fail only when a program called it. So every module is compared, not one.
+  it("agrees on every native module's functions and how many arguments they take", () => {
+    const interpreter = new Interpreter({ host: createCapturingHost() });
+    for (const name of NATIVE_MODULES) {
+      const source = rust(`stdlib/${name}.rs`);
+      // The table is `= &[` on one line in most modules and wrapped onto the
+      // next in the short ones, and it ends either at `\n];` or on the line it
+      // started on.
+      const block = /const FUNCTIONS[^=]*=\s*&\[([\s\S]*?)\];/.exec(source);
+      assert.ok(block, `could not find the FUNCTIONS table in stdlib/${name}.rs`);
+      const fromRust = new Map(
+        [...block[1]!.matchAll(/\("([a-z_0-9]+)", (\d+), ([^)]+)\)/g)].map((match) => [
+          match[1]!,
+          `${match[2]}..${match[3]!.trim().replace("usize::MAX", "many")}`,
+        ]),
+      );
+
+      const module = loadBuiltinModule(name, interpreter);
+      assert.ok(module, `${name} is offered natively but the reference has no such module`);
+      const fromTs = new Map<string, string>();
+      for (const [key, value] of module.exports) {
+        if (!(value instanceof NativeFunction)) continue;
+        const max = value.maxArgs >= Number.MAX_SAFE_INTEGER ? "many" : String(value.maxArgs);
+        fromTs.set(key, `${value.minArgs}..${max}`);
+      }
+
+      assert.deepEqual(
+        [...fromRust.keys()].sort(),
+        [...fromTs.keys()].sort(),
+        `\`${name}\` has different functions in the two runtimes`,
+      );
+      for (const [fname, arity] of fromTs) {
+        assert.equal(fromRust.get(fname), arity, `\`${name}.${fname}\` has a different arity in Rust`);
+      }
     }
   });
 
@@ -182,13 +226,13 @@ const built = host !== null;
 describe("native: the runtime, when it has been built", { skip: built ? false : "the native runtime is not built (cargo build --manifest-path rust/Cargo.toml)" }, () => {
   const work = mkdtempSync(join(tmpdir(), "baa-run-"));
 
-  function run(source: string): { stdout: string; status: number } {
+  function run(source: string, argv: string[] = []): { stdout: string; status: number } {
     const entry = join(work, "program.baa");
     const image = join(work, "program.fleece");
     writeFileSync(entry, source, "utf8");
     writeFileSync(image, bundle({ entry, root: work }).bytes);
     try {
-      return { stdout: execFileSync(host!, [image], { encoding: "utf8" }), status: 0 };
+      return { stdout: execFileSync(host!, [image, ...argv], { encoding: "utf8" }), status: 0 };
     } catch (error) {
       const failure = error as { status?: number; stdout?: string; stderr?: string };
       return { stdout: (failure.stdout ?? "") + (failure.stderr ?? ""), status: failure.status ?? 1 };
@@ -197,13 +241,27 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
 
   it("passes the conformance suite", () => {
     const summary = runSuite();
-    const failures = summary.outcomes.filter((outcome) => !outcome.passed);
+    const failures = summary.outcomes.filter(
+      (outcome) => !outcome.passed && outcome.skipped !== true,
+    );
     assert.deepEqual(
       failures.map((outcome) => `${outcome.name}: ${outcome.reason}`),
       [],
       "the native runtime disagrees with the reference implementation",
     );
-    assert.equal(summary.passed, summary.total);
+    assert.equal(summary.passed, summary.ran);
+  });
+
+  it("counts a skipped program as a skip, never as a pass", () => {
+    // A program the runtime cannot execute is not evidence that it can. The
+    // headline number is what documentation quotes, so it has to be the number
+    // of programs that actually ran.
+    const summary = runSuite();
+    assert.equal(summary.ran + summary.skipped, summary.total);
+    assert.ok(summary.passed <= summary.ran, "more passes than programs run");
+    for (const outcome of summary.outcomes) {
+      if (outcome.skipped === true) assert.equal(outcome.passed, false);
+    }
   });
 
   it("prints numbers exactly as the reference does", () => {
@@ -308,6 +366,89 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
       stdout.replace(/\r\n/g, "\n"),
       ["[1, 3]", "parse_htmlnow", "3 -2 2", '{"b":1,"a":[true,null]}', "1000", ""].join("\n"),
     );
+  });
+
+  // `meadow` is the module where the two languages are least alike: the
+  // reference gets a calendar from `Date` and the native runtime works one out
+  // from a day number. Every value here was read from the reference first, so
+  // a difference is the port being wrong rather than the expectation.
+  it("keeps the same calendar as the reference, without a Date to borrow", () => {
+    const { stdout } = run(
+      [
+        "import meadow",
+        "",
+        "baa meadow.iso(0), meadow.iso(1709209845500)",
+        'baa meadow.format(1709209845500, "YYYY-MM-DD hh:mm:ss")',
+        // Before the epoch, where a floored day number and a truncated
+        // millisecond disagree if either is wrong.
+        "baa meadow.iso(-1)",
+        "const p = meadow.parts(1709209845500)",
+        'baa p.weekday, p.month_name, p.year, p.month, p.day',
+        'baa meadow.parse_iso("2024-02-29T12:30:45.500Z")',
+        'baa meadow.parse_iso("not a date")',
+        // The generator differs from the reference's, so only the shape of the
+        // result is compared, never the value.
+        "const r = meadow.random()",
+        "baa r >= 0 && r < 1",
+        "baa meadow.shuffle([1, 2, 3]).length(), meadow.sample([1, 2, 3], 2).length()",
+        "baa meadow.random_int(4, 4)",
+      ].join("\n") + "\n",
+    );
+    assert.equal(
+      stdout.replace(/\r\n/g, "\n"),
+      [
+        "1970-01-01T00:00:00.000Z 2024-02-29T12:30:45.500Z",
+        "2024-02-29 12:30:45",
+        "1969-12-31T23:59:59.999Z",
+        "Thursday February 2024 2 29",
+        "1709209845500",
+        "nil",
+        "true",
+        "3 2",
+        "4",
+        "",
+      ].join("\n"),
+    );
+  });
+
+  // An ISO date-time with no zone means local time in JavaScript, which would
+  // make one program produce two different numbers on two machines. The native
+  // runtime refuses it instead of guessing, and this pins that: an absence
+  // that says so beats a near miss that does not.
+  it("refuses an ISO time with no zone rather than guessing one", () => {
+    const { stdout, status } = run('import meadow\nbaa meadow.parse_iso("2026-08-18T09:30")\n');
+    assert.notEqual(status, 0);
+    assert.match(stdout, /BAA301/);
+    assert.match(stdout, /no time zone/);
+  });
+
+  it("gives an application its arguments, its environment and a way to print", () => {
+    // `baa app build` produced an executable that could not read its own
+    // command line at all: the runtime parsed the arguments and threw them
+    // away. This is the test that would have caught that.
+    process.env["BAA_NATIVE_TEST"] = "set";
+    try {
+      const { stdout } = run(
+        [
+          "import shepherd",
+          "",
+          "baa shepherd.args()",
+          'shepherd.write("a", 1, "b")',
+          'baa ""',
+          'baa shepherd.env("BAA_NATIVE_TEST", "unset")',
+          'baa shepherd.env("BAA_NOT_SET_ANYWHERE", "fallback")',
+          'baa type_of(shepherd.PLATFORM) == "string" && type_of(shepherd.ARCH) == "string"',
+        ].join("\n") + "\n",
+        ["--", "one", "two"],
+      );
+      assert.equal(
+        stdout.replace(/\r\n/g, "\n"),
+        ['["one", "two"]', "a1b", "set", "fallback", "true", ""].join("\n"),
+        "arguments after `--` belong to the program, and `write` shares `baa`'s stream",
+      );
+    } finally {
+      delete process.env["BAA_NATIVE_TEST"];
+    }
   });
 
   // The conformance harness deliberately clears `CI` and `BAA_NO_BAA` before

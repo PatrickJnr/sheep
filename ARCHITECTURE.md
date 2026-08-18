@@ -334,10 +334,11 @@ on the roadmap.
 
 ### What keeps the two honest
 
-- The **conformance suite** runs on both. 49 of its 50 programs execute on the
-  native runtime and are compared byte for byte; the one that does not imports
-  a module the native runtime lacks, and the harness reports it as skipped
-  rather than passed.
+- The **conformance suite** runs on both. All 50 of its programs execute on
+  the native runtime and are compared byte for byte. The harness can still skip
+  a program that imports a module the native runtime lacks — `gate` is the only
+  one — and reports such a program as skipped rather than passed, because a
+  program that was not run is not evidence that it would pass.
 - The **diagnostic catalogue** is generated into Rust from
   `src/diagnostics/codes.ts`, so both print the same sentence for `BAA302`.
 - **Drift guards** in `tests/native.test.ts` compare every list that exists in

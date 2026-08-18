@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 
 import { check, lint, run } from "../src/api.ts";
 import { ALL_CODES } from "../src/diagnostics/codes.ts";
+import { suiteCounts } from "../tools/native-conformance.ts";
 import { STDLIB_MODULES } from "../src/stdlib/index.ts";
 import { PRELUDE_NAMES } from "../src/stdlib/prelude.ts";
 
@@ -415,6 +416,37 @@ describe("regression: issue-template contact links", () => {
   });
 });
 
+describe("regression: a document pasted into itself", () => {
+  // LANGUAGE.md shipped for two releases containing a truncated copy of
+  // itself. A `$` inside a shell heredoc ate the rest of a sentence and the
+  // whole file landed in the gap, so the tour introduced itself twice and one
+  // explanation stopped mid-clause. Nothing noticed: the links still resolved,
+  // the anchors still existed, and the duplicate rendered as valid Markdown.
+  //
+  // One title per document is the invariant that would have caught it.
+  it("never states its own title twice", () => {
+    const files = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean);
+    for (const relative of files) {
+      const text = readFileSync(join(ROOT, relative), "utf8");
+      // A `#` comment inside a TOML or shell block is not a heading.
+      const prose = text.replace(/^```[\s\S]*?^```/gm, "");
+      // The README opens with a banner image and no `#` heading, and the
+      // issue templates open with a form. Both are fine; two titles are not.
+      const titles = [...prose.matchAll(/^# (.+)$/gm)];
+      assert.ok(titles.length <= 1, `${relative} has ${titles.length} top-level headings`);
+      if (titles.length === 0) continue;
+
+      // The truncated line read "...`m` matches `^` and `# The Baa language
+      // tour", so the first appearance was not at the start of a line at all.
+      const title = titles[0]![1]!;
+      const stray = new RegExp(`.# ${title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+      assert.doesNotMatch(text, stray, `${relative} repeats its own title mid-line`);
+    }
+  });
+});
+
 describe("regression: counts the README states as fact", () => {
   // The README claimed seven standard-library modules while listing eight, and
   // gave the number of diagnostics as 41 in one section and 44 in another,
@@ -422,6 +454,7 @@ describe("regression: counts the README states as fact", () => {
   // reads them, so this reads them.
   const readme = readFileSync(join(ROOT, "README.md"), "utf8");
   const suite = JSON.parse(readFileSync(join(ROOT, "tests", "conformance", "suite.json"), "utf8"));
+  const counts = suiteCounts();
 
   const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
 
@@ -463,6 +496,38 @@ describe("regression: counts the README states as fact", () => {
         }
         if (!words.has(word!.toLowerCase())) continue;
         assert.fail(`${relative} says "${phrase}", but there are ${STDLIB_MODULES.length}`);
+      }
+    }
+  });
+
+  // `website/` is deliberately not committed, so `git ls-files` never sees it
+  // and the sweep above could not. Two stale counts survived there for exactly
+  // that reason: the home page and the documentation index both still spelled
+  // out a module count from two releases earlier, and the index also stated a
+  // diagnostic count five codes short. The site builder expands
+  // `{{modules}}` and `{{diagnostics}}` in its own sources, so a page has a way
+  // to state a count without writing one down; this asserts it took it.
+  it("states no hand-written count in the website sources", () => {
+    const src = join(ROOT, "website", "src");
+    if (!existsSync(src)) return; // a clone without the site checked out
+    const words = new Set(WORDS.filter((word) => word !== WORDS[STDLIB_MODULES.length]));
+    for (const entry of readdirSync(src)) {
+      const text = readFileSync(join(src, entry), "utf8");
+      for (const [phrase, word] of text.matchAll(/\b(\w+) modules\b[,.]?/g)) {
+        if (phrase!.endsWith(",")) continue;
+        if (/^\d+$/.test(word!)) {
+          assert.fail(`website/src/${entry} says "${phrase}"; use {{modules}}`);
+        }
+        if (words.has(word!.toLowerCase())) {
+          assert.fail(`website/src/${entry} says "${phrase}", but there are ${STDLIB_MODULES.length}`);
+        }
+      }
+      for (const [phrase, count] of text.matchAll(/\bAll (\d+) `?BAA/g)) {
+        assert.equal(
+          Number(count),
+          ALL_CODES.length,
+          `website/src/${entry} says "${phrase}"; use {{diagnostics}}`,
+        );
       }
     }
   });
@@ -525,8 +590,15 @@ describe("regression: counts the README states as fact", () => {
       const text = readFileSync(join(ROOT, relative), "utf8");
       // "27 programs with the diagnostic codes" is the other half of the
       // suite, so only a count of programs-with-output is checked here.
-      for (const [phrase, count] of text.matchAll(/\b(\d+) programs\b(?! with the diagnostic)/g)) {
-        assert.equal(Number(count), suite.programs.length, `${relative}: "${phrase}"`);
+      //
+      // Two different true numbers live in these documents: the suite holds 50
+      // programs, and the native runtime can attempt the ones that do not
+      // import a module it lacks. A sentence saying "conformance programs"
+      // means the second. Both come from the harness, so neither can be written
+      // down by hand and left behind.
+      for (const [phrase, count] of text.matchAll(/\b(\d+) (conformance )?programs\b(?! with the diagnostic)/g)) {
+        const expected = phrase!.includes("conformance") ? counts.runnable : suite.programs.length;
+        assert.equal(Number(count), expected, `${relative}: "${phrase}"`);
       }
       for (const [phrase, count] of text.matchAll(/\b(?:all|All) (\d+) diagnostics\b/g)) {
         assert.equal(Number(count), ALL_CODES.length, `${relative}: "${phrase}"`);

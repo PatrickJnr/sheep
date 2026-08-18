@@ -13,10 +13,21 @@
  *
  * The shebang has to name an interpreter that exists on the host, and that
  * path is different on every account. cPanel puts it under `nodevenv`, a VPS
- * usually has it on the PATH. Set `BAA_CGI_SHEBANG` to whatever `which baa`
- * prints on the server; the default assumes the PATH case.
+ * usually has it on the PATH. Two variables set it, and they work together:
+ * `BAA_CGI_BIN` is the directory `which baa` prints on the server, and
+ * `BAA_CGI_DIR` is the absolute path this bundle will be uploaded to. With
+ * both, the pages get a shebang naming a small wrapper that fixes PATH before
+ * running `baa`. Without them they get `#!/usr/bin/env baa`, which is correct
+ * only when CGI's own PATH already contains `baa` and `node`.
  *
- *     BAA_CGI_SHEBANG='#!/home/you/nodevenv/site/22/bin/baa' node tools/build-cgi.ts
+ *     BAA_CGI_BIN=$(dirname $(which baa)) \
+ *     BAA_CGI_DIR=/home/you/public_html/example.com/baa \
+ *     node tools/build-cgi.ts
+ *
+ * Run that on the server, or in a shell that leaves absolute paths alone. Git
+ * Bash on Windows rewrites a leading `/home/...` into `C:/Program Files/Git/
+ * home/...` before Node ever sees it, which produces a shebang that is wrong
+ * in a way nothing later notices; `MSYS_NO_PATHCONV=1` turns that off.
  */
 
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
@@ -226,12 +237,37 @@ function rewriteModuleImports(text: string): string {
 }
 
 function build(): void {
+  // The two variables only mean anything together. `BAA_CGI_DIR` alone points
+  // every page at a wrapper that this run would not write, which is a bundle
+  // that uploads cleanly and 500s on every request.
+  if (DIR !== "" && BIN === "") {
+    throw new Error(
+      "BAA_CGI_DIR is set but BAA_CGI_BIN is not, so the pages would name a wrapper\n" +
+        "that does not exist. Set both:\n" +
+        "  BAA_CGI_BIN=$(dirname $(which baa)) BAA_CGI_DIR=... node tools/build-cgi.ts",
+    );
+  }
+
   if (SHEBANG.length > SHEBANG_LIMIT) {
     throw new Error(
       `the shebang is ${SHEBANG.length} bytes and Linux truncates at ${SHEBANG_LIMIT}:
   ${SHEBANG}
 ` +
         "Put the wrapper somewhere shorter and point BAA_CGI_DIR at that.",
+    );
+  }
+
+  // A bundle built for a particular host carries a wrapper naming that host's
+  // paths. `npm run gen` runs this with no environment set, which would
+  // silently replace it with the generic PATH shebang and delete the wrapper —
+  // a bundle that looks fine, uploads fine, and returns 500 for every page.
+  // Say so rather than doing it quietly.
+  if (existsSync(join(OUT, WRAPPER)) && BIN === "") {
+    process.stdout.write(
+      `website/baa/ was built for a specific host and this run has no BAA_CGI_BIN,\n` +
+        `  so the ${WRAPPER} wrapper is being replaced by ${SHEBANG}.\n` +
+        `  If that host needs the wrapper, rebuild with BAA_CGI_BIN and BAA_CGI_DIR set;\n` +
+        `  website/baa/README.txt records the command.\n`,
     );
   }
 
@@ -275,7 +311,7 @@ function build(): void {
       (apps.length > 0 ? `, and ${apps.length} app(s): ${apps.join(", ")}` : "") +
       "\n" +
       `  shebang: ${SHEBANG}\n` +
-      `  set BAA_CGI_SHEBANG if that is not where \`baa\` lives on the host\n`,
+      `  set BAA_CGI_BIN and BAA_CGI_DIR if that is not how \`baa\` is reached on the host\n`,
   );
 }
 
@@ -300,7 +336,12 @@ host, then do the two things a web server needs and a file copy does not.
        ${SHEBANG}
 
    Run \`which baa\` on the server. If it prints something else, rebuild with
-   BAA_CGI_SHEBANG set to it, or edit the first line of each .baa file.
+
+       BAA_CGI_BIN=$(dirname $(which baa)) \\
+       BAA_CGI_DIR=${DIR === "" ? "/absolute/path/to/this/directory" : DIR} \\
+       node tools/build-cgi.ts
+
+   and upload again, or edit the first line of each .baa file by hand.
 
    On cPanel the path usually looks like
    /home/USER/nodevenv/APPNAME/22/bin/baa, and \`baa\` gets there with

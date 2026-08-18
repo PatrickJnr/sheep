@@ -1,11 +1,10 @@
 //! The standard library available to a native application.
 //!
 //! Not all of it. `gate` serves web pages over CGI and has no meaning in a
-//! window, and `shepherd` and `meadow` are not here yet. The list below is the
-//! promise: `src/native/bundle.ts` refuses an import that is not on it at
-//! build time, and `tests/native.test.ts` asserts the two lists match, so a
-//! module added to one and forgotten in the other fails a test rather than a
-//! user.
+//! window. The list below is the promise: `src/native/bundle.ts` refuses an
+//! import that is not on it at build time, and `tests/native.test.ts` asserts
+//! the two lists match, so a module added to one and forgotten in the other
+//! fails a test rather than a user.
 //!
 //! One module is not whole. `wool`'s five pattern functions need a
 //! regular-expression engine and report that they are missing when called;
@@ -16,8 +15,10 @@
 pub mod barn;
 pub mod flock;
 pub mod lamb;
+pub mod meadow;
 pub mod pasture;
 pub mod ram;
+pub mod shepherd;
 pub mod wool;
 
 use std::cell::RefCell;
@@ -28,7 +29,8 @@ use crate::interp::{Environment, Flow, Interpreter, Res};
 use crate::value::{deep_clone, display, equal, inspect, BaaMap, MapKey, Module, Native, Value};
 
 /// Every standard module a native application can import.
-pub const MODULES: &[&str] = &["barn", "flock", "lamb", "pasture", "ram", "wool"];
+pub const MODULES: &[&str] =
+    &["barn", "flock", "lamb", "meadow", "pasture", "ram", "shepherd", "wool"];
 
 pub fn load(name: &str) -> Option<Rc<Module>> {
     match name {
@@ -38,6 +40,8 @@ pub fn load(name: &str) -> Option<Rc<Module>> {
         "lamb" => Some(lamb::module()),
         "pasture" => Some(pasture::module()),
         "barn" => Some(barn::module()),
+        "meadow" => Some(meadow::module()),
+        "shepherd" => Some(shepherd::module()),
         _ => None,
     }
 }
@@ -203,6 +207,19 @@ pub fn need_string(interp: &Interpreter, name: &str, args: &[Value], index: usiz
             span,
         ))),
     }
+}
+
+/// Whole-number argument, for counts and bounds.
+pub fn need_int(interp: &Interpreter, name: &str, args: &[Value], index: usize, span: Span) -> Res<f64> {
+    let value = need_number(interp, name, args, index, span)?;
+    if !value.is_finite() || value.fract() != 0.0 {
+        return Err(Flow::Err(interp.error(
+            "BAA311",
+            vec![name.to_string(), "a whole number".into(), (index + 1).to_string(), "a fraction".into()],
+            span,
+        )));
+    }
+    Ok(value)
 }
 
 pub fn need_array(interp: &Interpreter, name: &str, args: &[Value], index: usize, span: Span) -> Res<Vec<Value>> {

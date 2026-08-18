@@ -185,10 +185,11 @@ node tools/bench-native.ts                   # measurements
 ```
 
 The conformance run is the one that matters. It executes the same programs the
-reference implementation is tested against and compares stdout byte for byte;
-49 of the 50 run, and the one that does not imports `shepherd`, which the
-native runtime does not have. The harness reports skips as skips rather than
-counting them as passes.
+reference implementation is tested against and compares stdout byte for byte.
+All 50 run and all 50 pass. The harness still knows how to skip a program that
+imports a module the runtime lacks — `gate` is the only one left — and reports a
+skip as a skip rather than counting it as a pass, because a program the runtime
+declined to run is not evidence that it can.
 
 `tests/native.test.ts` also compares the lists that exist in both languages —
 which modules there are, what `barn` provides, each function's arity, the image

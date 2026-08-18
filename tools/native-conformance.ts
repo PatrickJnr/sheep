@@ -29,12 +29,20 @@ const SUITE = join(ROOT, "tests", "conformance", "suite.json");
 export type Outcome = {
   readonly name: string;
   readonly passed: boolean;
+  /** True when the program was never executed, so it counts as neither. */
+  readonly skipped?: boolean;
   readonly reason: string;
 };
 
 export type Summary = {
+  /** Programs in the suite, including the ones that were not run. */
   readonly total: number;
+  /** Programs actually executed against the native runtime. */
+  readonly ran: number;
+  /** Programs that ran and matched the reference implementation byte for byte. */
   readonly passed: number;
+  /** Programs not executed, because they import a module the runtime lacks. */
+  readonly skipped: number;
   readonly outcomes: readonly Outcome[];
 };
 
@@ -51,12 +59,30 @@ export function hostPath(): string | null {
 
 /**
  * Programs the suite runs that the native runtime is not expected to pass,
- * with the reason. Every entry is a module the native runtime does not
- * implement, never a semantic difference: a program that uses only what
- * `barn`, `ram` and the prelude offer must produce identical output, and if it
+ * with the reason. The only entry is `gate`, which serves web pages over CGI
+ * and has no meaning in a window. It is never a semantic difference: a program
+ * that uses a module the runtime has must produce identical output, and if it
  * does not, that is a bug rather than an exception.
+ *
+ * The suite currently contains no such program, so nothing is skipped. The
+ * check stays because a `gate` program added to the suite should be skipped
+ * rather than reported as a native failure.
  */
-const UNSUPPORTED = /^\s*import\s+(gate|shepherd|meadow)\b/m;
+const UNSUPPORTED = /^\s*import\s+gate\b/m;
+
+/**
+ * How many programs the suite holds, and how many of them the native runtime
+ * is able to attempt. Documentation quotes both numbers and they are not the
+ * same one; a drift guard reads them from here so neither can be written down
+ * by hand and left behind.
+ */
+export function suiteCounts(): { total: number; runnable: number } {
+  const suite = JSON.parse(readFileSync(SUITE, "utf8")) as {
+    programs: Array<{ source: string }>;
+  };
+  const runnable = suite.programs.filter((program) => !UNSUPPORTED.test(program.source)).length;
+  return { total: suite.programs.length, runnable };
+}
 
 /**
  * The environment the runtime is run in.
@@ -98,7 +124,8 @@ export function runSuite(options: { verbose?: boolean } = {}): Summary {
       if (UNSUPPORTED.test(program.source)) {
         outcomes.push({
           name: program.name,
-          passed: true,
+          passed: false,
+          skipped: true,
           reason: "skipped: uses a module the native runtime does not have",
         });
         continue;
@@ -148,16 +175,26 @@ export function runSuite(options: { verbose?: boolean } = {}): Summary {
   }
 
   const passed = outcomes.filter((outcome) => outcome.passed).length;
+  const skipped = outcomes.filter((outcome) => outcome.skipped === true).length;
   if (options.verbose) {
     for (const outcome of outcomes) {
-      if (!outcome.passed) process.stdout.write(`FAIL ${outcome.name}\n  ${outcome.reason}\n`);
+      if (outcome.skipped === true) process.stdout.write(`SKIP ${outcome.name}\n  ${outcome.reason}\n`);
+      else if (!outcome.passed) process.stdout.write(`FAIL ${outcome.name}\n  ${outcome.reason}\n`);
     }
   }
-  return { total: outcomes.length, passed, outcomes };
+  return { total: outcomes.length, ran: outcomes.length - skipped, passed, skipped, outcomes };
 }
 
 if (process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1].replace(/\\/g, "/"))) {
   const summary = runSuite({ verbose: process.argv.includes("--verbose") });
-  process.stdout.write(`${summary.passed}/${summary.total} conformance programs pass on the native runtime\n`);
-  process.exit(summary.passed === summary.total ? 0 : 1);
+  // A skipped program is reported as a skip. Folding it into the pass count
+  // would turn "the runtime cannot run this" into "the runtime runs this".
+  const skipped =
+    summary.skipped === 0
+      ? ""
+      : `, ${summary.skipped} of ${summary.total} skipped for a module the runtime does not have`;
+  process.stdout.write(
+    `${summary.passed}/${summary.ran} conformance programs pass on the native runtime${skipped}\n`,
+  );
+  process.exit(summary.passed === summary.ran ? 0 : 1);
 }

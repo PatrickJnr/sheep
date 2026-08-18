@@ -83,8 +83,6 @@ fn run_on_this_thread(args: Vec<String>, windowed: bool) -> i32 {
             other => program_args.push(other.to_string()),
         }
     }
-    let _ = program_args;
-
     let bytes = match load_image(path.as_deref()) {
         Ok(bytes) => bytes,
         Err(reason) => return fail(&reason, windowed),
@@ -104,6 +102,7 @@ fn run_on_this_thread(args: Vec<String>, windowed: bool) -> i32 {
     };
 
     let mut interpreter = interp::Interpreter::new(image.clone(), out);
+    interpreter.argv = program_args;
     if tests {
         return run_tests(&mut interpreter, &image);
     }

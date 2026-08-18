@@ -97,8 +97,9 @@ messages a click actually is, and read back what the window says.
 | Keyboard | Tab order, and every control's own keyboard behaviour |
 
 The standard library available to an application is `barn`, `flock`, `lamb`,
-`pasture`, `ram` and `wool`. Importing anything else is a **build** error
-naming the module, not a surprise at runtime.
+`meadow`, `pasture`, `ram`, `shepherd` and `wool` — everything except `gate`,
+which serves web pages and has no meaning in a window. Importing `gate` is a
+**build** error naming it, not a surprise at runtime.
 
 ## What does not work yet
 
@@ -108,7 +109,7 @@ bug.
 | Not available | Why, and what to do |
 | --- | --- |
 | `gate` | It serves web pages over CGI. Native applications draw windows: use `barn`. This one is not a gap, it is the boundary. |
-| `shepherd`, `meadow` | Not ported yet. Arguments, environment, subprocesses, clocks and seeded randomness are unavailable in an application. |
+| `meadow.parse_iso` on a time with no zone | `2026-08-18T09:30` means *local* time in JavaScript, so the reference would read it as one instant and an application on another machine as a different one. The native runtime raises `BAA301` naming the fix rather than guessing an offset. Date-only text, and text carrying `Z` or an offset, are read identically. |
 | `wool.matches`, `find`, `find_all`, `substitute`, `split_on` | These need a regular-expression engine. Calling one reports that. The other twenty `wool` functions work; for fixed text use `text.contains`, `text.replace_all` or `text.split`. |
 | Linux and macOS | The window model is platform-independent and has no Win32 in it, but only the Windows backend exists. `barn.show` on another platform says so rather than doing nothing. |
 | An application icon | The executable carries the runtime's icon. Changing it needs a PE resource rewrite, which the appending build deliberately avoids. |
@@ -129,10 +130,12 @@ saying so plainly.
 
 What the runtime does guarantee is narrower, and exact:
 
-- **No shell, anywhere.** Nothing in the native runtime builds a command line
-  or starts a process. `shepherd`, which can run programs in the reference
-  implementation, is not in the native runtime at all, so there is no command
-  injection to have.
+- **No shell, anywhere.** `shepherd.run` takes a program name and an explicit
+  array of arguments and hands them to the operating system. It never builds a
+  command line, so there is no string that could be re-read as shell syntax and
+  nothing to quote-escape. A program that wants a shell has to name one, which
+  puts the decision in the source and in review. This is the same guarantee the
+  reference implementation makes, and the same reasoning.
 - **No code loading at runtime.** No `eval`, no FFI, no plugin mechanism, no
   dynamic library loading. What an application can execute is fixed when it is
   built.

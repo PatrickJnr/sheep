@@ -105,6 +105,22 @@ const TESTS = testsFromReadme();
 const DIAGNOSTICS = Object.keys(CATALOGUE).length;
 const MODULES = STDLIB_MODULES.length;
 
+/**
+ * Expands the placeholders a page written for this site may use. Counts that
+ * appear in prose drift, because nothing reads them; these are read out of the
+ * implementation on every build, so the page cannot state a number that is not
+ * true at the moment it was published.
+ */
+function fill(text: string): string {
+  return text
+    .replace(/\{\{version\}\}/g, VERSION)
+    .replace(/\{\{tests\}\}/g, TESTS)
+    .replace(/\{\{diagnostics\}\}/g, String(DIAGNOSTICS))
+    .replace(/\{\{modules\}\}/g, String(MODULES))
+    .replace(/\{\{repo\}\}/g, REPO)
+    .replace(/\{\{npm\}\}/g, NPM);
+}
+
 function testsFromReadme(): string {
   const readme = readFileSync(join(ROOT, "README.md"), "utf8");
   const stated = /\*\*(\d+\+?) tests\*\*/.exec(readme);
@@ -621,6 +637,10 @@ const sitemap: string[] = [];
 
 for (const page of DOC_PAGES) {
   let markdown = readFileSync(join(ROOT, page.source), "utf8");
+  // Pages written for the site may use the same placeholders the HTML
+  // partials use. Repository documents may not: they are read on GitHub and
+  // shipped in the npm package, where nothing expands them.
+  if (page.source.startsWith("website/src/")) markdown = fill(markdown);
   if (page.stripBanner === true) {
     const firstHeading = markdown.indexOf("\n# ");
     if (firstHeading !== -1) markdown = markdown.slice(firstHeading + 1);
@@ -744,13 +764,7 @@ const STATIC_PAGES: readonly StaticPage[] = [
 ];
 
 for (const page of STATIC_PAGES) {
-  const body = readFileSync(join(SRC, page.partial), "utf8")
-    .replace(/\{\{version\}\}/g, VERSION)
-    .replace(/\{\{tests\}\}/g, TESTS)
-    .replace(/\{\{diagnostics\}\}/g, String(DIAGNOSTICS))
-    .replace(/\{\{modules\}\}/g, String(MODULES))
-    .replace(/\{\{repo\}\}/g, REPO)
-    .replace(/\{\{npm\}\}/g, NPM);
+  const body = fill(readFileSync(join(SRC, page.partial), "utf8"));
   writeFileSync(
     join(SITE, page.file),
     shell({

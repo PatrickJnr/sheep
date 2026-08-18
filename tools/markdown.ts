@@ -37,6 +37,14 @@ export function escapeHtml(text: string): string {
   return text.replace(/[&<>"]/g, (ch) => ESCAPES[ch]!);
 }
 
+/**
+ * The heading anchor. Deliberately GitHub's algorithm, because the same
+ * Markdown is read in both places: strip punctuation, then turn each remaining
+ * space into a hyphen — each, not each run, so `Goal — **NEXT**` anchors at
+ * `goal--next` on the site exactly as it does on GitHub. Collapsing runs here
+ * would leave every in-document link working in one renderer and broken in the
+ * other.
+ */
 export function slug(text: string): string {
   return text
     .toLowerCase()
@@ -44,7 +52,7 @@ export function slug(text: string): string {
     .replace(/<[^>]+>/g, "")
     .replace(/[^\p{L}\p{N}\s-]/gu, "")
     .trim()
-    .replace(/\s+/g, "-");
+    .replace(/\s/g, "-");
 }
 
 /** Inline formatting: code, links, images, emphasis. */
