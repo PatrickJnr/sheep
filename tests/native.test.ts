@@ -310,6 +310,35 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
     );
   });
 
+  // The conformance harness deliberately clears `CI` and `BAA_NO_BAA` before
+  // running anything, because the suite records one wording. This asserts that
+  // the pinning is hiding a working feature rather than a broken one: if
+  // somebody ever "fixes" a wording failure by deleting the neutral mode, this
+  // fails instead.
+  it("swaps to the neutral wording when the environment asks, as the CLI does", () => {
+    const entry = join(work, "wording.baa");
+    const image = join(work, "wording.fleece");
+    // A caught diagnostic's message is an ordinary string the program can
+    // print, which is why the mode is observable in a program's output at all.
+    writeFileSync(
+      entry,
+      ["try {", "    baa [1][7]", "} catch problem {", "    baa problem.message", "}", ""].join("\n"),
+      "utf8",
+    );
+    writeFileSync(image, bundle({ entry, root: work }).bytes);
+
+    const under = (extra: Record<string, string>): string => {
+      const environment = { ...process.env, CI: "", BAA_NO_BAA: "", ...extra };
+      return execFileSync(host!, [image], { encoding: "utf8", env: environment }).replace(/\r\n/g, "\n");
+    };
+
+    const woolly = "Index 7 is outside the fence: this array has length 1.\n";
+    const plain = "Index 7 out of range for array of length 1.\n";
+    assert.equal(under({}), woolly);
+    assert.equal(under({ BAA_NO_BAA: "1" }), plain);
+    assert.equal(under({ CI: "true" }), plain);
+  });
+
   it("says which `wool` functions need a regular-expression engine", () => {
     const { stdout, status } = run('import wool\nbaa wool.matches("a", "a")\n');
     assert.equal(status, 1);

@@ -58,6 +58,25 @@ export function hostPath(): string | null {
  */
 const UNSUPPORTED = /^\s*import\s+(gate|shepherd|meadow)\b/m;
 
+/**
+ * The environment the runtime is run in.
+ *
+ * `CI` and `BAA_NO_BAA` swap every diagnostic for its neutral wording, in the
+ * native runtime exactly as in the CLI. That is correct behaviour and it is
+ * *observable to a program*: `errors.baa` catches a `BAA304` and prints the
+ * message, so the wording mode changes the program's output.
+ *
+ * The suite records one wording, so the harness has to pin it rather than
+ * inherit whatever the shell has. Without this the suite passes on a laptop
+ * and fails in CI, which is the worst of both.
+ */
+function pinnedEnvironment(): NodeJS.ProcessEnv {
+  const environment = { ...process.env };
+  delete environment.CI;
+  delete environment.BAA_NO_BAA;
+  return environment;
+}
+
 export function runSuite(options: { verbose?: boolean } = {}): Summary {
   const host = hostPath();
   if (host === null) {
@@ -94,7 +113,7 @@ export function runSuite(options: { verbose?: boolean } = {}): Summary {
       try {
         const built = bundle({ entry: source, root: work });
         writeFileSync(image, built.bytes);
-        stdout = execFileSync(host, [image], { encoding: "utf8" });
+        stdout = execFileSync(host, [image], { encoding: "utf8", env: pinnedEnvironment() });
       } catch (error) {
         const failure = error as { status?: number; stdout?: string; stderr?: string; message?: string };
         exit = failure.status ?? 1;

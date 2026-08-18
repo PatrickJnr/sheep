@@ -129,6 +129,16 @@ sentence a native application prints for `BAA302` is therefore the sentence
 `baa run` prints, by construction rather than by discipline. `BAA_NO_BAA` and
 `CI` select the neutral wording here as they do in the CLI.
 
+That last part has a consequence worth knowing before it surprises you: a
+caught diagnostic's `message` is an ordinary string, so **the wording mode is
+observable in a program's output**. `examples/errors.baa` catches a `BAA304`
+and prints it, and prints a different sentence under `CI=true`. The conformance
+suite records one wording, so `tools/native-conformance.ts` clears `CI` and
+`BAA_NO_BAA` before running anything; without that the suite passes on a laptop
+and fails in CI, which is the worst of both. A test asserts the neutral mode
+still works, so the pinning cannot quietly become a way of hiding a broken
+feature.
+
 ---
 
 ## The window model
