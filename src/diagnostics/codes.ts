@@ -103,6 +103,12 @@ export const CATALOGUE = {
     "This statement trails off before the sheep could finish reading it.",
     "Unexpected end of input.",
   ),
+  BAA011: spec(
+    "BAA011",
+    "error",
+    "This is nested deeper than the flock can follow: more than {0} levels.",
+    "Nesting depth exceeds the limit of {0}.",
+  ),
 
   // ---------------------------------------------------------------- BAA1xx
   BAA101: spec(
@@ -160,6 +166,12 @@ export const CATALOGUE = {
     "error",
     "This parameter name `{0}` is used twice in the same function.",
     "Duplicate parameter name `{0}`.",
+  ),
+  BAA204: spec(
+    "BAA204",
+    "error",
+    "This parameter list doesn't line up: {0}",
+    "Invalid parameter list: {0}",
   ),
 
   // ---------------------------------------------------------------- BAA3xx
@@ -228,6 +240,12 @@ export const CATALOGUE = {
     "error",
     "`{0}` expected {1} for argument {2}, but got a {3}.",
     "`{0}`: argument {2} must be {1}, received {3}.",
+  ),
+  BAA312: spec(
+    "BAA312",
+    "error",
+    "`{0}` was asked to build {1} items. The pen only holds {2}.",
+    "`{0}`: requested size {1} exceeds the limit of {2}.",
   ),
 
   // ---------------------------------------------------------------- BAA4xx

@@ -24,6 +24,7 @@ The shape of the source is wrong. Reported before anything runs.
 | `BAA008` | error | You can only put a name on the left of `=`. This isn't somewhere a value can graze. | Invalid assignment target. |
 | `BAA009` | error | This interpolation `{{...}}` is empty: there's nothing to print. | Empty interpolation expression. |
 | `BAA010` | error | This statement trails off before the sheep could finish reading it. | Unexpected end of input. |
+| `BAA011` | error | This is nested deeper than the flock can follow: more than {0} levels. | Nesting depth exceeds the limit of {0}. |
 
 ## BAA1xx, Names and scope
 
@@ -47,6 +48,7 @@ A function was called with the wrong number of arguments, or declared badly.
 | `BAA201` | error | `{0}` was called with too many sheep: it takes {1} but got {2}. | `{0}` expects {1} argument(s) but received {2}. |
 | `BAA202` | error | `{0}` was called with too few sheep: it takes {1} but got {2}. | `{0}` expects {1} argument(s) but received {2}. |
 | `BAA203` | error | This parameter name `{0}` is used twice in the same function. | Duplicate parameter name `{0}`. |
+| `BAA204` | error | This parameter list doesn't line up: {0} | Invalid parameter list: {0} |
 
 ## BAA3xx, Runtime
 
@@ -65,6 +67,7 @@ The program was valid but something went wrong while it ran.
 | `BAA309` | error | You can't herd a {0}: only arrays, maps, strings and ranges can be looped over. | {0} is not iterable. |
 | `BAA310` | error | This key isn't in the map: {0} | Missing map key: {0} |
 | `BAA311` | error | `{0}` expected {1} for argument {2}, but got a {3}. | `{0}`: argument {2} must be {1}, received {3}. |
+| `BAA312` | error | `{0}` was asked to build {1} items. The pen only holds {2}. | `{0}`: requested size {1} exceeds the limit of {2}. |
 
 ## BAA4xx, Modules and projects
 

@@ -64,6 +64,12 @@
       "plain": "Unexpected end of input."
     },
     {
+      "code": "BAA011",
+      "severity": "error",
+      "woolly": "This is nested deeper than the flock can follow: more than {0} levels.",
+      "plain": "Nesting depth exceeds the limit of {0}."
+    },
+    {
       "code": "BAA101",
       "severity": "error",
       "woolly": "`{0}` has already been counted in this pasture.",
@@ -116,6 +122,12 @@
       "severity": "error",
       "woolly": "This parameter name `{0}` is used twice in the same function.",
       "plain": "Duplicate parameter name `{0}`."
+    },
+    {
+      "code": "BAA204",
+      "severity": "error",
+      "woolly": "This parameter list doesn't line up: {0}",
+      "plain": "Invalid parameter list: {0}"
     },
     {
       "code": "BAA301",
@@ -182,6 +194,12 @@
       "severity": "error",
       "woolly": "`{0}` expected {1} for argument {2}, but got a {3}.",
       "plain": "`{0}`: argument {2} must be {1}, received {3}."
+    },
+    {
+      "code": "BAA312",
+      "severity": "error",
+      "woolly": "`{0}` was asked to build {1} items. The pen only holds {2}.",
+      "plain": "`{0}`: requested size {1} exceeds the limit of {2}."
     },
     {
       "code": "BAA401",
