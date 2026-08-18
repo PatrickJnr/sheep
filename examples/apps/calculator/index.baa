@@ -1,0 +1,141 @@
+/// The Baa calculator.
+///
+/// A whole application in one request-response cycle. The page carries its own
+/// state in hidden form fields, so every press is an ordinary form submission
+/// and the server is the only thing that computes anything. There is no
+/// JavaScript on the page, which means it also works with JavaScript off, in a
+/// text browser, and for anyone driving it from the keyboard.
+///
+///     baa serve examples/apps/calculator
+///     open http://localhost:8080/
+
+import gate
+import lamb
+import { evaluate, present } from "./expression.baa"
+
+/// How many past calculations to carry. The history travels in the form on
+/// every request, so it is bounded to keep the page small.
+const HISTORY_LIMIT = 8
+
+const KEYS = [
+    ["(", ")", "%", "^"],
+    ["7", "8", "9", "/"],
+    ["4", "5", "6", "*"],
+    ["1", "2", "3", "-"],
+    ["0", ".", "=", "+"],
+]
+
+/// Read the history out of the form. It arrives as JSON in a hidden field, so
+/// anything malformed is treated as an empty history rather than an error: a
+/// broken history should not cost you the calculator.
+fn read_history(raw) {
+    if raw == "" {
+        return []
+    }
+    // `lamb.try_decode` returns the value, or the fallback when the text is
+    // not JSON. A broken history should cost you the history, not the page.
+    const decoded = lamb.try_decode(raw, [])
+    if type_of(decoded) != "array" {
+        return []
+    }
+    return decoded
+}
+
+fn press(expression, key) {
+    if key == "clear" {
+        return ""
+    }
+    if key == "back" {
+        if expression == "" {
+            return ""
+        }
+        return expression.slice(0, expression.length() - 1)
+    }
+    return expression + key
+}
+
+// ---------------------------------------------------------------- request
+
+const form = gate.form()
+const key = form.get("key", "")
+let expression = form.get("expression", "")
+let history = read_history(form.get("history", ""))
+let message = ""
+let answer = ""
+
+if key == "clear_history" {
+    history = []
+} else if key == "=" || key == "equals" {
+    const result = evaluate(expression)
+    if result.ok {
+        answer = present(result.value)
+        history = [{ expression: expression.trim(), answer: answer }] + history
+        if history.length() > HISTORY_LIMIT {
+            history = history.slice(0, HISTORY_LIMIT)
+        }
+        expression = answer
+    } else {
+        message = result.message
+    }
+} else if key != "" {
+    expression = press(expression, key)
+}
+
+// ------------------------------------------------------------------ view
+
+fn key_button(label) {
+    // `if` is a statement in Baa; `match` is the expression form, and guards
+    // make it read as a table of cases rather than a ladder.
+    const kind = match label {
+        "=" => "key key--equals",
+        x if "0123456789.".contains(x) => "key key--digit",
+        _ => "key key--operator",
+    }
+    return gate.format(
+        "<button class=\"%s\" type=\"submit\" name=\"key\" value=\"%s\">%s</button>",
+        kind,
+        label,
+        label,
+    )
+}
+
+let grid = ""
+for row in KEYS {
+    grid += "<div class=\"row\">"
+    for label in row {
+        grid += key_button(label)
+    }
+    grid += "</div>"
+}
+
+let history_html = ""
+if history.length() == 0 {
+    history_html = "<p class=\"empty\">Nothing calculated yet.</p>"
+} else {
+    history_html = "<ul class=\"history\">"
+    for entry in history {
+        history_html += gate.format(
+            "<li><span class=\"history__expression\">%s</span><span class=\"history__answer\">%s</span></li>",
+            entry.get("expression", ""),
+            entry.get("answer", ""),
+        )
+    }
+    history_html += "</ul>"
+}
+
+let banner = ""
+if message != "" {
+    banner = gate.format("<p class=\"message\" role=\"alert\">%s</p>", message)
+} else if answer != "" {
+    banner = gate.format("<p class=\"answer\">= %s</p>", answer)
+}
+
+// Composed by concatenation, with `gate.escape` at each value.
+//
+// `gate.format` and `gate.fill` escape everything they interpolate, which is
+// what makes them right for values and wrong for markup: a fragment passed
+// through one renders as visible text. Escaping belongs where a value enters
+// the page, and that is where it is here.
+gate.html(
+    "<!doctype html>" + "<html lang=\"en\"><head><meta charset=\"utf-8\">" + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" + "<title>Baa calculator</title>" + "<link rel=\"stylesheet\" href=\"style.css\">" + "</head><body><main>" + "<h1>Calculator</h1>" + "<p class=\"lede\">Written in Baa. Every press is a form submission: the " + "arithmetic happens on the server, in Baa, and there is no JavaScript on " + "this page.</p>" + "<form method=\"post\" class=\"calculator\">" + "<label class=\"display\"><span class=\"visually-hidden\">Expression</span>" + "<input name=\"expression\" value=\"" + gate.escape(expression) + "\" " + "autocomplete=\"off\" autofocus placeholder=\"2 + 3 * 4\"></label>" + banner + "<div class=\"keys\">" + grid + "</div>" + "<div class=\"row row--wide\">" + "<button class=\"key key--wide\" type=\"submit\" name=\"key\" value=\"back\">Delete</button>" + "<button class=\"key key--wide\" type=\"submit\" name=\"key\" value=\"clear\">Clear</button>" + "</div>" + "<input type=\"hidden\" name=\"history\" value=\"" + gate.escape(lamb.encode(history)) + "\">" + "</form>" + "<section class=\"panel\"><h2>History</h2>" + history_html + "<form method=\"post\">" + "<input type=\"hidden\" name=\"expression\" value=\"" + gate.escape(expression) + "\">" + "<button class=\"link\" type=\"submit\" name=\"key\" value=\"clear_history\">Clear history</button>" + "</form></section>" + "<footer>Type an expression and press Enter, or use the keys. " + "Supports <code>+ - * / % ^</code> and brackets.</footer>" + "</main></body></html>",
+)

@@ -1,0 +1,237 @@
+/// Arithmetic for the calculator: a tokeniser and a precedence-climbing
+/// parser, written in Baa.
+///
+/// This is the part worth reading. The calculator does not hand the visitor's
+/// text to anything that can execute it: no `eval`, no shelling out, no
+/// building a Baa program out of a string. Text arrives, becomes tokens,
+/// becomes a number. Nothing else can happen, whatever is typed.
+
+import ram
+
+const DIGITS = "0123456789"
+/// Binding power per operator. Higher binds tighter, which is the whole of
+/// precedence: `2 + 3 * 4` is 14 because `*` outranks `+`.
+const PRECEDENCE = { "+": 1, "-": 1, "*": 2, "/": 2, "%": 2, "^": 3 }
+
+/// Split text into numbers, operators and brackets.
+///
+/// Returns a map: `ok` with `tokens`, or `ok: false` with a `message` naming
+/// the character that stopped it.
+export fn tokenise(text) {
+    const tokens = []
+    let index = 0
+    const chars = text.chars()
+
+    while index < chars.length() {
+        const c = chars[index]
+
+        if c == " " {
+            index += 1
+        } else if DIGITS.contains(c) || c == "." {
+            let number = ""
+            let dots = 0
+            while index < chars.length() && (DIGITS.contains(chars[index]) || chars[index] == ".") {
+                if chars[index] == "." {
+                    dots += 1
+                }
+                number += chars[index]
+                index += 1
+            }
+            if dots > 1 {
+                return { ok: false, message: "`{number}` has more than one decimal point." }
+            }
+            if number == "." {
+                return { ok: false, message: "A decimal point needs digits around it." }
+            }
+            tokens.push({ kind: "number", value: to_number(number) })
+        } else if PRECEDENCE.has(c) {
+            tokens.push({ kind: "operator", value: c })
+            index += 1
+        } else if c == "(" || c == ")" {
+            tokens.push({ kind: c, value: c })
+            index += 1
+        } else {
+            return { ok: false, message: "`{c}` is not something this calculator understands." }
+        }
+    }
+
+    return { ok: true, tokens: tokens }
+}
+
+/// A reader over the token list. Baa has no classes, so state that several
+/// functions share is a map they pass between them.
+fn reader(tokens) {
+    return { tokens: tokens, at: 0 }
+}
+
+fn peek(r) {
+    if r.at >= r.tokens.length() {
+        return nil
+    }
+    return r.tokens[r.at]
+}
+
+fn advance(r) {
+    const token = peek(r)
+    r.at += 1
+    return token
+}
+
+/// A number, a bracketed expression, or a sign in front of either.
+fn parse_atom(r) {
+    const token = peek(r)
+    if token == nil {
+        return { ok: false, message: "The expression stops before it is finished." }
+    }
+
+    if token.kind == "operator" && (token.value == "-" || token.value == "+") {
+        advance(r)
+        const inner = parse_atom(r)
+        if !inner.ok {
+            return inner
+        }
+        if token.value == "-" {
+            return { ok: true, value: 0 - inner.value }
+        }
+        return inner
+    }
+
+    if token.kind == "number" {
+        advance(r)
+        return { ok: true, value: token.value }
+    }
+
+    if token.kind == "(" {
+        advance(r)
+        const inner = parse_expression(r, 0)
+        if !inner.ok {
+            return inner
+        }
+        const closing = peek(r)
+        if closing == nil || closing.kind != ")" {
+            return { ok: false, message: "A bracket was opened and never closed." }
+        }
+        advance(r)
+        return inner
+    }
+
+    return { ok: false, message: "Expected a number, found `{token.value}`." }
+}
+
+/// Precedence climbing: parse an atom, then keep taking operators that bind at
+/// least as tightly as the level we were called at.
+fn parse_expression(r, minimum) {
+    let left = parse_atom(r)
+    if !left.ok {
+        return left
+    }
+
+    while true {
+        const token = peek(r)
+        if token == nil || token.kind != "operator" {
+            break
+        }
+
+        const power = PRECEDENCE.get(token.value, 0)
+        if power < minimum {
+            break
+        }
+
+        advance(r)
+        // `^` is right-associative, so the right side is parsed at the same
+        // level rather than one above: 2 ^ 3 ^ 2 is 2 ^ 9, not 8 ^ 2.
+        let next_minimum = power + 1
+        if token.value == "^" {
+            next_minimum = power
+        }
+
+        const right = parse_expression(r, next_minimum)
+        if !right.ok {
+            return right
+        }
+
+        const applied = apply(token.value, left.value, right.value)
+        if !applied.ok {
+            return applied
+        }
+        left = applied
+    }
+
+    return left
+}
+
+fn apply(operator, a, b) {
+    if operator == "+" {
+        return { ok: true, value: a + b }
+    }
+    if operator == "-" {
+        return { ok: true, value: a - b }
+    }
+    if operator == "*" {
+        return { ok: true, value: a * b }
+    }
+    if operator == "^" {
+        return { ok: true, value: a ** b }
+    }
+    if operator == "/" {
+        if b == 0 {
+            return { ok: false, message: "Dividing by zero has no answer." }
+        }
+        return { ok: true, value: a / b }
+    }
+    if operator == "%" {
+        if b == 0 {
+            return { ok: false, message: "Taking a remainder by zero has no answer." }
+        }
+        return { ok: true, value: a % b }
+    }
+    return { ok: false, message: "`{operator}` is not an operator this calculator has." }
+}
+
+/// Evaluate text. Always returns a map with `ok`; never throws, because the
+/// input is a stranger's and a page has to render either way.
+export fn evaluate(text) {
+    const trimmed = text.trim()
+    if trimmed == "" {
+        return { ok: false, message: "Type something to calculate." }
+    }
+
+    const lexed = tokenise(trimmed)
+    if !lexed.ok {
+        return lexed
+    }
+    if lexed.tokens.length() == 0 {
+        return { ok: false, message: "Type something to calculate." }
+    }
+
+    const r = reader(lexed.tokens)
+    const result = parse_expression(r, 0)
+    if !result.ok {
+        return result
+    }
+
+    if r.at < r.tokens.length() {
+        return { ok: false, message: "`{r.tokens[r.at].value}` is left over at the end." }
+    }
+
+    const value = result.value
+    if value != value {
+        return { ok: false, message: "That does not have a numeric answer." }
+    }
+    if value == ram.INF || value == 0 - ram.INF {
+        return { ok: false, message: "That answer is too large to show." }
+    }
+
+    return { ok: true, value: value }
+}
+
+/// Trim floating-point noise for display: 0.1 + 0.2 should read as 0.3
+/// rather than 0.30000000000000004, without pretending the arithmetic is
+/// exact.
+export fn present(value) {
+    const rounded = ram.round(value, 10)
+    if rounded == ram.trunc(rounded) && ram.abs(rounded) < 1000000000000000 {
+        return to_string(ram.trunc(rounded))
+    }
+    return to_string(rounded)
+}

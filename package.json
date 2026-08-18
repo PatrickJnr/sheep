@@ -62,7 +62,7 @@
     "prepack": "npm run build",
     "serve": "node tools/serve.ts",
     "test": "node --test \"tests/**/*.test.ts\"",
-    "test:baa": "node src/cli/index.ts test tests/programs",
+    "test:baa": "node src/cli/index.ts test tests/programs examples/apps",
     "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

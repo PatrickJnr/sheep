@@ -1,0 +1,98 @@
+/// The calculator's arithmetic, tested without a browser or a web server in
+/// sight. This is the point of keeping evaluation in its own module: the part
+/// that can be wrong is the part that can be tested directly.
+
+import { evaluate, present, tokenise } from "../expression.baa"
+
+fn value(text) {
+    const result = evaluate(text)
+    assert(result.ok, "expected `{text}` to evaluate, got: {result.message ?? "no message"}")
+    return result.value
+}
+
+fn failure(text) {
+    const result = evaluate(text)
+    assert(!result.ok, "expected `{text}` to fail, got {result.value ?? "nothing"}")
+    return result.message
+}
+
+test "the four operations" {
+    assert_eq(value("2 + 2"), 4)
+    assert_eq(value("10 - 3"), 7)
+    assert_eq(value("4 * 5"), 20)
+    assert_eq(value("20 / 4"), 5)
+}
+
+test "decimals" {
+    assert_eq(value("2.5 + 2.5"), 5)
+    assert_eq(value("0.5 * 4"), 2)
+    // Baa has one numeric type, so this carries the usual binary floating
+    // point error. The calculator does not hide that, it rounds for display.
+    assert_eq(present(value("0.1 + 0.2")), "0.3")
+    assert_eq(value("0.1 + 0.2") == 0.3, false)
+}
+
+test "negative numbers" {
+    assert_eq(value("-5 + 2"), -3)
+    assert_eq(value("-5 - -5"), 0)
+    assert_eq(value("3 * -4"), -12)
+    assert_eq(value("--7"), 7)
+}
+
+test "operator precedence" {
+    assert_eq(value("2 + 3 * 4"), 14)
+    assert_eq(value("(2 + 3) * 4"), 20)
+    assert_eq(value("2 + 3 * 4 - 6 / 3"), 12)
+    assert_eq(value("2 ^ 3 ^ 2"), 512)
+    assert_eq(value("(2 ^ 3) ^ 2"), 64)
+}
+
+test "remainder" {
+    assert_eq(value("10 % 3"), 1)
+    assert_eq(value("10 % 5"), 0)
+}
+
+test "several operations at once" {
+    assert_eq(value("1 + 2 + 3 + 4 + 5"), 15)
+    assert_eq(value("100 / 5 / 2"), 10)
+    assert_eq(value("2 * (3 + (4 - 1))"), 12)
+}
+
+test "division by zero is refused, not infinite" {
+    assert(failure("1 / 0").contains("zero"))
+    assert(failure("1 % 0").contains("zero"))
+}
+
+test "empty and blank input" {
+    assert(failure("").contains("Type something"))
+    assert(failure("   ").contains("Type something"))
+}
+
+test "input that is not arithmetic" {
+    assert(failure("2 +").contains("stops before"))
+    assert(failure("(2 + 3").contains("never closed"))
+    assert(failure("2 3").contains("left over"))
+    assert(failure("1.2.3").contains("decimal point"))
+}
+
+test "characters a calculator has no meaning for" {
+    // The important half: whatever arrives, it becomes a message rather than
+    // an action. Nothing here is executed.
+    for text in ["baa \"hi\"", "shepherd.run(\"rm\")", "<script>", "1 + a", "$(id)"] {
+        const result = evaluate(text)
+        assert(!result.ok, "`{text}` should not evaluate")
+    }
+}
+
+test "presentation trims floating point noise" {
+    assert_eq(present(4), "4")
+    assert_eq(present(-3), "-3")
+    assert_eq(present(2.5), "2.5")
+    assert_eq(present(1 / 3), "0.3333333333")
+}
+
+test "the tokeniser reports where it stopped" {
+    const bad = tokenise("2 + $")
+    assert_eq(bad.ok, false)
+    assert(bad.message.contains("$"))
+}

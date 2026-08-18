@@ -131,6 +131,13 @@ const DOC_PAGES: readonly DocPage[] = [
     group: "Start here",
   },
   {
+    slug: "web-applications",
+    source: "docs/web-applications.md",
+    title: "Web applications",
+    description: "The server-rendered application model: state, escaping, testing, what it is good at and what it is not.",
+    group: "Start here",
+  },
+  {
     slug: "editors",
     source: "docs/editors.md",
     title: "Editor support",
@@ -224,6 +231,8 @@ const MARKDOWN_TO_SLUG: Record<string, string> = {
   "docs/cli.md": "cli",
   "docs/stdlib.md": "stdlib",
   "docs/errors.md": "errors",
+  "docs/web-applications.md": "web-applications",
+  "web-applications.md": "web-applications",
   "docs/editors.md": "editors",
   "editors.md": "editors",
   "docs/faq.md": "faq",

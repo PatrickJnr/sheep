@@ -19,7 +19,7 @@
  *     BAA_CGI_SHEBANG='#!/home/you/nodevenv/site/22/bin/baa' node tools/build-cgi.ts
  */
 
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -133,6 +133,41 @@ gate.html(
 )
 `;
 
+/**
+ * Applications under `examples/apps/`, published at `<mount>/apps/<name>/`.
+ *
+ * A file is a page when it imports `gate`, because that is what a file needs
+ * in order to answer a request at all. Anything else beside it is a module the
+ * pages import, and is copied without a shebang so the server has nothing to
+ * execute if somebody requests it directly. `tests/` is not published.
+ */
+function buildApps(): string[] {
+  const appsRoot = join(ROOT, "examples", "apps");
+  if (!existsSync(appsRoot)) return [];
+  const built: string[] = [];
+
+  for (const name of readdirSync(appsRoot).sort()) {
+    const from = join(appsRoot, name);
+    if (!statSync(from).isDirectory()) continue;
+    const to = join(OUT, "apps", name);
+    mkdirSync(to, { recursive: true });
+
+    for (const entry of readdirSync(from).sort()) {
+      const source = join(from, entry);
+      if (statSync(source).isDirectory()) continue;
+      if (!entry.endsWith(".baa")) {
+        copyFileSync(source, join(to, entry));
+        continue;
+      }
+      const text = readFileSync(source, "utf8").replace(/\r\n/g, "\n");
+      const isPage = /^\s*import\s+gate\b/m.test(text);
+      writeFileSync(join(to, entry), isPage ? SHEBANG + "\n" + text : text, "utf8");
+    }
+    built.push(name);
+  }
+  return built;
+}
+
 function build(): void {
   if (SHEBANG.length > SHEBANG_LIMIT) {
     throw new Error(
@@ -171,8 +206,12 @@ function build(): void {
   writeFileSync(join(OUT, "README.txt"), readmeText(), "utf8");
   if (BIN !== "") writeFileSync(join(OUT, WRAPPER), wrapperScript(), "utf8");
 
+  const apps = buildApps();
+
   process.stdout.write(
-    `Built website/baa/: ${PAGES.length} pages, a probe, and .htaccess\n` +
+    `Built website/baa/: ${PAGES.length} pages, a probe, .htaccess` +
+      (apps.length > 0 ? `, and ${apps.length} app(s): ${apps.join(", ")}` : "") +
+      "\n" +
       `  shebang: ${SHEBANG}\n` +
       `  set BAA_CGI_SHEBANG if that is not where \`baa\` lives on the host\n`,
   );
