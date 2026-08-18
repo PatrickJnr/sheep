@@ -23,10 +23,10 @@ messages, and extremely questionable sheep-related naming decisions.
 **[Website](https://sheep.grimtech.co.uk)** ·
 **[Playground](https://sheep.grimtech.co.uk/playground.html)** ·
 **[Docs](https://sheep.grimtech.co.uk/docs/)** ·
-[Tour](LANGUAGE.md) ·
-[Spec](SPEC.md) ·
-[Architecture](ARCHITECTURE.md) ·
-[Roadmap](ROADMAP.md)
+[Tour](https://sheep.grimtech.co.uk/docs/language.html) ·
+[Spec](https://sheep.grimtech.co.uk/docs/spec.html) ·
+[Architecture](https://sheep.grimtech.co.uk/docs/architecture.html) ·
+[Roadmap](https://sheep.grimtech.co.uk/docs/roadmap.html)
 
 </div>
 
