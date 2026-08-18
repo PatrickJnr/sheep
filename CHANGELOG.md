@@ -7,6 +7,26 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.2.2], 2026-08-18
+
+### Fixed
+
+- **The installed `baa` command did nothing and exited successfully.** npm
+  installs a bin as a symlink, so running `node_modules/.bin/baa` gives an
+  `argv[1]` pointing at the link while `import.meta.url` points at the file it
+  targets. The entry-point check compared the two directly, decided it was
+  being imported rather than run, and skipped `main` entirely. Both sides are
+  now resolved through `realpathSync`.
+
+  Windows hid it: there npm writes a `.cmd` shim that invokes node with the
+  real path, so the paths matched and only Linux and macOS were affected. The
+  CI step added in 0.2.1 runs on Linux and caught it on its first outing.
+
+0.2.1 reached the GitHub releases but never reached npm, so the only version
+published before this one is 0.2.0.
+
+[0.2.2]: https://github.com/PatrickJnr/sheep/releases/tag/v0.2.2
+
 ## [0.2.1], 2026-08-18
 
 ### Fixed

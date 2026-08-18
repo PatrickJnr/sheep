@@ -1,6 +1,6 @@
 {
   "name": "baa-lang",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A small, readable scripting language with fast tooling, genuinely good error messages, and extremely questionable sheep-related naming decisions. Real lexer, parser, resolver, interpreter, formatter and linter.",
   "keywords": [
     "baa",

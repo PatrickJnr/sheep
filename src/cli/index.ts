@@ -7,7 +7,7 @@
  * parser impossible to drift apart: they are written next to each other.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -406,12 +406,23 @@ export async function main(argv: readonly string[]): Promise<number> {
   }
 }
 
-/** True when this file is the process entry point rather than an import. */
+/**
+ * True when this file is the process entry point rather than an import.
+ *
+ * Both sides are resolved through `realpathSync`, because npm installs a bin
+ * as a symlink: running `node_modules/.bin/baa` gives an `argv[1]` pointing at
+ * the link while `import.meta.url` points at the file it targets. Comparing
+ * them directly says "this is an import", `main` never runs, and the command
+ * exits successfully having done nothing at all.
+ *
+ * Windows hid this. There npm writes a `.cmd` shim that invokes node with the
+ * real path, so the two matched and only Linux and macOS installs were silent.
+ */
 function isEntryPoint(): boolean {
   const entry = process.argv[1];
   if (entry === undefined) return false;
   try {
-    return resolve(entry) === fileURLToPath(import.meta.url);
+    return realpathSync(resolve(entry)) === realpathSync(fileURLToPath(import.meta.url));
   } catch {
     return false;
   }
