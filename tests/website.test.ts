@@ -314,15 +314,68 @@ describe("website: social cards", needsSite, () => {
   });
 });
 
+describe("website: links and markup", needsSite, () => {
+  function htmlFiles(): string[] {
+    return [
+      ...readdirSync(SITE)
+        .filter((name) => name.endsWith(".html"))
+        .map((name) => join(SITE, name)),
+      ...readdirSync(join(SITE, "docs"))
+        .filter((name) => name.endsWith(".html"))
+        .map((name) => join(SITE, "docs", name)),
+    ];
+  }
+
+  // Every source link pointed at /blob/main while the default branch was
+  // master, so all of them were 404s. HEAD resolves to whatever the default
+  // branch is called, and survives it being renamed.
+  it("pins no repository link to a branch name", () => {
+    for (const path of htmlFiles()) {
+      const html = readFileSync(path, "utf8");
+      assert.doesNotMatch(html, /github\.com\/[\w-]+\/[\w-]+\/(?:blob|raw|tree)\/(?:main|master)\//, path);
+    }
+  });
+
+  // A link whose text is a whole paragraph is read out in full by a screen
+  // reader listing links. Cards use a stretched link over the title instead.
+  it("keeps link text short enough to be read aloud", () => {
+    for (const path of htmlFiles()) {
+      const html = readFileSync(path, "utf8");
+      for (const match of html.matchAll(/<a [^>]*href="[^"]*"[^>]*>([\s\S]*?)<\/a>/g)) {
+        const text = (match[1] ?? "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+        assert.ok(text.length <= 80, `${path}: link text of ${text.length} chars: ${text.slice(0, 60)}`);
+      }
+    }
+  });
+
+  it("describes itself with valid structured data", () => {
+    const html = readFileSync(join(SITE, "index.html"), "utf8");
+    const block = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/.exec(html)?.[1];
+    assert.ok(block !== undefined, "no JSON-LD on the homepage");
+    const data = JSON.parse(block) as { "@graph": Array<{ "@type": string }> };
+    const types = data["@graph"].map((node) => node["@type"]);
+    assert.ok(types.includes("WebSite"));
+    assert.ok(types.includes("SoftwareSourceCode"));
+  });
+});
+
 describe("website: content security", needsSite, () => {
   const htaccess = (): string => readFileSync(join(SITE, ".htaccess"), "utf8");
 
   // An inline <script> anywhere would force 'unsafe-inline' back into
-  // script-src, which is the one directive worth being strict about.
-  it("has no inline script in any page", () => {
+  // script-src, which is the one directive worth being strict about. A
+  // `application/ld+json` block is data the browser never executes, so it is
+  // neither blocked by the policy nor a way around it.
+  it("has no executable inline script in any page", () => {
     for (const name of readdirSync(SITE).filter((file) => file.endsWith(".html"))) {
       const html = readFileSync(join(SITE, name), "utf8");
-      assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/, name);
+      for (const [tag] of html.matchAll(/<script([^>]*)>[\s\S]*?<\/script>/g)) {
+        const attributes = /<script([^>]*)>/.exec(tag)?.[1] ?? "";
+        assert.ok(
+          /\ssrc=/.test(attributes) || /type="application\/ld\+json"/.test(attributes),
+          `${name} has an inline script: <script${attributes}>`,
+        );
+      }
     }
   });
 

@@ -138,6 +138,28 @@ async function main(): Promise<void> {
     });
     record("homepage tabs switch", tabWorks);
 
+    // The card's link wraps only its title, and a stretched ::after covers the
+    // rest. If that pseudo-element ever stops covering it, the card still looks
+    // clickable and silently is not, which no markup check would notice.
+    // elementFromPoint is viewport-relative and returns null off-screen, and
+    // the site scrolls smoothly, so the scroll has to finish before measuring.
+    await page.evaluate(() =>
+      document.querySelector(".card--link")?.scrollIntoView({ block: "center", behavior: "instant" }),
+    );
+    const cardHit = await page.evaluate(() => {
+      const card = document.querySelector(".card--link");
+      const paragraph = card?.querySelector("p");
+      const link = card?.querySelector<HTMLAnchorElement>("h3 a");
+      if (!card || !paragraph || !link) return { ok: false, why: "no linked card found" };
+      const box = paragraph.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {
+        ok: hit === link || link.contains(hit),
+        why: `${hit?.tagName ?? "nothing"} is over the card body`,
+      };
+    });
+    record("a card is clickable away from its title", cardHit.ok, cardHit.why);
+
     const themeWorks = await page.evaluate(() => {
       const before = document.documentElement.getAttribute("data-theme");
       document.querySelector<HTMLButtonElement>("[data-theme-toggle]")?.click();
