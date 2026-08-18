@@ -82,6 +82,20 @@ a tree-walking interpreter, a standard library, a formatter, a linter, a test
 runner, a REPL and a project tool. It runs real programs. It is not a syntax
 mock-up.
 
+**Nothing here is a wrapper around another language.** Baa does not compile to
+JavaScript, transpile to anything, or hand your program to another runtime. The
+lexer reads characters, the parser builds a tree, the resolver binds every name
+to its declaration, and the interpreter walks that tree — all of it written for
+this language and tested against a conformance suite of 50 programs pinned to
+their exact output.
+
+GitHub's language bar counts the *implementation*, which is TypeScript for the
+frontend and reference runtime, and Rust for the native one. That is the same
+thing it says about every young language — Elm's compiler is Haskell, Gleam's
+and Roc's are Rust — and it is not a statement about what `.baa` files are.
+Baa itself is absent from that bar for the ordinary reason: GitHub's Linguist
+only recognises languages that are already in wide use.
+
 The joke is the name. Everything underneath is built to be used.
 
 |  | |

@@ -24,6 +24,17 @@ tests/conformance/*.json linguist-generated=true
 docs/stdlib.md linguist-generated=true
 docs/errors.md linguist-generated=true
 
-# Baa is the point of the repository, so let it count towards the language
-# statistics rather than being written off as unrecognised text.
+# Baa is the point of the repository, so this asks for it to count towards the
+# language statistics rather than being written off as unrecognised text.
+#
+# It does nothing yet, and that is worth knowing rather than rediscovering:
+# `linguist-language` only accepts a name that already exists in Linguist's
+# `languages.yml`, and Baa is not in it. Unknown values are ignored, so the
+# `.baa` files here are counted as nothing and the bar on GitHub shows only the
+# languages the *implementation* is written in.
+#
+# Getting into Linguist needs real-world use across many repositories, which is
+# a consequence of adoption rather than something a repository can arrange. The
+# line stays because it becomes correct on the day that happens, and costs
+# nothing until then.
 *.baa linguist-language=Baa
