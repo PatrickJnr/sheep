@@ -138,6 +138,38 @@ export function createWool() {
       );
     }),
 
+    // Five characters, not three. `<` and `&` are enough for text between
+    // tags, but a value dropped into an attribute escapes its quoting with `"`
+    // or `'`, and `>` costs nothing to cover. Anything less is a rule people
+    // have to remember which context they are in to apply, which is how these
+    // holes appear in the first place.
+    escape_html: fn(1, 1, "Escape text so it is safe inside HTML or an attribute.", (args) =>
+      escapeHtml(display(argAny(args, 0))),
+    ),
+
+    // `escape_html` cannot help here. There is nothing to escape in
+    // `javascript:alert(1)`: it survives escaping untouched and still runs when
+    // it lands in an `href`. Scheme is a separate question from encoding, so it
+    // gets a separate function.
+    safe_url: fn(1, 1, "A URL if its scheme is safe to link to, otherwise nil.", (args, ctx) =>
+      safeUrl(argString("wool.safe_url", args, 0, ctx.span)),
+    ),
+
+    percent_encode: fn(1, 1, "Percent-encode text for use in a URL.", (args, ctx) =>
+      encodeURIComponent(argString("wool.percent_encode", args, 0, ctx.span)),
+    ),
+
+    percent_decode: fn(1, 1, "Decode percent-encoded text, or nil when it is malformed.", (args, ctx) => {
+      const text = argString("wool.percent_decode", args, 0, ctx.span);
+      try {
+        return decodeURIComponent(text);
+      } catch {
+        // `%zz` and lone surrogates are the common cases. A caller reading
+        // untrusted input should get nil rather than an error it has to catch.
+        return null;
+      }
+    }),
+
     is_blank: fn(1, 1, "True when a string is empty or only whitespace.", (args, ctx) =>
       argString("wool.is_blank", args, 0, ctx.span).trim().length === 0,
     ),
@@ -162,6 +194,40 @@ export function createWool() {
 
     inspect: fn(1, 1, "Developer-facing text for any value.", (args) => inspect(argAny(args, 0))),
   });
+}
+
+const HTML_ESCAPES: Readonly<Record<string, string>> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
+/** Shared with `gate`, which escapes on the program's behalf. */
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]!);
+}
+
+/** Schemes a link may use. Everything else, known or not, is refused. */
+const SAFE_SCHEMES = new Set(["http", "https", "mailto", "tel", "ftp"]);
+
+/**
+ * A URL if it is safe to put in an `href`, or `null`.
+ *
+ * A relative URL has no scheme and is always allowed. An absolute one is
+ * allowed only from the list above: `javascript:` and `data:` both execute,
+ * and neither contains a character HTML escaping would touch.
+ *
+ * Control characters and whitespace are stripped before the scheme is read,
+ * because browsers ignore them inside a URL and `java\tscript:alert(1)` would
+ * otherwise pass a naive check and still run.
+ */
+export function safeUrl(text: string): string | null {
+  const stripped = text.replace(/[\u0000-\u0020\u007f]/g, "");
+  const scheme = /^([A-Za-z][A-Za-z0-9+.-]*):/.exec(stripped);
+  if (scheme === null) return text;
+  return SAFE_SCHEMES.has(scheme[1]!.toLowerCase()) ? text : null;
 }
 
 function splitWords(text: string): string[] {
