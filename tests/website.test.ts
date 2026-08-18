@@ -146,19 +146,29 @@ describe("brand images", () => {
     }
   });
 
-  it("points the README at images that exist in the repository", () => {
+  it("points the README at images the site actually serves", () => {
     const readme = readFileSync(join(ROOT, "README.md"), "utf8");
-    const pattern = /raw\.githubusercontent\.com\/[\w-]+\/[\w-]+\/HEAD\/([\w./-]+)/g;
-    const refs = [...readme.matchAll(pattern)].map((match) => match[1]!);
+    const refs = [...readme.matchAll(/https:\/\/sheep\.grimtech\.co\.uk\/assets\/([\w-]+\.png)/g)].map(
+      (match) => match[1]!,
+    );
 
-    assert.ok(refs.length >= 3, `expected the README to embed repo images, found ${refs.length}`);
+    assert.ok(refs.length >= 3, `expected the README to embed brand images, found ${refs.length}`);
+    // Served from the site rather than from the repository, because the
+    // repository is private: raw.githubusercontent.com refuses an
+    // unauthenticated request and a README image tag cannot authenticate. Each
+    // file is still committed here, which is what keeps the two in step.
     for (const ref of new Set(refs)) {
-      assert.ok(existsSync(join(ROOT, ref)), `README embeds ${ref}, which does not exist`);
+      assert.ok(
+        existsSync(join(PUBLISHED, ref)),
+        `README embeds ${ref}, which is not in assets/images`,
+      );
     }
 
-    // HEAD, not a branch name, so renaming the default branch cannot break them.
-    const branchPinned = /raw\.githubusercontent\.com\/[\w-]+\/[\w-]+\/(main|master)\//;
-    assert.equal(branchPinned.test(readme), false, "pin image URLs to HEAD, not a branch");
+    assert.doesNotMatch(
+      readme,
+      /raw\.githubusercontent\.com/,
+      "raw.githubusercontent.com 404s while the repository is private",
+    );
   });
 });
 

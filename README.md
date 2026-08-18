@@ -3,10 +3,10 @@
 <a href="https://sheep.grimtech.co.uk">
   <picture>
     <source media="(prefers-color-scheme: dark)"
-            srcset="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/social-dark.png">
+            srcset="https://sheep.grimtech.co.uk/assets/social-dark.png">
     <source media="(prefers-color-scheme: light)"
-            srcset="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/social.png">
-    <img src="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/social.png" width="720"
+            srcset="https://sheep.grimtech.co.uk/assets/social.png">
+    <img src="https://sheep.grimtech.co.uk/assets/social.png" width="720"
          alt="Baa: a programming language with a little more Baa">
   </picture>
 </a>
@@ -329,10 +329,10 @@ that can use them.
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)"
-            srcset="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/logo-dark.png">
+            srcset="https://sheep.grimtech.co.uk/assets/logo-dark.png">
     <source media="(prefers-color-scheme: light)"
-            srcset="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/logo.png">
-    <img src="https://raw.githubusercontent.com/PatrickJnr/sheep/HEAD/assets/images/logo.png" width="200"
+            srcset="https://sheep.grimtech.co.uk/assets/logo.png">
+    <img src="https://sheep.grimtech.co.uk/assets/logo.png" width="200"
          alt="The Baa lockup: the sheep mark beside the word Baa">
   </picture>
 </p>
