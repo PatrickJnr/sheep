@@ -176,7 +176,10 @@ export function createRam() {
         throw BaaError.of("BAA311", ["ram.parse", "a string", "1", typeof text], { span: ctx.span });
       }
       const base = args.length > 1 ? argNumber("ram.parse", args, 1, ctx.span) : 10;
-      const value = base === 10 ? Number(text.trim()) : Number.parseInt(text.trim(), base);
+      const trimmed = text.trim();
+      // `Number("")` is 0, which would make blank text parse as a number.
+      if (trimmed === "") return null;
+      const value = base === 10 ? Number(trimmed) : Number.parseInt(trimmed, base);
       return Number.isNaN(value) ? null : value;
     }),
   });

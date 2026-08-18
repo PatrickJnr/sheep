@@ -8,7 +8,7 @@
  */
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
-import { BaaArray, display, inspect } from "../runtime/values.ts";
+import { BaaArray, checkSize, display, inspect } from "../runtime/values.ts";
 import type { Value } from "../runtime/values.ts";
 import { argAny, argArray, argInt, argString, defineModule, fn } from "./define.ts";
 
@@ -65,6 +65,7 @@ export function createWool() {
           span: ctx.span,
         });
       }
+      checkSize("wool.repeat", count * text.length, ctx.span);
       return text.repeat(count);
     }),
 
@@ -127,6 +128,7 @@ export function createWool() {
       const width = argInt("wool.center", args, 1, ctx.span);
       const filler = args.length > 2 ? argString("wool.center", args, 2, ctx.span) : " ";
       if (filler.length === 0 || text.length >= width) return text;
+      checkSize("wool.center", width, ctx.span);
       const total = width - text.length;
       const left = Math.floor(total / 2);
       return (

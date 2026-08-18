@@ -49,6 +49,34 @@ export type NodeHostOptions = {
   seed?: number;
 };
 
+/**
+ * A short reason for a failed filesystem operation, without the path.
+ *
+ * Both Node and the in-memory host put the path in the message they throw, and
+ * every caller prefixes the path it was given, so reporting the raw message
+ * printed it twice: `data.txt: ENOENT: no such file or directory, open
+ * 'C:\...\data.txt'`. Callers keep the path; this supplies only the reason.
+ */
+export function describeFileError(error: unknown): string {
+  const code = (error as { code?: string }).code;
+  switch (code) {
+    case "ENOENT":
+      return "no such file";
+    case "EISDIR":
+      return "that is a directory, not a file";
+    case "ENOTDIR":
+      return "part of that path is not a directory";
+    case "EACCES":
+    case "EPERM":
+      return "permission denied";
+    case "EMFILE":
+    case "ENFILE":
+      return "too many open files";
+    default:
+      return error instanceof Error ? error.message : String(error);
+  }
+}
+
 export function createNodeHost(options: NodeHostOptions = {}): RuntimeHost {
   const argv = options.argv ?? [];
   const random = options.seed === undefined ? Math.random : makeSeededRandom(options.seed);
@@ -101,7 +129,9 @@ export function createCapturingHost(
     writeError: (text) => void err.push(text),
     readFile: (path) => {
       const contents = files.get(path);
-      if (contents === undefined) throw new Error(`no such file: ${path}`);
+      if (contents === undefined) throw Object.assign(new Error(`no such file: ${path}`), {
+        code: "ENOENT",
+      });
       return contents;
     },
     writeFile: (path, contents) => void files.set(path, contents),

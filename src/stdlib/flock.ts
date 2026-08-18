@@ -12,6 +12,7 @@ import {
   BaaArray,
   BaaMap,
   BaaRange,
+  checkSize,
   inspect,
   isMapKey,
   isTruthy,
@@ -34,6 +35,7 @@ export function createFlock() {
           span: ctx.span,
         });
       }
+      checkSize("flock.repeat", count, ctx.span);
       return new BaaArray(new Array<Value>(count).fill(value));
     }),
 
@@ -181,6 +183,7 @@ export function createFlock() {
           span: ctx.span,
         });
       }
+      checkSize("flock.range", Math.max(0, Math.ceil((end - start) / step)), ctx.span);
       const out: Value[] = [];
       if (step > 0) for (let i = start; i < end; i += step) out.push(i);
       else for (let i = start; i > end; i += step) out.push(i);
@@ -190,7 +193,10 @@ export function createFlock() {
     to_array: fn(1, 1, "Turn a range, string or map into an array.", (args, ctx) => {
       const value = argAny(args, 0);
       if (value instanceof BaaArray) return new BaaArray([...value.items]);
-      if (value instanceof BaaRange) return new BaaArray([...value.values()]);
+      if (value instanceof BaaRange) {
+        checkSize("flock.to_array", value.length, ctx.span);
+        return new BaaArray([...value.values()]);
+      }
       if (typeof value === "string") return new BaaArray([...value]);
       if (value instanceof BaaMap) {
         return new BaaArray(

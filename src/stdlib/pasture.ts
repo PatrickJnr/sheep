@@ -11,6 +11,7 @@
 import { basename, dirname, extname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
+import { describeFileError } from "../runtime/host.ts";
 import type { RuntimeHost } from "../runtime/host.ts";
 import { BaaArray } from "../runtime/values.ts";
 import { argArray, argString, checkPath, defineModule, fn, mapOf } from "./define.ts";
@@ -27,7 +28,7 @@ export function createPasture(host: RuntimeHost) {
       try {
         return host.readFile(path);
       } catch (error) {
-        throw BaaError.of("BAA404", [`${path}: ${(error as Error).message}`], {
+        throw BaaError.of("BAA404", [`${path}: ${describeFileError(error)}`], {
           span: ctx.span,
           note: "could not read this file",
           help: "Check the path, and that the file exists: `pasture.exists(path)`.",
@@ -43,7 +44,7 @@ export function createPasture(host: RuntimeHost) {
         if (lines[lines.length - 1] === "") lines.pop();
         return new BaaArray(lines);
       } catch (error) {
-        throw BaaError.of("BAA404", [`${path}: ${(error as Error).message}`], { span: ctx.span });
+        throw BaaError.of("BAA404", [`${path}: ${describeFileError(error)}`], { span: ctx.span });
       }
     }),
 
@@ -53,7 +54,7 @@ export function createPasture(host: RuntimeHost) {
       try {
         host.writeFile(path, contents);
       } catch (error) {
-        throw BaaError.of("BAA404", [`${path}: ${(error as Error).message}`], { span: ctx.span });
+        throw BaaError.of("BAA404", [`${path}: ${describeFileError(error)}`], { span: ctx.span });
       }
       return null;
     }),
@@ -64,7 +65,7 @@ export function createPasture(host: RuntimeHost) {
       try {
         host.appendFile(path, contents);
       } catch (error) {
-        throw BaaError.of("BAA404", [`${path}: ${(error as Error).message}`], { span: ctx.span });
+        throw BaaError.of("BAA404", [`${path}: ${describeFileError(error)}`], { span: ctx.span });
       }
       return null;
     }),
@@ -95,7 +96,7 @@ export function createPasture(host: RuntimeHost) {
       try {
         return new BaaArray(host.listDir(path).sort());
       } catch (error) {
-        throw BaaError.of("BAA404", [`${path}: ${(error as Error).message}`], {
+        throw BaaError.of("BAA404", [`${path}: ${describeFileError(error)}`], {
           span: ctx.span,
           note: "could not list this directory",
         });
