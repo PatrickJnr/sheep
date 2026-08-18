@@ -177,6 +177,38 @@ outside the directory are refused.
 Not for production: one process per request, a ten second limit per page, and
 it binds to localhost unless told otherwise.
 
+## `baa lsp`
+
+```
+baa lsp
+```
+
+Speaks the Language Server Protocol over stdin and stdout. Editors start this
+themselves; there is rarely a reason to run it by hand. Full setup, with
+working configuration for Neovim, Helix and Emacs, is in
+[editors.md](editors.md).
+
+| Provides | |
+| --- | --- |
+| Diagnostics | On open and on every change, errors and lint warnings together |
+| Formatting | Whole document, refused when the file does not parse |
+| Document symbols | Top-level functions, bindings, imports and tests |
+| Hover | Signature and doc comment |
+| Go to definition | The declaration a name binds to |
+| Find references | Every use of that binding |
+| Rename | Those uses and nothing else |
+
+Diagnostics come from the same analysis as `baa check` and `baa lint`, so an
+editor cannot disagree with the command line about whether a file is valid, and
+a code shown in the editor is one you can look up in [errors.md](errors.md).
+
+Definition, references and rename read the resolver's symbol table rather than
+the text. A binding that shadows an outer one of the same name is a different
+symbol, so renaming the inner one leaves the outer alone.
+
+Writes nothing to stdout that is not a protocol message, which makes a client
+log with no messages in it a sign the client never sent any.
+
 ## `baa repl`
 
 ```

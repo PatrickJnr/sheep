@@ -544,6 +544,31 @@ describe("regression: the package as installed, not as cloned", () => {
   });
 });
 
+describe("regression: commands the reference forgot", () => {
+  // `baa lsp` shipped, was added to the README table and to `--help`, and was
+  // never given a section in the CLI reference, which claims to document every
+  // command. Nothing compared the two lists, so nothing noticed.
+  it("documents every command the CLI offers", () => {
+    const cli = readFileSync(join(ROOT, "src", "cli", "index.ts"), "utf8");
+    const block = /^COMMANDS$([\s\S]*?)^$/m.exec(cli)?.[1] ?? "";
+    const commands = [...block.matchAll(/^ {2}(\w+)/gm)].map((match) => match[1]!);
+    assert.ok(commands.length > 5, `expected to find the command list, got ${commands.length}`);
+
+    // Headings may cover two commands at once, as `baa add` / `baa remove`
+    // does, so the name is looked for anywhere in a heading rather than at
+    // the start of one.
+    const headings = readFileSync(join(ROOT, "docs", "cli.md"), "utf8")
+      .split("\n")
+      .filter((line) => line.startsWith("## "));
+    for (const command of commands) {
+      assert.ok(
+        headings.some((heading) => heading.includes(`\`baa ${command}\``)),
+        `docs/cli.md has no section for \`baa ${command}\``,
+      );
+    }
+  });
+});
+
 describe("regression: articles in diagnostic messages", () => {
   // Four templates wrote the article themselves ("a {0}") while every call site
   // also supplied one, so real programs were told "You can't add a an array and
