@@ -7,6 +7,32 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.3.1], 2026-08-18
+
+### Fixed
+
+- **`baa page.baa` runs the file.** A page executed by its shebang arrives as
+  `baa /path/to/page.baa`, because the kernel appends the script to the
+  interpreter's arguments. The CLI looked for a subcommand of that name and
+  reported `Unknown command`, so every CGI page was a 500 and every
+  `./script.baa` failed, with an error blaming the part that was correct.
+
+  A first argument ending in `.baa`, or naming something that exists, is now
+  run. Anything else still gets the command list, so a mistyped `buidl` is not
+  reported as a missing file. Remaining arguments reach the program through
+  `shepherd.args()`.
+
+  This also makes `baa hello.baa` work without `run`, the way `python x.py`
+  does.
+
+### Added
+
+- `tools/build-cgi.ts` generates `website/baa/`: the example site with the
+  shebang, `.htaccess` and a diagnostic page a real web server needs. The
+  interpreter path differs on every host, so `BAA_CGI_SHEBANG` sets it.
+
+[0.3.1]: https://github.com/PatrickJnr/sheep/releases/tag/v0.3.1
+
 ## [0.3.0], 2026-08-18
 
 ### Added
