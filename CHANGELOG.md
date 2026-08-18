@@ -7,6 +7,31 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.2.1], 2026-08-18
+
+### Fixed
+
+- **The published package could not run.** 0.2.0 shipped its TypeScript
+  sources with `bin` pointing at `src/cli/index.ts`. It installed cleanly and
+  then failed on the first command with
+  `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`: Node refuses to strip types
+  from files under `node_modules`. The package now ships compiled JavaScript,
+  built by `npm run build` and invoked automatically by `prepack`.
+
+  Nothing changes for a clone. Development still runs `src` directly and still
+  has no build step; the build exists only to produce the tarball.
+
+  0.2.0 is deprecated on npm. Use 0.2.1.
+
+### Added
+
+- A CI step that packs the tarball, installs it into a scratch project and
+  runs a program through the installed binary. Every other check runs from the
+  checkout, which is why a package that only fails once installed passed all of
+  them.
+
+[0.2.1]: https://github.com/PatrickJnr/sheep/releases/tag/v0.2.1
+
 ## [0.2.0], 2026-08-18
 
 An audit release. Nothing in the language changed shape; several things that

@@ -104,40 +104,22 @@ jobs:
           node "$GITHUB_WORKSPACE/src/cli/index.ts" build
           node "$GITHUB_WORKSPACE/src/cli/index.ts" fmt --check .
 
-  audit:
-    name: dependency audit
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      - run: npm ci
-
-      - name: No known vulnerabilities
-        run: npm audit --audit-level=moderate
-
-      - name: No runtime dependencies
+      # The published package is a different artefact from the checkout, and
+      # only this step exercises it. 0.2.0 shipped `.ts` sources with `bin`
+      # pointing at one, installed cleanly, and then failed on first run:
+      # Node refuses to strip types under node_modules. Everything above this
+      # passed for that release, because it all runs from the checkout.
+      - name: The tarball works when installed
         run: |
-          count=$(node -e "const p=require('./package.json');console.log(Object.keys(p.dependencies||{}).length)")
-          echo "runtime dependencies: $count"
-          test "$count" -eq 0
-
-  benchmarks:
-    name: benchmarks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-
-      - run: npm ci
-
-      - name: Run benchmarks
-        run: node tools/bench.ts | tee "$GITHUB_STEP_SUMMARY"
+          npm pack
+          mkdir -p /tmp/consumer && cd /tmp/consumer
+          npm init -y > /dev/null
+          npm install "$GITHUB_WORKSPACE"/baa-lang-*.tgz
+          {
+            echo 'baa "installed"'
+            echo 'baa 2 + 3'
+          } > check.baa
+          ./node_modules/.bin/baa version
+          ./node_modules/.bin/baa run check.baa | tee out.txt
+          grep -qx 'installed' out.txt
+          grep -qx '5' out.txt

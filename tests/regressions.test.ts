@@ -488,6 +488,45 @@ describe("regression: counts the README states as fact", () => {
   });
 });
 
+describe("regression: the package as installed, not as cloned", () => {
+  // baa-lang 0.2.0 shipped its TypeScript sources and pointed `bin` at
+  // `src/cli/index.ts`. It installed cleanly and then failed on first run:
+  // Node refuses to strip types from anything under node_modules, so the
+  // published package could not execute a single program. It worked from a
+  // clone, which is the one place it was ever tried.
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+    bin: Record<string, string>;
+    exports: Record<string, string>;
+    files: string[];
+    scripts: Record<string, string>;
+  };
+
+  const published = [...Object.values(pkg.bin), ...Object.values(pkg.exports)];
+
+  it("runs compiled JavaScript, not sources Node will refuse to strip", () => {
+    for (const entry of published) {
+      assert.doesNotMatch(
+        entry,
+        /\.ts$/,
+        `${entry} is TypeScript; Node cannot strip types under node_modules`,
+      );
+      assert.match(entry, /(^|\/)dist\//, `${entry} should come from the build output`);
+    }
+  });
+
+  it("ships the build output and not the sources", () => {
+    assert.ok(pkg.files.includes("dist"), "the tarball must contain dist");
+    assert.ok(!pkg.files.includes("src"), "shipping src alongside dist is dead weight");
+  });
+
+  // Without this the tarball is whatever `dist` happened to contain, which on
+  // a clean checkout is nothing at all.
+  it("builds automatically when packing", () => {
+    assert.match(pkg.scripts.prepack ?? "", /build/);
+    assert.match(pkg.scripts.build ?? "", /tsc -p tsconfig\.build\.json/);
+  });
+});
+
 describe("regression: articles in diagnostic messages", () => {
   // Four templates wrote the article themselves ("a {0}") while every call site
   // also supplied one, so real programs were told "You can't add a an array and

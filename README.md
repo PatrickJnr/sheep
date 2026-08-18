@@ -17,6 +17,7 @@ messages, and extremely questionable sheep-related naming decisions.
 [![CI](https://github.com/PatrickJnr/sheep/actions/workflows/ci.yml/badge.svg)](https://github.com/PatrickJnr/sheep/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F4B3F)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.18-2F4B3F)](https://nodejs.org)
+[![npm](https://img.shields.io/npm/v/baa-lang?color=2F4B3F&label=npm)](https://www.npmjs.com/package/baa-lang)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-none-2F4B3F)](package.json)
 
 **[Website](https://sheep.grimtech.co.uk)** ·
@@ -98,18 +99,40 @@ conformance suite that pins the exact output of 50 programs.
 
 ## Install
 
-Baa needs **Node.js 22.18 or newer**, and nothing else. Node runs Baa's
-TypeScript sources directly, so there is no build step.
+Baa needs **Node.js 22.18 or newer**, and nothing else at runtime.
+
+```bash
+npm install -g baa-lang
+baa doctor           # check the installation
+```
+
+Or run it without installing anything:
+
+```bash
+npx baa-lang run hello.baa
+```
+
+<details>
+<summary><b>From a clone, for working on Baa itself</b></summary>
+
+Node runs Baa's TypeScript sources directly, so there is no build step for
+development:
 
 ```bash
 git clone https://github.com/PatrickJnr/sheep.git
 cd sheep
-npm install          # one dev dependency: typescript, for type-checking only
+npm install          # dev dependencies: typescript, and puppeteer-core for the site checks
 npm link             # puts `baa` on your PATH
-baa doctor           # check the installation
 ```
 
-Prefer not to link? Every command works as `node src/cli/index.ts <command>`.
+Every command also works as `node src/cli/index.ts <command>`, with nothing
+linked.
+
+Publishing is the one place a build happens. Node refuses to strip types from
+files under `node_modules`, so the npm package ships compiled JavaScript,
+produced by `npm run build` and invoked automatically by `prepack`.
+
+</details>
 
 > Why not Rust? The question was not ducked, and a Rust implementation is an
 > open track rather than a maybe. See

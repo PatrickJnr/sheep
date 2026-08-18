@@ -1,0 +1,17 @@
+{
+  // Publishing needs compiled JavaScript. Node refuses to strip types from
+  // anything under `node_modules`, so a package shipping `.ts` sources installs
+  // fine and then fails on first run with ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING.
+  //
+  // Development is unaffected: every npm script still runs `src` directly, and
+  // this config is used only by `npm run build`, which `prepack` invokes.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src/**/*.ts"]
+}

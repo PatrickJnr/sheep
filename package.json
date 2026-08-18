@@ -1,6 +1,6 @@
 {
   "name": "baa-lang",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A small, readable scripting language with fast tooling, genuinely good error messages, and extremely questionable sheep-related naming decisions. Real lexer, parser, resolver, interpreter, formatter and linter.",
   "keywords": [
     "baa",
@@ -23,16 +23,16 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "baa": "src/cli/index.ts"
+    "baa": "dist/cli/index.js"
   },
   "exports": {
-    ".": "./src/api.ts"
+    ".": "./dist/api.js"
   },
   "engines": {
     "node": ">=22.18.0"
   },
   "files": [
-    "src",
+    "dist",
     "examples",
     "docs",
     "tests/conformance",
@@ -44,24 +44,26 @@
   ],
   "scripts": {
     "baa": "node src/cli/index.ts",
-    "test": "node --test \"tests/**/*.test.ts\"",
-    "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
-    "test:baa": "node src/cli/index.ts test tests/programs",
-    "typecheck": "tsc --noEmit",
-    "lint": "node src/cli/index.ts lint examples tests/programs",
+    "bench": "node tools/bench.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "check:playground": "node tools/check-playground.ts",
+    "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
     "fmt": "node src/cli/index.ts fmt examples tests/programs",
     "fmt:check": "node src/cli/index.ts fmt --check examples tests/programs",
-    "bench": "node tools/bench.ts",
-    "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
-    "gen:docs": "node tools/gen-docs.ts",
+    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:assets && npm run gen:playground && npm run gen:site",
+    "gen:assets": "node tools/render-assets.ts",
+    "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/render-assets.ts --check",
     "gen:conformance": "node tools/gen-conformance.ts",
+    "gen:docs": "node tools/gen-docs.ts",
     "gen:playground": "node tools/build-playground.ts",
     "gen:site": "node tools/build-site.ts && node tools/check-site.ts",
-    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:assets && npm run gen:playground && npm run gen:site",
-    "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/render-assets.ts --check",
-    "check:playground": "node tools/check-playground.ts",
+    "lint": "node src/cli/index.ts lint examples tests/programs",
+    "prepack": "npm run build",
     "serve": "node tools/serve.ts",
-    "gen:assets": "node tools/render-assets.ts"
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "test:baa": "node src/cli/index.ts test tests/programs",
+    "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
