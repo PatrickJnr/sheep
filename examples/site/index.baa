@@ -9,7 +9,7 @@
 
 import gate
 import wool
-import { page } from "./layout.baa"
+import { base, page } from "./layout.baa"
 
 const flock = ["Dolly", "Shaun", "Timmy", "Shirley"]
 
@@ -18,7 +18,9 @@ const flock = ["Dolly", "Shaun", "Timmy", "Shirley"]
 // text, not ours.
 const name = gate.query().get("name", "world")
 
-const items = flock.map(fn(sheep) { return gate.format("<li><a href=\"/sheep/%s\">%s</a></li>", sheep, sheep) }).join("\n")
+const items = flock.map(fn(sheep) {
+    return gate.format("<li><a href=\"%ssheep.baa/%s\">%s</a></li>", base(), sheep, sheep)
+}).join("\n")
 
 gate.html(
     page(
@@ -29,7 +31,7 @@ gate.html(
             "<form><label>Your name <input name=\"name\"></label> <button>Say baa</button></form>",
             "<h2>The flock</h2><ul>",
             items,
-            "</ul><p><a href=\"/count\">Count some sheep</a></p>",
+            gate.format("</ul><p><a href=\"%scount.baa\">Count some sheep</a></p>", base()),
         ),
     ),
 )

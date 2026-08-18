@@ -4,6 +4,24 @@
 /// the parts of a site that repeat are just functions you export.
 
 import wool
+import shepherd
+
+/// The URL path this site is mounted at, ending in a slash.
+///
+/// A page has no way of knowing in advance whether it lives at the root of a
+/// domain or in a subdirectory, and links written as `/style.css` are wrong
+/// the moment it is the latter. CGI supplies `SCRIPT_NAME`, the URL path of
+/// the page being run, so the directory holding it is the answer: at
+/// `/index.baa` this gives `/`, and at `/baa/index.baa` it gives `/baa/`.
+///
+/// Every link below goes through this, which is what lets the same files
+/// serve from `baa serve` at the root and from a subdirectory on a host.
+export fn base() {
+    const parts = (shepherd.env("SCRIPT_NAME") ?? "/").split("/")
+    // Everything but the file name, joined back with a trailing slash:
+    // "/baa/index.baa" gives "/baa/", and "/index.baa" gives "/".
+    return parts.slice(0, parts.length() - 1).join("/") + "/"
+}
 
 /// Wrap body HTML in the document shell. `title` is escaped; `body` is not,
 /// because it is markup the caller has already built.
@@ -14,13 +32,15 @@ export fn page(title, body) {
             <html lang="en"><head><meta charset="utf-8">
             <meta name="viewport" content="width=device-width,initial-scale=1">
             <title>%s</title>
-            <link rel="stylesheet" href="/style.css">
+            <link rel="stylesheet" href="%sstyle.css">
             </head><body><main>
             %s
-            <footer><a href="/">Home</a> &middot; served by Baa</footer>
+            <footer><a href="%s">Home</a> &middot; served by Baa</footer>
             </main></body></html>
             """,
         wool.escape_html(title),
+        base(),
         body,
+        base(),
     )
 }

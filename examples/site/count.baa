@@ -3,7 +3,7 @@
 
 import gate
 import ram
-import { page } from "./layout.baa"
+import { base, page } from "./layout.baa"
 
 // A block string. Before these existed this was a five-argument `wool.concat`.
 const FORM = """
@@ -37,8 +37,9 @@ if gate.method() != "POST" {
                     """
                         <h1>%s sheep</h1>
                         <p>Square root: %s</p>
-                        <p><a href="/count">Count again</a></p>
+                        <p><a href="%scount.baa">Count again</a></p>
                         """,
+                    base(),
                     n,
                     ram.round(ram.sqrt(ram.abs(n)), 3),
                 ),

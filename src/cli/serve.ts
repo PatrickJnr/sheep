@@ -161,14 +161,22 @@ function resolveTarget(root: string, pathname: string): Target | null {
     if (existsSync(candidate)) return { file: candidate, pathInfo: "" };
   }
 
-  // Walk back up, looking for a .baa file that owns the rest of the path.
+  // Walk back up, looking for a page that owns the rest of the path.
+  //
+  // Both spellings resolve: `/sheep/Dolly` finds `sheep.baa`, and
+  // `/sheep.baa/Dolly` finds it too. The second is what a link has to say on
+  // Apache, which maps a URL to a file on disk and will not invent the
+  // extension, so a site that used only the first worked under `baa serve`
+  // and gave 404s once deployed.
   const parts = cleaned.split("/").filter((part) => part.length > 0);
   for (let i = parts.length - 1; i > 0; i--) {
     const base = resolve(root, parts.slice(0, i).join("/"));
     if (base !== root && !base.startsWith(root + sep)) break;
-    const candidate = `${base}.baa`;
-    if (existsSync(candidate)) {
-      return { file: candidate, pathInfo: `/${parts.slice(i).join("/")}` };
+    const pathInfo = `/${parts.slice(i).join("/")}`;
+    for (const candidate of [`${base}.baa`, base]) {
+      if (candidate.endsWith(".baa") && existsSync(candidate) && statSync(candidate).isFile()) {
+        return { file: candidate, pathInfo };
+      }
     }
   }
   return null;
