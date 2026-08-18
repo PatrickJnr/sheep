@@ -94,7 +94,7 @@ The joke is the name. Everything underneath is built to be used.
 | **Nothing to trust** | No third-party packages. Nothing is downloaded, nothing runs implicitly, and no subprocess ever sees a shell. |
 | **Two places to run** | The same files serve [web pages](docs/web.md) and build [native Windows applications](docs/native-applications.md). One language, one set of tests, two targets. |
 
-Verified on every commit, across Windows, Linux and macOS: **620+ tests**, a
+Verified on every commit, across Windows, Linux and macOS: **600+ tests**, a
 formatter that must be a fixed point, a linter that must be clean, and a
 conformance suite that pins the exact output of 50 programs.
 

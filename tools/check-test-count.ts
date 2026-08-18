@@ -60,9 +60,16 @@ if (hostPath() === null) {
   process.exit(0);
 }
 
-// The site is generated and gitignored, so a fresh checkout has none. Building
-// it is a documented step and takes about a second.
-if (!existsSync(join(ROOT, "website", "index.html"))) {
+// `website/src` holds the home page and the other hand-written pages. It is
+// gitignored, so a clone does not have it and the site cannot be built there at
+// all: `tools/build-site.ts` prints "No website/src here; skipping" and exits
+// 0, which is why its exit status alone does not tell you a site exists.
+//
+// Twenty-five tests need one. Where there is no source they are absent rather
+// than broken, and the floor has to hold without them, because that is what a
+// clone runs.
+const hasSiteSources = existsSync(join(ROOT, "website", "src"));
+if (hasSiteSources && !existsSync(join(ROOT, "website", "index.html"))) {
   process.stdout.write("building the site first, so its tests are not skipped\n");
   const built = spawnSync(process.execPath, ["tools/build-site.ts"], {
     cwd: ROOT,
@@ -102,7 +109,11 @@ if (failed > 0) {
 if (passed < floor) {
   fail(
     `README.md says ${floor}+ tests, but the suite runs ${passed}.\n` +
-      "Lower the figure, or find out which tests stopped running.",
+      (hasSiteSources
+        ? "Lower the figure, or find out which tests stopped running."
+        : "There is no `website/src` here, so 25 site tests did not run. The\n" +
+          "figure still has to hold without them, because a clone does not have\n" +
+          "them either."),
   );
 }
 
@@ -111,4 +122,7 @@ if (passed >= floor + 100) {
   process.stdout.write(`note: the suite runs ${passed} and README.md says ${floor}+. Worth raising.\n`);
 }
 
-process.stdout.write(`README.md says ${floor}+ tests; the suite runs ${passed}\n`);
+process.stdout.write(
+  `README.md says ${floor}+ tests; the suite runs ${passed}` +
+    (hasSiteSources ? "\n" : " (no `website/src`, so 25 site tests were skipped)\n"),
+);
