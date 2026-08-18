@@ -26,7 +26,7 @@ carry a status label:
 
 ## Current State
 
-Version **0.7.0**. The reference implementation is TypeScript running on
+Version **0.7.1**. The reference implementation is TypeScript running on
 Node.js 22.18+ with no build step and no runtime dependencies; the native
 runtime is Rust with no dependencies either.
 
@@ -127,8 +127,8 @@ the same analysis the compiler runs, and the VS Code extension was declarative
 **Delivered.** `editors/vscode/src/extension.ts` starts `baa lsp` and connects
 VS Code to it. It registers no providers of its own, and a test asserts that:
 a second opinion about what a program means is worse than no opinion. The
-`.vsix` is built by CI and attached to each release, since the extension is not
-on the marketplace.
+`.vsix` is built by CI and attached to each release, and the extension is
+published to the marketplace as `baa-lang.baa-lang`.
 
 **Definition of done — met, and verified rather than assumed.** An integration
 test launches a real VS Code, loads the extension, opens a `.baa` file and

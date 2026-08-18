@@ -257,7 +257,7 @@ Expressions print their value; statements do not.
 
 ```
 $ baa repl
-Baa 0.7.0
+Baa 0.7.1
 Type :help for commands, :quit to leave.
 baa> const flock = ["Dolly", "Shaun"]
 baa> flock.map(fn(n) { return n.upper() })
@@ -402,7 +402,7 @@ works without it and most people never build a native application.
 ```
 ok   Node.js           v24.13.0
 ok   Platform          win32 x64
-ok   Baa               0.7.0
+ok   Baa               0.7.1
 ok   Project           hill_farm 0.1.0 ()
 ok   Wool              1 resolved
 ok   Entry             main.baa

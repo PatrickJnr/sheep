@@ -7,6 +7,24 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.7.1], 2026-08-19
+
+### Fixed
+
+- **The marketplace listing had no description.** The extension published as
+  0.7.0 was built before the README and icon existed, so its page read "No
+  README available" — the package on disk carried both by then, and the upload
+  did not. A version cannot be replaced once published, so this is the release
+  that carries them.
+
+  The same version number therefore existed as two different packages, which is
+  the actual lesson: `vsce publish --packagePath` uploads whatever file it is
+  handed, and nothing checks that the file matches the working tree it was
+  named from. The release workflow builds the package it publishes in the same
+  job, so it cannot drift.
+
+[0.7.1]: https://github.com/PatrickJnr/sheep/releases/tag/v0.7.1
+
 ## [0.7.0], 2026-08-18
 
 The native runtime is published, so building a desktop application no longer
