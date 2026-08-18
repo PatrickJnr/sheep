@@ -346,6 +346,42 @@ describe("cli: project lifecycle", () => {
     assert.match(missing.err, /there is no baa\.lock/);
   });
 
+  // A page run by its shebang arrives as `baa /path/to/page.baa`, because the
+  // kernel appends the script to the interpreter's arguments. That answered
+  // "Unknown command" until now, which made every CGI page a 500 and every
+  // `./script.baa` a puzzle.
+  it("runs a file given as the first argument", () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "page.baa"), 'baa "ran directly"\n');
+    const result = baa(["page.baa"], dir);
+    assert.equal(result.code, 0, result.err);
+    assert.equal(result.out, "ran directly\n");
+  });
+
+  it("runs a file whose first line is a shebang", () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "page.baa"), '#!/usr/bin/env baa\nbaa "shebang ignored"\n');
+    const result = baa(["page.baa"], dir);
+    assert.equal(result.code, 0, result.err);
+    assert.equal(result.out, "shebang ignored\n");
+  });
+
+  it("passes the remaining arguments to the program", () => {
+    const dir = workspace();
+    writeFileSync(join(dir, "page.baa"), 'import shepherd\nbaa shepherd.args().join(",")\n');
+    const result = baa(["page.baa", "one", "two"], dir);
+    assert.equal(result.code, 0, result.err);
+    assert.equal(result.out, "one,two\n");
+  });
+
+  // A mistyped command must still get the command list, not a complaint that
+  // some file is missing.
+  it("still reports an unknown command as an unknown command", () => {
+    const result = baa(["buidl"], workspace());
+    assert.equal(result.code, 2);
+    assert.match(result.err, /Unknown command `buidl`/);
+  });
+
   it("refuses to overwrite an existing project without --force", () => {
     const dir = workspace();
     assert.equal(baa(["init", "."], dir).code, 0);

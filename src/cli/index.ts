@@ -7,7 +7,7 @@
  * parser impossible to drift apart: they are written next to each other.
  */
 
-import { readFileSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -393,9 +393,30 @@ export async function main(argv: readonly string[]): Promise<number> {
           version: VERSION,
           banner: !parsed.booleans.has("no-banner") && !flags.quiet,
         });
-      default:
+      default: {
+        // `baa page.baa` means run it, the way `python x.py` does. This is not
+        // only a convenience: a page executed by its shebang arrives here as
+        // `baa /path/to/page.baa`, because the kernel appends the script to
+        // the interpreter's arguments. Without this, every CGI page and every
+        // `./script.baa` answered "Unknown command".
+        //
+        // A name is treated as a file only when it looks like one, so an
+        // ordinary typo still gets the list of commands rather than a
+        // complaint about a missing file.
+        if (parsed.command.endsWith(".baa") || existsSync(parsed.command)) {
+          return commandRun(
+            {
+              entry: parsed.command,
+              programArgs: [...parsed.positionals, ...parsed.passthrough],
+              seed: numberOption(parsed, "seed"),
+              maxDepth: numberOption(parsed, "max-depth"),
+            },
+            context,
+          );
+        }
         writeError(`Unknown command \`${parsed.command}\`. Run \`baa --help\`.`);
         return 2;
+      }
     }
   } catch (error) {
     if (error instanceof BaaError) {
