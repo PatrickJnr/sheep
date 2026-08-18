@@ -529,8 +529,16 @@ export class Interpreter {
         }
         return out;
       }
-      case "Identifier":
-        return env.get(expression.name, expression.span);
+      case "Identifier": {
+        // The resolver usually knows exactly where this name lives, and going
+        // straight there skips both the hashing and the walk. Names it could
+        // not place — the prelude, and anything a REPL session introduced —
+        // still go by name.
+        const slot = expression.slot;
+        return slot === undefined || slot === null
+          ? env.get(expression.name, expression.span)
+          : env.getSlot(slot.hops, slot.index, expression.name, expression.span);
+      }
       case "ArrayLiteral":
         return new BaaArray(expression.elements.map((element) => this.evaluate(element, env)));
       case "MapLiteral": {
@@ -849,10 +857,16 @@ export class Interpreter {
     };
 
     if (target.kind === "Identifier") {
+      const slot = target.slot ?? null;
       const current =
-        expression.operator === "=" ? null : env.get(target.name, target.span);
+        expression.operator === "="
+          ? null
+          : slot === null
+            ? env.get(target.name, target.span)
+            : env.getSlot(slot.hops, slot.index, target.name, target.span);
       const value = compute(current);
-      env.assign(target.name, value, target.span);
+      if (slot === null) env.assign(target.name, value, target.span);
+      else env.assignSlot(slot.hops, slot.index, target.name, value, target.span);
       return value;
     }
     if (target.kind === "MemberExpression") {

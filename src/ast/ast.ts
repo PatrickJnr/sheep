@@ -296,10 +296,25 @@ export type BoolLiteral = {
 
 export type NilLiteral = { readonly kind: "NilLiteral"; readonly span: Span };
 
+/**
+ * Where the resolver found a name: `hops` scopes out from the use, at `index`
+ * in that scope's declaration order.
+ *
+ * This is an annotation, not part of the tree's meaning. The parser never sets
+ * it, the formatter and the native image ignore it, and an interpreter that
+ * looks names up the slow way stays correct. See `Environment.getSlot`.
+ */
+export type Slot = {
+  readonly hops: number;
+  readonly index: number;
+};
+
 export type Identifier = {
   readonly kind: "Identifier";
   readonly span: Span;
   readonly name: string;
+  /** Filled in by the resolver. Absent until a program has been resolved. */
+  slot?: Slot | null;
 };
 
 export type ArrayLiteral = {

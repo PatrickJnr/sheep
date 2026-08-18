@@ -16,6 +16,7 @@
 import { bindingNames } from "../ast/ast.ts";
 import type {
   Block,
+  Slot,
   Expression,
   FunctionDeclaration,
   MatchArm,
@@ -50,6 +51,15 @@ export type SymbolInfo = {
   reads: number;
   writes: number;
   /**
+   * Where this binding lives at runtime: `depth` counts scopes from the
+   * outermost one the resolver opened, `index` is its position in that scope's
+   * declaration order. Together with the use site's depth they become the
+   * `Slot` an identifier carries, which is what lets the interpreter read a
+   * name by position instead of hashing it.
+   */
+  readonly depth: number;
+  readonly index: number;
+  /**
    * Every place the name is used, in source order, excluding the declaration
    * itself. The counts above answer "was this used?", which is all the linter
    * needs; an editor asking "where?" needs the spans, and only the resolver
@@ -75,6 +85,8 @@ export type ResolveOptions = {
 
 type Scope = {
   readonly declared: Map<string, SymbolInfo>;
+  /** Next declaration position, mirroring the order the interpreter defines in. */
+  count: number;
   /** Names declared later in this scope, used to detect use-before-declare. */
   readonly pending: Map<string, Span>;
   readonly isFunctionBoundary: boolean;
@@ -113,6 +125,7 @@ class Resolver {
     this.#scopes.push({
       declared: new Map(),
       pending: new Map(),
+      count: 0,
       isFunctionBoundary,
     });
   }
@@ -158,12 +171,28 @@ class Resolver {
       params: options.params ?? null,
       reads: 0,
       writes: 0,
+      // Redeclaring a name keeps its position, because that is what the
+      // interpreter does: `define` overwrites in place rather than appending.
+      depth: this.#scopes.length - 1,
+      index: existing === undefined ? scope.count++ : existing.index,
       references: [],
     };
     scope.declared.set(name, symbol);
     scope.pending.delete(name);
     this.#allSymbols.push(symbol);
     return symbol;
+  }
+
+  /**
+   * Record on the identifier where its declaration lives, so the interpreter
+   * can go straight there. Names the resolver did not place — the prelude, and
+   * anything it could not prove — get `null` and are looked up by name.
+   */
+  #place(node: { slot?: Slot | null }, symbol: SymbolInfo | null): void {
+    node.slot =
+      symbol === null
+        ? null
+        : { hops: this.#scopes.length - 1 - symbol.depth, index: symbol.index };
   }
 
   #lookup(name: string): SymbolInfo | null {
@@ -455,7 +484,7 @@ class Resolver {
         }
         return;
       case "Identifier":
-        this.#reference(expression.name, expression.span);
+        this.#place(expression, this.#reference(expression.name, expression.span));
         return;
       case "ArrayLiteral":
         for (const element of expression.elements) this.#resolveExpression(element);
@@ -486,6 +515,7 @@ class Resolver {
         const target = expression.target;
         if (target.kind === "Identifier") {
           const symbol = this.#lookup(target.name);
+          this.#place(target, symbol);
           if (symbol === null) {
             this.#reference(target.name, target.span);
             return;

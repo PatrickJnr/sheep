@@ -190,9 +190,17 @@ A straightforward tree-walker.
 
 - `execute(statement, env)` runs for effect; `evaluate(expression, env)`
   produces a value.
-- Scopes are `Environment` objects: a `Map` plus a parent pointer. A closure
-  captures the `Environment` it was declared in, which is the whole of Baa's
-  closure implementation.
+- Scopes are `Environment` objects: bindings in declaration order plus a parent
+  pointer. A closure captures the `Environment` it was declared in, which is the
+  whole of Baa's closure implementation.
+- Reading a variable is two array indexes. The resolver records on each
+  identifier how many scopes out its declaration lives and which position it
+  holds there, and the interpreter goes straight to it. The slot carries the
+  name it was resolved from and is checked before it is trusted, so a
+  disagreement between the resolver and the interpreter falls back to the name
+  walk rather than reading the wrong binding. A scope that grows past eight
+  names builds a `Map`, which is what keeps the globals — the whole prelude —
+  off a linear scan.
 - Function declarations are hoisted per block before the block runs, which is
   what makes mutual recursion work.
 - The call stack is an explicit array of frames. When a `BaaError` escapes a
@@ -219,20 +227,23 @@ not to win arguments.
 
 The deliberate performance choices are: no boxing of primitives (a Baa number
 *is* a JavaScript number), lazy line-index construction, and a single pass over
-the AST per stage. The obvious remaining win is variable resolution (see
-below).
+the AST per stage. Variable resolution, which used to be the obvious remaining
+win, is done: see "Path to a bytecode VM" below.
 
 ## Path to a bytecode VM
 
 The interpreter is the only part of Baa that would need replacing, and the
 groundwork is already in place.
 
-**Step 1: resolved variable slots.** The resolver already walks every scope
-and knows, for each identifier, which scope declares it. Recording a
-(depth, index) pair on each `Identifier` node turns environment lookup from a
-hash-map walk into an array index. This is a contained change: the resolver
-gains an output field, `Environment` gains an indexed representation, and
-nothing else moves. It is the single largest available speed-up.
+**Step 1: resolved variable slots — done in 0.8.0.** The resolver records a
+`(hops, index)` pair on each `Identifier`, and `Environment` holds its bindings
+in declaration order, so reading a resolved local is an array index rather than
+a walk through a chain of hash maps. Measured back to back on the same machine:
+loop-heavy code around 17% faster, calls roughly unchanged (a call defines its
+parameters, and that bookkeeping offsets what the lookups save). The native
+runtime is untouched — the image format carries no slots, and the Rust
+tree-walker still looks names up — so the two implementations cannot disagree
+about scope rules on account of this.
 
 **Step 2: a compiler to a flat instruction array.** The AST is already a
 clean tree of plain data with no behaviour attached, so a `compile(node)` that
