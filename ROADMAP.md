@@ -26,7 +26,7 @@ with a migration note.
 ## Phase 2: A usable language ✅ shipped in 0.1
 
 - [x] Modules: local files, standard library, named imports, aliases, cycles
-- [x] Seven standard-library modules
+- [x] Eight standard-library modules
 - [x] `try` / `catch` / `finally`, `throw`, catchable runtime errors
 - [x] `match` with alternatives, guards and structural patterns
 - [x] Deterministic formatter that preserves comments

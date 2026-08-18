@@ -56,7 +56,7 @@ interpreter.
 | `src/ast/` | Node types and generic walkers |
 | `src/semantic/` | Name resolution, scope and arity checking |
 | `src/runtime/` | Values, environments, the interpreter, the host interface |
-| `src/stdlib/` | The prelude and the seven modules |
+| `src/stdlib/` | The prelude and the eight modules |
 | `src/formatter/` | The AST printer behind `baa fmt` |
 | `src/linter/` | Warning rules |
 | `src/project/` | `baa.toml` and `baa.lock` |

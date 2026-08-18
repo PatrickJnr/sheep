@@ -216,6 +216,7 @@ All 46 of them are listed in [docs/errors.md](docs/errors.md).
 | `baa fmt [paths]` | Format source files, `--check` for CI |
 | `baa lint [paths]` | Report warnings, `--deny-warnings` for CI |
 | `baa repl` | Interactive session |
+| `baa lsp` | Language server, for editors |
 | `baa init [dir]` | Create a new project |
 | `baa build` | Validate the project and write `baa.lock`, `--locked` to verify it |
 | `baa add` / `baa remove` | Manage local dependencies |
@@ -259,19 +260,30 @@ suite. If one breaks, CI says so.
 | [`collections.baa`](examples/collections.baa) | Arrays and maps in anger |
 | [`modules.baa`](examples/modules.baa) | Imports, aliases, local files |
 | [`errors.baa`](examples/errors.baa) | Throwing, catching, `finally` |
-| [`stdlib.baa`](examples/stdlib.baa) | The six modules whose output is the same on every machine |
+| [`stdlib.baa`](examples/stdlib.baa) | Every module whose output is the same on every machine |
 | [`fizzbuzz.baa`](examples/fizzbuzz.baa) | `match` on structural patterns |
 | [`large_program.baa`](examples/large_program.baa) | A ~200-line flock register: parsing, validation, statistics, a report and JSON |
 
 ## Editor support
 
+`baa lsp` is a language server. It provides diagnostics as you type, whole-file
+formatting, a document outline and hover for top-level declarations, and it
+runs the same analysis as `baa check` and `baa lint`, so an editor cannot
+disagree with the command line about whether a file is valid.
+
+Neovim, Helix and Emacs can point at it directly. Setup for each, and what the
+server does not do yet, is in [docs/editors.md](docs/editors.md).
+
 [`editors/vscode/`](editors/vscode/) contains a VS Code extension with syntax
 highlighting, including inside string interpolations, plus bracket and comment
 configuration and snippets. To try it locally, copy or symlink the directory
-into `~/.vscode/extensions/` and reload the window.
+into `~/.vscode/extensions/` and reload the window. It does not start the
+language server yet: VS Code needs an extension with a JavaScript entry point
+to do that, and this one is declarative only.
 
-A language server is the next tooling milestone. Every piece it needs already
-exists: spans, the resolver's symbol table, doc comments and the formatter.
+Go to definition, find references and rename are not implemented, and the
+server does not advertise them. All three need the resolver to expose the
+symbol table it already builds internally.
 
 ## Would you rather this were Rust?
 

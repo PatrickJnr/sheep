@@ -10,6 +10,7 @@
  */
 
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -368,6 +369,23 @@ describe("regression: counts the README states as fact", () => {
     const stated = claims(/^(\w+) modules, sheep-branded/gm);
     assert.equal(stated.length, 1, "expected exactly one claim about the module count");
     assert.equal(stated[0]!.toLowerCase(), WORDS[STDLIB_MODULES.length]);
+  });
+
+  // The count appeared in five more places than the README: ARCHITECTURE.md,
+  // SECURITY.md, rust/README.md and the site builder's own page description
+  // all said seven too. Checking one file would have left four wrong.
+  it("does not say a stale module count anywhere in the repository", () => {
+    const words = new Set(WORDS.map((word) => word).filter((word) => word !== WORDS[STDLIB_MODULES.length]));
+    const files = execFileSync("git", ["ls-files", "*.md", "*.ts"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean);
+    for (const relative of files) {
+      const text = readFileSync(join(ROOT, relative), "utf8");
+      for (const [phrase, word] of text.matchAll(/\b(\w+) modules\b/g)) {
+        if (!words.has(word!.toLowerCase())) continue;
+        assert.fail(`${relative} says "${phrase}", but there are ${STDLIB_MODULES.length}`);
+      }
+    }
   });
 
   it("lists every standard-library module in its table", () => {

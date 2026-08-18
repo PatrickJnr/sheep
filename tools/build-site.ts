@@ -116,6 +116,13 @@ const DOC_PAGES: readonly DocPage[] = [
     group: "Start here",
   },
   {
+    slug: "editors",
+    source: "docs/editors.md",
+    title: "Editor support",
+    description: "Syntax highlighting, and the baa lsp language server: what it provides, what it does not, and how to point an editor at it.",
+    group: "Start here",
+  },
+  {
     slug: "faq",
     source: "docs/faq.md",
     title: "FAQ",
@@ -126,7 +133,7 @@ const DOC_PAGES: readonly DocPage[] = [
     slug: "stdlib",
     source: "docs/stdlib.md",
     title: "Standard library",
-    description: "Every function Baa ships with: the prelude, the methods on values, and all seven modules.",
+    description: "Every function Baa ships with: the prelude, the methods on values, and all eight modules.",
     group: "Reference",
   },
   {
@@ -202,6 +209,8 @@ const MARKDOWN_TO_SLUG: Record<string, string> = {
   "docs/cli.md": "cli",
   "docs/stdlib.md": "stdlib",
   "docs/errors.md": "errors",
+  "docs/editors.md": "editors",
+  "editors.md": "editors",
   "docs/faq.md": "faq",
   "docs/web.md": "web",
   "web.md": "web",

@@ -13,6 +13,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { BaaError, setWoollyMode } from "../diagnostics/diagnostic.ts";
+import { serve } from "../lsp/server.ts";
 import {
   commandAdd,
   commandBuild,
@@ -59,6 +60,7 @@ COMMANDS
   fmt [paths...]        Format source files in place
   lint [paths...]       Report style and correctness warnings
   serve [dir]           Serve a directory of .baa pages over HTTP
+  lsp                   Run the language server on stdin and stdout
   repl                  Start an interactive session
   init [dir]            Create a new project
   build                 Validate the project and write baa.lock
@@ -153,6 +155,15 @@ const COMMAND_HELP: Record<string, string> = {
   doctor: `baa doctor
 
   Report the Node version, platform, project state and dependency resolution.`,
+  lsp: `baa lsp
+
+  Speak the Language Server Protocol over stdin and stdout. Editors start this
+  themselves; there is rarely a reason to run it by hand.
+
+  Provides diagnostics as you type, whole-file formatting, a document symbol
+  outline, and hover for top-level declarations. Diagnostics come from the same
+  analysis as \`baa check\` and \`baa lint\`, so an editor cannot disagree with
+  the command line about whether a file is valid.`,
 };
 
 type Parsed = {
@@ -360,6 +371,9 @@ export async function main(argv: readonly string[]): Promise<number> {
         }
         return commandRemove(name, context);
       }
+      case "lsp":
+        // No banner, no colour, no stray writes: stdout is the protocol.
+        return await serve({ read: process.stdin, write: (text) => void process.stdout.write(text) });
       case "doctor":
         return commandDoctor(context, VERSION);
       case "modules":

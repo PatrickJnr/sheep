@@ -583,7 +583,7 @@ does not produce partially-initialised modules.
 
 ## 7. Standard library
 
-Seven modules: `wool` (text), `flock` (collections), `ram` (arithmetic),
+Eight modules: `wool` (text), `flock` (collections), `ram` (arithmetic),
 `meadow` (time and randomness), `pasture` (files and paths), `shepherd`
 (process and environment), `lamb` (JSON), `gate` (web requests and replies).
 Every function is documented in
