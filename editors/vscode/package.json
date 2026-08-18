@@ -91,7 +91,8 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "package": "vsce package --out baa-lang.vsix",
-    "test:vscode": "node test/runTest.js"
+    "test:vscode": "node test/runTest.js",
+    "test": "node --test test/locate.test.js"
   },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"

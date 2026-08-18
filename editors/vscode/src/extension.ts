@@ -23,15 +23,10 @@ import {
   TransportKind,
 } from "vscode-languageclient/node";
 
-let client: LanguageClient | undefined;
+import { fromPath, fromWhereOutput } from "./locate.js";
+import type { Server } from "./locate.js";
 
-/**
- * How to start the server, and how that was decided. `module` runs a
- * JavaScript file under the editor's own Node; `command` runs an executable.
- */
-type Server =
-  | { kind: "module"; module: string; args: string[]; source: string }
-  | { kind: "command"; command: string; args: string[]; source: string };
+let client: LanguageClient | undefined;
 
 /**
  * Finds `baa lsp`.
@@ -51,10 +46,7 @@ type Server =
 function findServer(): Server | null {
   const configured = workspace.getConfiguration("baa").get<string>("server.path")?.trim();
   if (configured !== undefined && configured !== "") {
-    const source = "the `baa.server.path` setting";
-    return configured.endsWith(".js")
-      ? { kind: "module", module: configured, args: ["lsp"], source }
-      : { kind: "command", command: configured, args: ["lsp"], source };
+    return fromPath(configured, "the `baa.server.path` setting");
   }
 
   // An explicit path from the environment, for the cases that have no settings
@@ -62,10 +54,7 @@ function findServer(): Server | null {
   // script. Checked after the setting, so a user's own configuration wins.
   const fromEnvironment = process.env["BAA_SERVER_PATH"]?.trim();
   if (fromEnvironment !== undefined && fromEnvironment !== "") {
-    const source = "the BAA_SERVER_PATH environment variable";
-    return fromEnvironment.endsWith(".js")
-      ? { kind: "module", module: fromEnvironment, args: ["lsp"], source }
-      : { kind: "command", command: fromEnvironment, args: ["lsp"], source };
+    return fromPath(fromEnvironment, "the BAA_SERVER_PATH environment variable");
   }
 
   if (process.platform !== "win32") {
@@ -80,17 +69,7 @@ function findServer(): Server | null {
   // is looking for cannot.
   const where = spawnSync("where", ["baa"], { encoding: "utf8", shell: false });
   if (where.status !== 0) return null;
-
-  for (const line of where.stdout.split(/\r?\n/)) {
-    const shim = line.trim();
-    if (shim === "") continue;
-    // npm's global layout: the shim sits beside the tree it installs into.
-    const entry = join(dirname(shim), "node_modules", "baa-lang", "dist", "cli", "index.js");
-    if (existsSync(entry)) {
-      return { kind: "module", module: entry, args: ["lsp"], source: `PATH (${shim})` };
-    }
-  }
-  return null;
+  return fromWhereOutput(where.stdout, existsSync, { dirname, join });
 }
 
 export async function activate(context: ExtensionContext): Promise<void> {
