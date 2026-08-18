@@ -149,6 +149,30 @@ baa lint .
 baa lint --deny-warnings --disable BAA905 .
 ```
 
+## `baa serve`
+
+```sh
+baa serve [dir] [options]
+```
+
+Run a directory of `.baa` pages over HTTP, for development. Each request
+executes the matching file in a fresh process with the CGI environment set,
+which is what a real web server does, so a page that works here works on a
+host. See [web.md](web.md).
+
+| Option | Meaning |
+| --- | --- |
+| `--port <n>` | Port to listen on (default 8080) |
+| `--host <address>` | Address to bind (default `127.0.0.1`) |
+
+URLs map to files: `/` runs `index.baa`, `/about` runs `about.baa`, and
+`/sheep/Shaun` runs `sheep.baa` with `/Shaun` as the path below the script.
+Anything else beside the pages is served as a static file. Paths resolving
+outside the directory are refused.
+
+Not for production: one process per request, a ten second limit per page, and
+it binds to localhost unless told otherwise.
+
 ## `baa repl`
 
 ```

@@ -450,7 +450,8 @@ does not produce partially-initialised modules.
 
 Seven modules: `wool` (text), `flock` (collections), `ram` (arithmetic),
 `meadow` (time and randomness), `pasture` (files and paths), `shepherd`
-(process and environment), `lamb` (JSON). Every function is documented in
+(process and environment), `lamb` (JSON), `gate` (web requests and replies).
+Every function is documented in
 [docs/stdlib.md](docs/stdlib.md).
 
 The prelude, available without an import, is `len`, `type_of`, `to_string`,

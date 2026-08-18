@@ -239,6 +239,7 @@ inside. An API you have to remember at 2am is no place for a joke.
 | `pasture` | Files and paths |
 | `shepherd` | Arguments, environment, stdin, subprocesses |
 | `lamb` | JSON |
+| `gate` | Web requests and replies, over CGI |
 
 Plus a ten-name prelude that needs no import. Full reference:
 [docs/stdlib.md](docs/stdlib.md).

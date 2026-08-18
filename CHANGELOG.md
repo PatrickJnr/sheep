@@ -41,8 +41,8 @@ program in `examples/`.
 
 ### Tooling
 
-- `baa run`, `check`, `test`, `fmt`, `lint`, `repl`, `init`, `build`, `add`,
-  `remove`, `doctor`, `modules`, `version`.
+- `baa run`, `check`, `test`, `fmt`, `lint`, `serve`, `repl`, `init`, `build`,
+  `add`, `remove`, `doctor`, `modules`, `version`.
 - Deterministic formatter that preserves comments and is a fixed point.
 - Linter with six rules (`BAA901`–`BAA906`) and `_`-prefix and `--disable`
   escape hatches.
@@ -71,13 +71,15 @@ program in `examples/`.
 - `pasture`, files and platform-aware paths.
 - `shepherd`, arguments, environment, stdin, and shell-free subprocesses.
 - `lamb`: JSON encoding and decoding.
+- `gate`, the web: reading a request and writing a reply over CGI, with
+  escaping that is safe by default.
 - Prelude: `len`, `type_of`, `to_string`, `to_number`, `inspect`, `clone`,
   `assert`, `assert_eq`, `panic`, `exit`.
 - Methods on strings, arrays, maps, ranges and numbers.
 
 ### Project
 
-- 472 automated tests across lexer, parser, resolver, runtime, standard
+- 501 automated tests across lexer, parser, resolver, runtime, standard
   library, diagnostics, formatter, linter, modules, CLI and examples.
 - Baa's own test blocks, run by `baa test`.
 - Recorded example transcripts, asserted by the suite.

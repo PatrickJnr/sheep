@@ -109,6 +109,13 @@ const DOC_PAGES: readonly DocPage[] = [
     group: "Start here",
   },
   {
+    slug: "web",
+    source: "docs/web.md",
+    title: "Web pages",
+    description: "Writing web pages in Baa: the gate module, escaping, baa serve, and putting a page on a real host.",
+    group: "Start here",
+  },
+  {
     slug: "faq",
     source: "docs/faq.md",
     title: "FAQ",
@@ -196,6 +203,8 @@ const MARKDOWN_TO_SLUG: Record<string, string> = {
   "docs/stdlib.md": "stdlib",
   "docs/errors.md": "errors",
   "docs/faq.md": "faq",
+  "docs/web.md": "web",
+  "web.md": "web",
   "cli.md": "cli",
   "stdlib.md": "stdlib",
   "errors.md": "errors",

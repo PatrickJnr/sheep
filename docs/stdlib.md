@@ -13,6 +13,7 @@ Every function Baa ships with. Module names are sheep-themed; the functions insi
 - [`pasture`](#pasture): Files and paths: reading, writing, listing, joining.
 - [`shepherd`](#shepherd): The outside world: arguments, environment, stdin, subprocesses.
 - [`lamb`](#lamb): Data: JSON encoding and decoding.
+- [`gate`](#gate): The web: reading a request and writing a reply, over CGI.
 
 ---
 
@@ -167,6 +168,10 @@ import wool
 | `wool.kebab_case` | 1 | Convert text to kebab-case. |
 | `wool.wrap` | 2 | Wrap text to a maximum line width, breaking on spaces. |
 | `wool.center` | 2–3 | Centre text within a width. |
+| `wool.escape_html` | 1 | Escape text so it is safe inside HTML or an attribute. |
+| `wool.safe_url` | 1 | A URL if its scheme is safe to link to, otherwise nil. |
+| `wool.percent_encode` | 1 | Percent-encode text for use in a URL. |
+| `wool.percent_decode` | 1 | Decode percent-encoded text, or nil when it is malformed. |
 | `wool.is_blank` | 1 | True when a string is empty or only whitespace. |
 | `wool.to_bytes` | 1 | UTF-8 byte values of a string. |
 | `wool.from_bytes` | 1 | Build a string from an array of UTF-8 byte values. |
@@ -343,6 +348,36 @@ import lamb
 | `lamb.decode` | 1 | Parse JSON text into Baa values. |
 | `lamb.try_decode` | 1–2 | Parse JSON text, or return a fallback (default nil). |
 | `lamb.is_valid` | 1 | True when a string parses as JSON. |
+
+## `gate`
+
+The web: reading a request and writing a reply, over CGI.
+
+```baa
+import gate
+```
+
+| Function | Arguments | Description |
+| --- | --- | --- |
+| `gate.method` | 0 | The request method, uppercase. Defaults to GET. |
+| `gate.path` | 0 | The path below the script, or "/". |
+| `gate.query` | 0 | The query string parsed into a map. |
+| `gate.query_string` | 0 | The raw, undecoded query string. |
+| `gate.body` | 0 | The request body as text. |
+| `gate.form` | 0 | A urlencoded request body parsed into a map. |
+| `gate.header` | 1–2 | A request header, or a fallback when it is absent. |
+| `gate.headers` | 0 | Every request header as a map, in Header-Case. |
+| `gate.cookies` | 0 | The Cookie header parsed into a map. |
+| `gate.status` | 1 | Set the status code. Must come before the reply starts. |
+| `gate.set_header` | 2 | Set a response header. Must come before the reply starts. |
+| `gate.text` | 1 | Reply with plain text. |
+| `gate.html` | 1 | Reply with HTML, exactly as given. Escape values yourself. |
+| `gate.fill` | 1+ | Reply with HTML, escaping each value put into a `%s`. The safe way to build a page. |
+| `gate.json` | 1 | Reply with a value encoded as JSON. |
+| `gate.redirect` | 1–2 | Reply with a redirect (303 by default). |
+| `gate.escape` | 1 | Escape a value for HTML. Same as `wool.escape_html`. |
+| `gate.safe_url` | 1–2 | A URL if its scheme is safe to link to, else a fallback (default "#"). |
+| `gate.format` | 1+ | Build HTML, escaping each value put into a `%s`, without sending it. |
 
 ---
 
