@@ -7,6 +7,38 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.3.2], 2026-08-18
+
+### Changed
+
+- **A page costs less to serve.** The CLI imported the language server, the
+  development HTTP server and the REPL at module scope on every invocation.
+  Each is needed by exactly one command, and `lsp` pulls in the whole analysis
+  stack. That is invisible when a command runs once on a developer's machine
+  and is paid on every request under CGI, where each request is a fresh
+  process.
+
+  All three are imported at their call site now. Measured by building the
+  previous commit into a worktree and running both alternately, so drift in the
+  machine hit each equally: what Baa adds to a request fell from 217ms to
+  161ms, a 26% cut. What remains is the lexer, parser, runtime and standard
+  library, which a page genuinely needs.
+
+### Fixed
+
+- **The example site works wherever it is mounted.** Every link was
+  root-absolute, so a deployment under a subdirectory rendered its pages and
+  broke its stylesheet and every link. `layout.baa` exports `base()`, which
+  reads CGI's `SCRIPT_NAME` and returns the directory the page is served from,
+  and every link goes through it. Nothing has to be configured.
+- **`baa serve` accepts a URL that names the page file.** Its walk-up looked
+  for the rest of a path under `<name>.baa` and never considered that the URL
+  might already say `.baa`. Apache maps a URL to a file and will not invent the
+  extension, so the spelling a deployed site has to use was the one the
+  development server rejected.
+
+[0.3.2]: https://github.com/PatrickJnr/sheep/releases/tag/v0.3.2
+
 ## [0.3.1], 2026-08-18
 
 ### Fixed
