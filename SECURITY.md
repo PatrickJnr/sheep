@@ -4,8 +4,13 @@
 
 Please report security issues privately, not in the public issue tracker.
 
-- Open a [GitHub security advisory](https://github.com/PatrickJnr/sheep/security/advisories/new), or
-- email the maintainer listed on the repository profile.
+Email the maintainer address published on the
+[npm package page](https://www.npmjs.com/package/baa-lang). That is the route
+that works today.
+
+GitHub's private advisory form is the usual mechanism and is not available
+here: GitHub offers it on public repositories only, and this one is private, so
+a link to it would be a 404 handed to somebody trying to do the right thing.
 
 Include: what you found, how to reproduce it, and what an attacker could do
 with it. A `.baa` file that demonstrates the problem is ideal.

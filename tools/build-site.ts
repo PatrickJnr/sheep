@@ -52,6 +52,9 @@ function pngSize(path: string): { width: number; height: number } {
   return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
 }
 const REPO = "https://github.com/PatrickJnr/sheep";
+/** The package page. This is the link a visitor can actually follow: the
+ * repository is private, so anything pointing at it is a 404 for them. */
+const NPM = "https://www.npmjs.com/package/baa-lang";
 
 /**
  * `HEAD`, not a branch name. GitHub resolves it to whatever the default branch
@@ -60,6 +63,15 @@ const REPO = "https://github.com/PatrickJnr/sheep";
  * 404 while the default branch was `master`.
  */
 const BLOB = `${REPO}/blob/HEAD`;
+
+/**
+ * Footer marks. Inline SVG rather than an icon font or a remote sprite: the
+ * site loads nothing from another origin, and a test enforces that.
+ */
+const GITHUB_MARK = `<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>`;
+
+const NPM_MARK = `<svg viewBox="0 0 16 16" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M0 3v10h4.5V5.5h2V13H16V3H0Zm1.5 1.5h2V13h-2V4.5Zm6.5 0h6.5V13h-2V6h-2v7H8V4.5Z"/></svg>`;
+
 
 if (!existsSync(SRC)) {
   process.stdout.write("No website/src here; skipping the site build.\n");
@@ -381,7 +393,8 @@ ${options.extraHead ?? ""}</head>
       ${navLink("docs/language.html", "Tour", "")}
       ${navLink("playground.html", "Playground", "playground")}
       ${navLink("docs/stdlib.html", "Library", "")}
-      <a href="${REPO}" rel="noopener">GitHub</a>
+      <a class="nav-mark" href="${REPO}" rel="noopener" aria-label="Source on GitHub" title="GitHub">${GITHUB_MARK}</a>
+      <a class="nav-mark" href="${NPM}" rel="noopener" aria-label="Package on npm" title="npm">${NPM_MARK}</a>
       <button class="icon-button" type="button" data-theme-toggle aria-label="Switch theme">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
       </button>
@@ -424,7 +437,8 @@ ${options.body}
       <div>
         <h3>Project</h3>
         <ul>
-          <li><a href="${REPO}" rel="noopener">Source</a></li>
+          <li><a href="${NPM}" rel="noopener">Package on npm</a></li>
+          <li><a href="${REPO}" rel="noopener">Source on GitHub</a></li>
           <li><a href="${base}docs/roadmap.html">Roadmap</a></li>
           <li><a href="${base}docs/contributing.html">Contributing</a></li>
           <li><a href="${base}docs/rust.html">Rust port</a></li>
@@ -433,6 +447,10 @@ ${options.body}
     </div>
     <div class="colophon">
       <span>Baa ${VERSION} · MIT licensed · No third-party packages</span>
+      <span class="colophon__marks">
+        <a href="${REPO}" rel="noopener" aria-label="Source on GitHub" title="GitHub">${GITHUB_MARK}</a>
+        <a href="${NPM}" rel="noopener" aria-label="Package on npm" title="npm">${NPM_MARK}</a>
+      </span>
       <span>Built with a lexer, a parser and a great deal of wool.</span>
     </div>
   </div>
@@ -641,7 +659,8 @@ const STATIC_PAGES: readonly StaticPage[] = [
 for (const page of STATIC_PAGES) {
   const body = readFileSync(join(SRC, page.partial), "utf8")
     .replace(/\{\{version\}\}/g, VERSION)
-    .replace(/\{\{repo\}\}/g, REPO);
+    .replace(/\{\{repo\}\}/g, REPO)
+    .replace(/\{\{npm\}\}/g, NPM);
   writeFileSync(
     join(SITE, page.file),
     shell({

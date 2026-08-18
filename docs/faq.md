@@ -33,12 +33,14 @@ lacks.
 
 ### Why Node and TypeScript rather than Rust?
 
-The brief preferred Rust; the machine had no Rust toolchain and no MSVC linker,
-which would have meant several gigabytes of build tools before the first
-compile. The trade-offs are written out in
+Rust was the obvious candidate. It lost on a practical point: building it on
+Windows needs the MSVC linker, and that means several gigabytes of build tools
+before the first compile. The full trade-offs are in
 [ARCHITECTURE.md](../ARCHITECTURE.md#why-typescript-on-node). The short
-version: no build step at all, one dev dependency, runs identically on three
-platforms, and the front end ports mechanically if the host ever changes.
+version: no build step at all, no runtime dependencies, runs identically on
+three platforms, and the front end ports mechanically if the host ever changes.
+A Rust implementation is still an open track, and the conformance suite is
+there so one can prove itself against this one.
 
 ### Why is there only one number type?
 

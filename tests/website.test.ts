@@ -256,7 +256,9 @@ describe("website build", needsSite, () => {
       for (const match of html.matchAll(/(?:href|src)="(https?:\/\/[^"]+)"/g)) {
         const url = match[1]!;
         assert.ok(
-          url.startsWith("https://github.com/") || url.startsWith("https://sheep.grimtech.co.uk"),
+          url.startsWith("https://github.com/") ||
+            url.startsWith("https://www.npmjs.com/") ||
+            url.startsWith("https://sheep.grimtech.co.uk"),
           `${page} loads or links to an unexpected origin: ${url}`,
         );
       }

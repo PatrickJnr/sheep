@@ -70,11 +70,16 @@ interpreter.
 
 ## Why TypeScript on Node
 
-The project brief preferred Rust. The machine this was built on had no Rust
-toolchain and, more importantly, no MSVC linker, so a Rust build would have
-required installing several gigabytes of Visual Studio Build Tools before the
-first line of code compiled. The choice was made explicitly, with the
-trade-offs written down here as the brief requires.
+Rust was the obvious candidate and was seriously considered. It lost on one
+practical point: a Rust build on Windows needs the MSVC linker, which means
+several gigabytes of Visual Studio Build Tools installed before the first line
+compiles. That is a poor trade for a language whose whole appeal is starting
+fast and getting out of the way.
+
+The decision was made deliberately rather than by default, so the trade-offs
+on both sides are written out below. A Rust implementation remains an open
+track, and the conformance suite exists so one can prove itself against this
+one.
 
 **What TypeScript on Node bought us**
 
