@@ -65,9 +65,14 @@ jobs:
         id: notes
         run: |
           version=$(node -p "require('./package.json').version")
+          # `[[]` and `[]]` are the portable way to match a literal bracket.
+          # `\[` is a GNU extension: gawk warns and then reads it as the start
+          # of a character class, so the match finds nothing and the release
+          # ships with empty notes. This worked only because Ubuntu runners
+          # default to mawk, which is lenient about it.
           awk -v v="$version" '
-            $0 ~ "^## \\[" v "\\]" { found = 1; next }
-            found && /^## \[/ { exit }
+            $0 ~ "^## [[]" v "[]]" { found = 1; next }
+            found && /^## [[]/ { exit }
             found { print }
           ' CHANGELOG.md > RELEASE_NOTES.md
           test -s RELEASE_NOTES.md
