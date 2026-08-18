@@ -52,7 +52,14 @@ function pngSize(path: string): { width: number; height: number } {
   return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
 }
 const REPO = "https://github.com/PatrickJnr/sheep";
-const BLOB = `${REPO}/blob/main`;
+
+/**
+ * `HEAD`, not a branch name. GitHub resolves it to whatever the default branch
+ * is called, so these links survive the repository being renamed from master
+ * to main or the other way about. Pinned to `main`, every one of them was a
+ * 404 while the default branch was `master`.
+ */
+const BLOB = `${REPO}/blob/HEAD`;
 
 if (!existsSync(SRC)) {
   process.stdout.write("No website/src here; skipping the site build.\n");
@@ -235,6 +242,45 @@ function rewriteFor(fromDocs: boolean) {
 
 const socialSize = pngSize(join(SITE, "assets", SOCIAL_IMAGE.file));
 
+/**
+ * Structured data for the site as a whole.
+ *
+ * `application/ld+json` is data, not code: the browser never executes it, so
+ * `script-src 'self'` does not block it and it introduces no inline script.
+ * Emitted on every page so a crawler that only fetches one still learns what
+ * this is and who wrote it.
+ */
+const STRUCTURED_DATA = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": `${ORIGIN}/#website`,
+      url: `${ORIGIN}/`,
+      name: "Baa",
+      description:
+        "Baa is a small, readable programming language with a real lexer, parser, resolver, interpreter, formatter, linter and standard library.",
+      inLanguage: "en-GB",
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": `${ORIGIN}/#software`,
+      name: "Baa",
+      alternateName: "Baa programming language",
+      description:
+        "A programming language with readable syntax, fast tooling and diagnostics that explain themselves. Runs on Node.js, with no third-party packages.",
+      url: `${ORIGIN}/`,
+      codeRepository: REPO,
+      programmingLanguage: { "@type": "ComputerLanguage", name: "Baa" },
+      runtimePlatform: "Node.js",
+      license: "https://opensource.org/licenses/MIT",
+      version: VERSION,
+      image: `${ORIGIN}/assets/${SOCIAL_IMAGE.file}`,
+      isPartOf: { "@id": `${ORIGIN}/#website` },
+    },
+  ],
+});
+
 const LOGO = readFileSync(join(SITE, "assets", "icon.svg"), "utf8")
   .replace(/<\?xml[^>]*\?>\s*/g, "")
   .replace(/\n\s*/g, "")
@@ -301,6 +347,7 @@ function shell(options: ShellOptions): string {
   Content-Security-Policy can refuse inline scripts outright.
 -->
 <script src="${base}assets/theme.js"></script>
+<script type="application/ld+json">${STRUCTURED_DATA}</script>
 ${options.extraHead ?? ""}</head>
 <body${options.bodyClass ? ` class="${options.bodyClass}"` : ""}>
 <a class="skip" href="#main">Skip to content</a>
