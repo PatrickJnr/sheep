@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }}, node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ["22.18", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Baa's own test blocks
+        run: node src/cli/index.ts test tests/programs
+
+      - name: Run every example
+        shell: bash
+        run: |
+          for file in examples/*.baa; do
+            echo "--- $file"
+            node src/cli/index.ts run "$file" > /dev/null
+          done
+
+  quality:
+    name: format, lint and docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Formatter is a fixed point
+        run: node src/cli/index.ts fmt --check examples tests/programs
+
+      - name: Linter is clean
+        run: node src/cli/index.ts lint --deny-warnings examples tests/programs
+
+      - name: Generated docs are up to date
+        run: node tools/gen-docs.ts --check
+
+      - name: Conformance suite is up to date
+        run: node tools/gen-conformance.ts --check
+
+      - name: Brand images are committed
+        run: node tools/render-assets.ts --check
+
+      - name: Diagnostics read plainly in CI
+        run: node src/cli/index.ts --no-baa check examples
+
+  cli:
+    name: cli smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: A new project works end to end
+        run: |
+          node src/cli/index.ts --version
+          node src/cli/index.ts doctor
+          mkdir -p /tmp/flock && cd /tmp/flock
+          node "$GITHUB_WORKSPACE/src/cli/index.ts" init . --name ci_flock
+          node "$GITHUB_WORKSPACE/src/cli/index.ts" run
+          node "$GITHUB_WORKSPACE/src/cli/index.ts" test
+          node "$GITHUB_WORKSPACE/src/cli/index.ts" build
+          node "$GITHUB_WORKSPACE/src/cli/index.ts" fmt --check .
+
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: No known vulnerabilities
+        run: npm audit --audit-level=moderate
+
+      - name: No runtime dependencies
+        run: |
+          count=$(node -e "const p=require('./package.json');console.log(Object.keys(p.dependencies||{}).length)")
+          echo "runtime dependencies: $count"
+          test "$count" -eq 0
+
+  benchmarks:
+    name: benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run benchmarks
+        run: node tools/bench.ts | tee "$GITHUB_STEP_SUMMARY"

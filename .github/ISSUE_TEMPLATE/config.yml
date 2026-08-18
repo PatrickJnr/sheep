@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question or discussion
+    url: https://github.com/PatrickJnr/sheep/discussions
+    about: Ask how to do something, or talk about a design idea before opening an issue.
+  - name: Documentation
+    url: https://sheep.grimtech.co.uk
+    about: The language tour, specification, CLI reference and standard library.
+  - name: Security issue
+    url: https://github.com/PatrickJnr/sheep/security/advisories/new
+    about: Report a vulnerability privately. Please do not open a public issue.

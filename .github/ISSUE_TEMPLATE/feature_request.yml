@@ -1,0 +1,67 @@
+name: Feature request
+description: Suggest a language feature, library function or tool improvement
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Baa's pitch is that you can hold the whole language in your head, so the
+        bar for new syntax is high. The most persuasive request describes a
+        **problem**, with a real program that is awkward to write today.
+
+        Please check [ROADMAP.md](https://github.com/PatrickJnr/sheep/blob/main/ROADMAP.md)
+        first: it lists what is planned, and what was deliberately left out.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Language syntax or semantics
+        - Standard library
+        - CLI or tooling
+        - Formatter or linter
+        - Diagnostics
+        - Editor support
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is hard or impossible today? Be concrete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How you write it today
+      render: baa
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like to write instead
+      render: baa
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+      description: Including "a library function instead of syntax".
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I read the "Deliberately not planned" section of ROADMAP.md
+          required: true
