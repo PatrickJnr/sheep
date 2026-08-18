@@ -7,6 +7,49 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.7.0], 2026-08-18
+
+The native runtime is published, so building a desktop application no longer
+means installing Rust.
+
+### Added
+
+- **Prebuilt native runtimes on every release.**
+  `baa-native-windows-x64.tar.gz` carries `baa-native.exe` and
+  `baa-nativew.exe`; `baa-native-linux-x64.tar.gz` carries `baa-native`. Each
+  archive has a `sha256` beside the binaries, because an artefact nobody can
+  verify is an artefact nobody should run. CI has compiled the runtime on both
+  platforms every commit since 0.4.0 and thrown the result away.
+
+  Unpack one into `~/.baa/runtime` and `baa app build` finds it. That directory
+  is searched before any checkout, so a downloaded runtime cannot be shadowed
+  by a stale `cargo build` in a clone. When no runtime is found, the message
+  names the archive for the platform it is running on.
+
+- **`BAA_SERVER_PATH`** points the VS Code extension at a language server, for
+  the places with no settings UI to type one into: a container, a CI job, a
+  remote host started by a script. The `baa.server.path` setting still wins.
+
+### Changed
+
+- **A Linux build that imports `barn` now warns.** The window model is
+  platform-independent and only Windows has a backend, so the executable is
+  real, runs, and cannot draw. Saying that at build time is the difference
+  between a documented limit and a program somebody ships and then discovers.
+  A test asserts the CLI only ever offers a download the release workflow
+  actually builds, so the link cannot outlive the job that produces it.
+
+### Fixed
+
+- **The VS Code integration test could not pass on a hosted runner.** It
+  assumed a global npm install puts `baa` on `PATH`, which is true on a
+  developer's machine and not on a runner, so the job failed for being right
+  about the wrong thing. The logic that matters — deriving the server's entry
+  point from the shim, because Node will not spawn a `.cmd` — is now a module
+  with no `vscode` import, tested against a fake filesystem.
+
+[0.7.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.7.0
+
 ## [0.6.0], 2026-08-18
 
 VS Code gets the language server it has been able to run for two releases.

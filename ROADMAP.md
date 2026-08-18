@@ -26,7 +26,7 @@ carry a status label:
 
 ## Current State
 
-Version **0.6.0**. The reference implementation is TypeScript running on
+Version **0.7.0**. The reference implementation is TypeScript running on
 Node.js 22.18+ with no build step and no runtime dependencies; the native
 runtime is Rust with no dependencies either.
 
