@@ -15,6 +15,7 @@ import type { FormatOptions } from "./formatter/formatter.ts";
 import { lintProgram } from "./linter/linter.ts";
 import { parse } from "./parser/parser.ts";
 import { resolveProgram } from "./semantic/resolver.ts";
+import type { ResolveResult, SymbolInfo } from "./semantic/resolver.ts";
 import type { RuntimeHost } from "./runtime/host.ts";
 import { createCapturingHost } from "./runtime/host.ts";
 import { Interpreter } from "./runtime/interpreter.ts";
@@ -27,6 +28,13 @@ export type CheckResult = {
   readonly program: Program;
   readonly diagnostics: readonly Diagnostic[];
   readonly ok: boolean;
+  /**
+   * What the resolver worked out: every declaration, and every place each name
+   * is used. Editors need this to answer "where is this defined" and "what
+   * would rename touch", and only the resolver knows which declaration a use
+   * binds to. Null when parsing failed badly enough that nothing was resolved.
+   */
+  readonly analysis: ResolveResult | null;
 };
 
 export type CheckOptions = {
@@ -60,6 +68,7 @@ export function checkFile(file: SourceFile, options: CheckOptions = {}): CheckRe
       },
       diagnostics: [error.diagnostic],
       ok: false,
+      analysis: null,
     };
   }
   const analysis = resolveProgram(program, file, { modules: options.modules ?? [] });
@@ -69,6 +78,7 @@ export function checkFile(file: SourceFile, options: CheckOptions = {}): CheckRe
     program,
     diagnostics,
     ok: !diagnostics.some((diagnostic) => diagnostic.severity === "error"),
+    analysis,
   };
 }
 
@@ -77,8 +87,8 @@ export type LintResult = CheckResult & { readonly warnings: readonly Diagnostic[
 export function lint(text: string, path = "<input>", options: CheckOptions = {}): LintResult {
   const file = new SourceFile(path, text);
   const result = checkFile(file, options);
-  const analysis = resolveProgram(result.program, file, { modules: options.modules ?? [] });
-  const warnings = lintProgram(result.program, analysis);
+  if (result.analysis === null) return { ...result, warnings: [] };
+  const warnings = lintProgram(result.program, result.analysis);
   return { ...result, warnings };
 }
 
@@ -213,7 +223,7 @@ function readErrorOutput(host: RuntimeHost): string {
 }
 
 export { display, inspect, SourceFile, Interpreter };
-export type { Diagnostic, Value, RuntimeHost };
+export type { Diagnostic, Value, RuntimeHost, ResolveResult, SymbolInfo };
 export { renderDiagnostic, renderDiagnostics, setWoollyMode } from "./diagnostics/diagnostic.ts";
 export { createCapturingHost, createNodeHost } from "./runtime/host.ts";
 export { STDLIB_MODULES, STDLIB_SUMMARY } from "./stdlib/index.ts";

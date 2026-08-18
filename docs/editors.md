@@ -13,7 +13,10 @@ language server.
 | Diagnostics as you type | `baa lsp` | Any LSP client |
 | Format on save, or on command | `baa lsp` | Any LSP client |
 | Outline and breadcrumbs | `baa lsp` | Any LSP client |
-| Hover on a top-level declaration | `baa lsp` | Any LSP client |
+| Hover | `baa lsp` | Any LSP client |
+| Go to definition | `baa lsp` | Any LSP client |
+| Find references | `baa lsp` | Any LSP client |
+| Rename a binding | `baa lsp` | Any LSP client |
 
 The diagnostics are not a second implementation. `baa lsp` runs the same
 analysis as `baa check` and `baa lint`, so an editor cannot disagree with the
@@ -34,22 +37,39 @@ deliberate simplification: Baa files are small, the parser runs at several
 megabytes a second, and re-analysing a whole file per keystroke costs less than
 keeping an incremental tree correct would.
 
+### Why the answers are exact
+
+Go to definition, find references and rename all read the resolver's symbol
+table, which records each declaration together with the span of every use that
+binds to it. Nothing re-implements scoping, so shadowing is handled the way the
+interpreter handles it:
+
+```baa
+let count = 1
+
+fn tally(items) {
+    let count = 0        // a different binding entirely
+    for item in items {
+        count += 1
+    }
+    return count
+}
+
+count = count + 1
+```
+
+Renaming the inner `count` rewrites three lines and leaves the outer one alone.
+A search-and-replace across the file would touch all of them. That distinction
+is the whole reason these features go through the resolver rather than the
+text.
+
+Rename refuses a new name the lexer would not accept, rather than writing a
+file that no longer parses.
+
 ### Not implemented yet
 
-Go to definition, find references and rename are **not** implemented, and the
-server does not advertise them, so a client will fall back to its own
-word-based behaviour rather than showing you an empty result.
-
-All three need the resolver to hand back its symbol table with the span of
-every binding and every use. It collects exactly that while analysing and keeps
-it internal. Widening that interface is the work; the protocol handlers on top
-are small.
-
-Hover is implemented as a **name lookup, not a scope-aware one**: it finds the
-word under the cursor among the file's top-level declarations. A local variable
-that shares a name with a top-level function will show that function's
-documentation. It is useful far more often than it is wrong, and it becomes
-exact once the symbol table is available.
+Completion, signature help and code actions. None is advertised, so a client
+falls back to its own word-based behaviour instead of showing an empty list.
 
 ## Setting it up
 

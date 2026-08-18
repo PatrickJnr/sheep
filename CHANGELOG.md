@@ -7,6 +7,35 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.3.0], 2026-08-18
+
+### Added
+
+- **Go to definition, find references and rename**, in the language server.
+  All three read the resolver's symbol table rather than the text, so a
+  binding that shadows an outer one of the same name is a different symbol:
+  renaming the inner `count` in a function rewrites its own uses and leaves the
+  outer `count` alone. A search and replace would touch both.
+- **Prepare-rename**, so an editor can refuse a rename before prompting for a
+  name. Rename itself rejects anything the lexer would not accept as an
+  identifier, rather than writing a file that no longer parses.
+- `ResolveResult` now carries `symbols`, and each `SymbolInfo` carries
+  `references`: the span of every use that binds to that declaration. The
+  resolver already decided this while checking for unused bindings; it simply
+  threw the positions away afterwards.
+- `CheckResult.analysis` exposes that from `check` and `lint`.
+
+### Changed
+
+- **Hover is scope-aware.** It resolved names against the file's top-level
+  declarations, so a local sharing a name with a top-level function showed that
+  function's documentation. It now asks the symbol table first.
+- `lint` no longer resolves the program twice. It re-ran the whole resolver to
+  get an analysis that `check` had already produced, which an editor paid for
+  on every keystroke.
+
+[0.3.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.3.0
+
 ## [0.2.2], 2026-08-18
 
 ### Fixed

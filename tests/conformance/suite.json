@@ -2,7 +2,7 @@
   "$schema": "https://sheep.grimtech.co.uk/schema/conformance-1.json",
   "version": 1,
   "language": "baa",
-  "languageVersion": "0.2.2",
+  "languageVersion": "0.3.0",
   "description": "Language conformance suite. Any Baa implementation should produce these outputs and these diagnostic codes.",
   "notes": [
     "`programs` map a source string to the exact stdout it must produce, and the exit code.",

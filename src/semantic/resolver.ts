@@ -49,6 +49,13 @@ export type SymbolInfo = {
   readonly params: readonly Param[] | null;
   reads: number;
   writes: number;
+  /**
+   * Every place the name is used, in source order, excluding the declaration
+   * itself. The counts above answer "was this used?", which is all the linter
+   * needs; an editor asking "where?" needs the spans, and only the resolver
+   * knows which declaration a given use binds to.
+   */
+  readonly references: Span[];
 };
 
 export type ResolveResult = {
@@ -57,6 +64,8 @@ export type ResolveResult = {
   readonly unused: readonly SymbolInfo[];
   /** `let` bindings that were never reassigned. */
   readonly neverReassigned: readonly SymbolInfo[];
+  /** Every symbol declared in the file, in declaration order. */
+  readonly symbols: readonly SymbolInfo[];
 };
 
 export type ResolveOptions = {
@@ -95,7 +104,7 @@ class Resolver {
     const neverReassigned = this.#allSymbols.filter(
       (symbol) => symbol.kind === "let" && symbol.writes === 0 && !symbol.name.startsWith("_"),
     );
-    return { diagnostics: this.#diagnostics, unused, neverReassigned };
+    return { diagnostics: this.#diagnostics, unused, neverReassigned, symbols: this.#allSymbols };
   }
 
   // ------------------------------------------------------------------ scopes
@@ -149,6 +158,7 @@ class Resolver {
       params: options.params ?? null,
       reads: 0,
       writes: 0,
+      references: [],
     };
     scope.declared.set(name, symbol);
     scope.pending.delete(name);
@@ -184,6 +194,7 @@ class Resolver {
     const symbol = this.#lookup(name);
     if (symbol !== null) {
       symbol.reads++;
+      symbol.references.push(span);
       return symbol;
     }
     if (PRELUDE_NAMES.includes(name)) return null;
@@ -481,6 +492,7 @@ class Resolver {
           }
           if (expression.operator !== "=") symbol.reads++;
           symbol.writes++;
+          symbol.references.push(target.span);
           if (!symbol.mutable) {
             this.#report("BAA103", [target.name], {
               span: target.span,

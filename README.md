@@ -290,9 +290,9 @@ suite. If one breaks, CI says so.
 ## Editor support
 
 `baa lsp` is a language server. It provides diagnostics as you type, whole-file
-formatting, a document outline and hover for top-level declarations, and it
-runs the same analysis as `baa check` and `baa lint`, so an editor cannot
-disagree with the command line about whether a file is valid.
+formatting, a document outline, hover, go to definition, find references and
+rename, and it runs the same analysis as `baa check` and `baa lint`, so an
+editor cannot disagree with the command line about whether a file is valid.
 
 Neovim, Helix and Emacs can point at it directly. Setup for each, and what the
 server does not do yet, is in [docs/editors.md](docs/editors.md).
@@ -304,9 +304,9 @@ into `~/.vscode/extensions/` and reload the window. It does not start the
 language server yet: VS Code needs an extension with a JavaScript entry point
 to do that, and this one is declarative only.
 
-Go to definition, find references and rename are not implemented, and the
-server does not advertise them. All three need the resolver to expose the
-symbol table it already builds internally.
+Definition, references and rename read the resolver's symbol table rather than
+the text, so renaming a binding that shadows an outer one of the same name
+rewrites the inner uses and leaves the outer alone.
 
 ## Would you rather this were Rust?
 

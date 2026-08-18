@@ -46,11 +46,12 @@ Ordered by how much they would improve a normal day.
 - [x] **Language server**, shipped in 0.2 as `baa lsp`. Diagnostics, whole-file
       formatting, a document outline and hover for top-level declarations, all
       driven by the existing analysis rather than a second copy of it.
-- [ ] **A symbol table the language server can read.** The resolver records the
-      declaration and every use of each name while analysing, and keeps it
-      internal. Exposing it is what go-to-definition, find-references, rename
-      and scope-aware hover are all waiting on, and it is one interface rather
-      than four features.
+- [x] **A symbol table the language server can read**, shipped in 0.3. The
+      resolver records each declaration with the span of every use that binds
+      to it, and `check` hands it back. Go-to-definition, find-references,
+      rename and scope-aware hover all read it, so shadowed names resolve the
+      way the interpreter resolves them rather than the way a text search
+      would.
 - [ ] **A VS Code client.** The extension is declarative, so it highlights but
       does not start the server. VS Code needs a JavaScript entry point using
       `vscode-languageclient`; Neovim, Helix and Emacs already work today.

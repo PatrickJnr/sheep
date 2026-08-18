@@ -12,12 +12,11 @@
  * whole file on each keystroke costs less than maintaining an incremental tree
  * would, and it cannot drift out of step with the file on disk.
  *
- * What is deliberately not here: go-to-definition, find-references and rename.
- * Each needs the resolver to hand back its symbol table with the span of every
- * binding and every use, which it collects internally and does not currently
- * expose. Adding them means widening that interface, not writing another
- * protocol handler, so they wait for that rather than shipping as something
- * that guesses.
+ * Go-to-definition, find-references, rename and hover all come from one place:
+ * the resolver's symbol table, which records each declaration and the span of
+ * every use that binds to it. Nothing here re-implements scoping, so a rename
+ * touches exactly the names the interpreter would have resolved to that
+ * binding, and no others that merely spell the same.
  */
 
 import type { Program, Statement } from "../ast/ast.ts";
@@ -26,6 +25,7 @@ import type { Diagnostic } from "../diagnostics/diagnostic.ts";
 import type { Span } from "../diagnostics/source.ts";
 import { SourceFile } from "../diagnostics/source.ts";
 import { lint, format } from "../api.ts";
+import type { SymbolInfo } from "../semantic/resolver.ts";
 import { STDLIB_MODULES } from "../stdlib/index.ts";
 
 // ---------------------------------------------------------------- protocol
@@ -97,6 +97,9 @@ export class LanguageServer {
             documentFormattingProvider: true,
             documentSymbolProvider: true,
             hoverProvider: true,
+            definitionProvider: true,
+            referencesProvider: true,
+            renameProvider: { prepareProvider: true },
           },
           serverInfo: { name: "baa-lsp" },
         });
@@ -142,6 +145,38 @@ export class LanguageServer {
 
       case "textDocument/documentSymbol":
         return this.#reply(id, this.#symbols(params as { textDocument: { uri: string } }));
+
+      case "textDocument/definition":
+        return this.#reply(
+          id,
+          this.#definition(params as { textDocument: { uri: string }; position: LspPosition }),
+        );
+
+      case "textDocument/references":
+        return this.#reply(
+          id,
+          this.#references(params as {
+            textDocument: { uri: string };
+            position: LspPosition;
+            context?: { includeDeclaration?: boolean };
+          }),
+        );
+
+      case "textDocument/prepareRename":
+        return this.#reply(
+          id,
+          this.#prepareRename(params as { textDocument: { uri: string }; position: LspPosition }),
+        );
+
+      case "textDocument/rename":
+        return this.#reply(
+          id,
+          this.#rename(params as {
+            textDocument: { uri: string };
+            position: LspPosition;
+            newName: string;
+          }),
+        );
 
       case "textDocument/hover":
         return this.#reply(
@@ -209,12 +244,94 @@ export class LanguageServer {
   }
 
   /**
-   * Hover looks the word under the cursor up among the file's top-level
-   * declarations. It is a name lookup, not a scope-aware one, so a local that
-   * shares a name with a top-level function shows that function's
-   * documentation. Resolving it properly needs the symbol table this server
-   * does not yet get, and a name lookup is right often enough to be worth
-   * having in the meantime.
+   * The symbol whose declaration or one of whose uses covers an offset.
+   *
+   * This is what makes the three features below exact rather than textual: the
+   * resolver already decided which declaration each use binds to, so a local
+   * that shadows an outer name is a different symbol here, not the same word
+   * twice.
+   */
+  #symbolAt(file: SourceFile, symbols: readonly SymbolInfo[], offset: number): SymbolInfo | null {
+    const covers = (span: Span): boolean => offset >= span.start && offset <= span.end;
+    for (const symbol of symbols) {
+      if (covers(symbol.span) || symbol.references.some(covers)) return symbol;
+    }
+    return null;
+  }
+
+  /** Document text, file and analysis for a request, or null if unavailable. */
+  #analyse(uri: string): { text: string; file: SourceFile; symbols: readonly SymbolInfo[] } | null {
+    const text = this.#documents.get(uri);
+    if (text === undefined) return null;
+    const file = new SourceFile(uriToPath(uri), text);
+    const { analysis } = lint(text, file.path, { modules: [...STDLIB_MODULES] });
+    if (analysis === null) return null;
+    return { text, file, symbols: analysis.symbols };
+  }
+
+  #definition(params: { textDocument: { uri: string }; position: LspPosition }): unknown | null {
+    const found = this.#analyse(params.textDocument.uri);
+    if (found === null) return null;
+    const symbol = this.#symbolAt(found.file, found.symbols, toOffset(found.file, params.position));
+    if (symbol === null) return null;
+    return { uri: params.textDocument.uri, range: toRange(found.file, symbol.span) };
+  }
+
+  #references(params: {
+    textDocument: { uri: string };
+    position: LspPosition;
+    context?: { includeDeclaration?: boolean };
+  }): unknown[] | null {
+    const found = this.#analyse(params.textDocument.uri);
+    if (found === null) return null;
+    const symbol = this.#symbolAt(found.file, found.symbols, toOffset(found.file, params.position));
+    if (symbol === null) return null;
+    // The protocol defaults includeDeclaration to true when the client omits it.
+    const includeDeclaration = params.context?.includeDeclaration ?? true;
+    const spans = includeDeclaration ? [symbol.span, ...symbol.references] : [...symbol.references];
+    return spans.map((span) => ({
+      uri: params.textDocument.uri,
+      range: toRange(found.file, span),
+    }));
+  }
+
+  /**
+   * Answering this lets an editor refuse the rename before prompting, rather
+   * than asking for a new name and then doing nothing with it.
+   */
+  #prepareRename(params: { textDocument: { uri: string }; position: LspPosition }): unknown | null {
+    const found = this.#analyse(params.textDocument.uri);
+    if (found === null) return null;
+    const symbol = this.#symbolAt(found.file, found.symbols, toOffset(found.file, params.position));
+    if (symbol === null) return null;
+    return { range: toRange(found.file, symbol.span), placeholder: symbol.name };
+  }
+
+  #rename(params: {
+    textDocument: { uri: string };
+    position: LspPosition;
+    newName: string;
+  }): unknown | null {
+    const found = this.#analyse(params.textDocument.uri);
+    if (found === null) return null;
+    const symbol = this.#symbolAt(found.file, found.symbols, toOffset(found.file, params.position));
+    if (symbol === null) return null;
+    // A name the lexer would not accept produces a file that no longer parses,
+    // so it is refused here rather than written and then complained about.
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(params.newName)) return null;
+
+    const edits = [symbol.span, ...symbol.references].map((span) => ({
+      range: toRange(found.file, span),
+      newText: params.newName,
+    }));
+    return { changes: { [params.textDocument.uri]: edits } };
+  }
+
+  /**
+   * Hover resolves through the symbol table first, so a local that shares a
+   * name with a top-level function shows the local. It falls back to the
+   * top-level declaration list only for things the resolver does not track as
+   * symbols, which is where doc comments live.
    */
   #hover(params: { textDocument: { uri: string }; position: LspPosition }): unknown | null {
     const text = this.#documents.get(params.textDocument.uri);
@@ -223,12 +340,29 @@ export class LanguageServer {
     const word = wordAt(text, toOffset(file, params.position));
     if (word === null) return null;
 
-    const { program } = lint(text, file.path, { modules: [...STDLIB_MODULES] });
-    const found = declarationsOf(program).find((declaration) => declaration.name === word);
-    if (found === undefined) return null;
+    const { program, analysis } = lint(text, file.path, { modules: [...STDLIB_MODULES] });
+    const declarations = declarationsOf(program);
 
-    const lines = [`\`\`\`baa\n${found.signature}\n\`\`\``];
-    if (found.doc !== null) lines.push(found.doc);
+    // The resolver knows which binding this position belongs to. Only when it
+    // has nothing (a method name, a field) does the name lookup get a turn.
+    const symbol =
+      analysis === null
+        ? null
+        : this.#symbolAt(file, analysis.symbols, toOffset(file, params.position));
+
+    const found =
+      symbol === null
+        ? declarations.find((declaration) => declaration.name === word)
+        : declarations.find(
+            (declaration) =>
+              declaration.name === symbol.name && declaration.nameSpan.start === symbol.span.start,
+          );
+
+    if (found === undefined && symbol === null) return null;
+
+    const signature = found?.signature ?? `${symbol!.kind} ${symbol!.name}`;
+    const lines = [`\`\`\`baa\n${signature}\n\`\`\``];
+    if (found?.doc != null) lines.push(found.doc);
     return { contents: { kind: "markdown", value: lines.join("\n\n") } };
   }
 
