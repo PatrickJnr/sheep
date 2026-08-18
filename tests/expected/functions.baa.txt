@@ -1,0 +1,8 @@
+12
+3
+Baa, Dolly!
+Hello, Shaun!
+this week: 12
+11 12 13
+BAA!
+fib(20) = 6765

@@ -1,0 +1,22 @@
+3 Dolly Lambchop
+["Dolly", "Shaun", "Lambchop", "Timmy"]
+Dolly Timmy
+["Shaun", "Lambchop"]
+[47, 52, 38, 61]
+[46.5, 52, 61]
+197.75
+197.75 49.4375 49.25
+["Dolly", "Lambchop", "Shaun", "Timmy"]
+["Dolly", "Shaun", "Timmy", "Lambchop"]
+[["Dolly", 46.5], ["Shaun", 52], ["Lambchop", 38.25], ["Timmy", 61]]
+[[1, 2], [3, 4], [5]]
+[[2, 4, 6], [1, 3, 5]]
+Dolly 6
+white
+true ["name", "age", "woolly"] ["Dolly", 6, true]
+{ name: "Dolly", age: 7, woolly: true, field: "north" }
+Hill: Dolly, Shaun
+Dale: Timmy
+true
+true
+["Dolly"] ["Dolly", "Shaun"]

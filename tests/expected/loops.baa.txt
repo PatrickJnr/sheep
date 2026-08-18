@@ -1,0 +1,30 @@
+Baa, Dolly!
+Baa, Shaun!
+Baa, Lambchop!
+Baa, Timmy!
+0: Dolly
+1: Shaun
+2: Lambchop
+3: Timmy
+exclusive 0
+exclusive 1
+exclusive 2
+inclusive 1
+inclusive 2
+inclusive 3
+countdown 3
+countdown 2
+countdown 1
+b
+a
+a
+Dolly is 6
+Shaun is 4
+Timmy is 1
+remaining 4
+remaining 3
+remaining 1
+#
+##
+###
+####

@@ -1,0 +1,5 @@
+Hello, flock!
+Baa, Dolly!
+Baa, Shaun!
+Baa, Lambchop!
+That is 3 sheep, all present and accounted for.

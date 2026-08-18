@@ -1,0 +1,12 @@
+admitted 1
+admitted 2
+admitted 3
+could not admit: the pen is full
+ALREADY_SHORN: Dolly
+caught BAA304 at line 40
+Index 7 is outside the fence: this array has length 1.
+gate closed
+fine
+gate closed
+handled: trouble
+all good

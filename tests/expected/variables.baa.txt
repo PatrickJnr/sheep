@@ -1,0 +1,12 @@
+sheep: 14
+capacity: 100
+string bool number nil
+3.5 1 1024
+1000000 255 10 15
+The flock holds 14 of a maximum 100.
+A literal brace looks like {this}.
+nobody
+sheep #14
+true
+false
+zero is truthy in Baa

@@ -1,0 +1,28 @@
+=============== FLOCK REGISTER ===============
+
+NAME      FARM        AGE  WEIGHT  SHORN
+--------  ----------  ---  ------  -----
+Shirley   Hill        7    61.00   yes
+Bitzer    Hill        8    58.00   no
+Shaun     Hill        4    52.00   no
+Hazel     Meadowbank  5    49.50   yes
+Dolly     Hill        6    46.50   yes
+Nuts      Meadowbank  3    44.75   no
+Lambchop  Dale        2    38.25   yes
+Timmy     Dale        1    21.00   no
+
+By farm (3 farms, a proper flock):
+  Dale          2 sheep, mean  29.63kg, 1 shorn
+  Hill          4 sheep, mean  54.38kg, 2 shorn
+  Meadowbank    2 sheep, mean  47.13kg, 1 shorn
+
+Whole flock:
+  count          8
+  total_weight   371
+  mean_weight    46.38
+  median_weight  48
+  oldest         8
+  shorn          4
+
+JSON round trip: 653 bytes, 8 sheep recovered
+Five years or older: Dolly, Shirley, Hazel, Bitzer
