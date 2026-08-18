@@ -13,7 +13,6 @@
 import type { Block, Expression, Program, Statement } from "../ast/ast.ts";
 import type { Diagnostic } from "../diagnostics/diagnostic.ts";
 import { createDiagnostic } from "../diagnostics/diagnostic.ts";
-import type { SourceFile } from "../diagnostics/source.ts";
 import type { ResolveResult } from "../semantic/resolver.ts";
 
 export type LintOptions = {
@@ -23,7 +22,6 @@ export type LintOptions = {
 
 export function lintProgram(
   program: Program,
-  file: SourceFile,
   analysis: ResolveResult,
   options: LintOptions = {},
 ): Diagnostic[] {
@@ -66,7 +64,6 @@ export function lintProgram(
   }
 
   walkStatements(program.body, push);
-  void file;
   return warnings;
 }
 
@@ -93,30 +90,30 @@ function walkStatements(
 function walkStatement(statement: Statement, push: (diagnostic: Diagnostic) => void): void {
   switch (statement.kind) {
     case "FunctionDeclaration":
-      checkBlock(statement.body, push, "function body");
+      checkBlock(statement.body, push);
       return;
     case "IfStatement":
       checkCondition(statement.condition, push);
-      checkBlock(statement.consequent, push, "if branch");
+      checkBlock(statement.consequent, push);
       if (statement.alternate === null) return;
-      if (statement.alternate.kind === "Block") checkBlock(statement.alternate, push, "else branch");
+      if (statement.alternate.kind === "Block") checkBlock(statement.alternate, push);
       else walkStatement(statement.alternate, push);
       return;
     case "WhileStatement":
-      checkBlock(statement.body, push, "while body");
+      checkBlock(statement.body, push);
       walkExpression(statement.condition, push);
       return;
     case "ForStatement":
-      checkBlock(statement.body, push, "loop body");
+      checkBlock(statement.body, push);
       walkExpression(statement.iterable, push);
       return;
     case "TryStatement":
-      checkBlock(statement.block, push, "try block");
-      if (statement.handler !== null) checkBlock(statement.handler, push, "catch block");
-      if (statement.finalizer !== null) checkBlock(statement.finalizer, push, "finally block");
+      checkBlock(statement.block, push);
+      if (statement.handler !== null) checkBlock(statement.handler, push);
+      if (statement.finalizer !== null) checkBlock(statement.finalizer, push);
       return;
     case "TestDeclaration":
-      checkBlock(statement.body, push, "test body");
+      checkBlock(statement.body, push);
       return;
     case "LetStatement":
       walkExpression(statement.value, push);
@@ -127,6 +124,9 @@ function walkStatement(statement: Statement, push: (diagnostic: Diagnostic) => v
     case "BaaStatement":
       for (const value of statement.values) walkExpression(value, push);
       return;
+    case "ThrowStatement":
+      walkExpression(statement.value, push);
+      return;
     case "ReturnStatement":
       if (statement.value !== null) walkExpression(statement.value, push);
       return;
@@ -135,11 +135,7 @@ function walkStatement(statement: Statement, push: (diagnostic: Diagnostic) => v
   }
 }
 
-function checkBlock(
-  block: Block,
-  push: (diagnostic: Diagnostic) => void,
-  _what: string,
-): void {
+function checkBlock(block: Block, push: (diagnostic: Diagnostic) => void): void {
   if (block.body.length === 0 && block.trailingComments.length === 0) {
     push(
       createDiagnostic("BAA906", [], {
@@ -167,7 +163,7 @@ function checkCondition(condition: Expression, push: (diagnostic: Diagnostic) =>
 function walkExpression(expression: Expression, push: (diagnostic: Diagnostic) => void): void {
   switch (expression.kind) {
     case "FunctionExpression":
-      checkBlock(expression.body, push, "function body");
+      checkBlock(expression.body, push);
       return;
     case "BinaryExpression":
     case "LogicalExpression":
@@ -185,7 +181,10 @@ function walkExpression(expression: Expression, push: (diagnostic: Diagnostic) =
       for (const element of expression.elements) walkExpression(element, push);
       return;
     case "MapLiteral":
-      for (const entry of expression.entries) walkExpression(entry.value, push);
+      for (const entry of expression.entries) {
+        walkExpression(entry.key, push);
+        walkExpression(entry.value, push);
+      }
       return;
     case "MemberExpression":
       walkExpression(expression.object, push);
@@ -194,8 +193,18 @@ function walkExpression(expression: Expression, push: (diagnostic: Diagnostic) =
       walkExpression(expression.object, push);
       walkExpression(expression.index, push);
       return;
+    case "RangeExpression":
+      walkExpression(expression.start, push);
+      walkExpression(expression.end, push);
+      return;
     case "AssignmentExpression":
+      walkExpression(expression.target, push);
       walkExpression(expression.value, push);
+      return;
+    case "StringLiteral":
+      for (const segment of expression.segments) {
+        if (segment.kind === "expr") walkExpression(segment.expression, push);
+      }
       return;
     case "MatchExpression":
       walkExpression(expression.subject, push);

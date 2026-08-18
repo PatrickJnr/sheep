@@ -72,7 +72,7 @@ export function lint(text: string, path = "<input>", options: CheckOptions = {})
   const file = new SourceFile(path, text);
   const result = checkFile(file, options);
   const analysis = resolveProgram(result.program, file, { modules: options.modules ?? [] });
-  const warnings = lintProgram(result.program, file, analysis);
+  const warnings = lintProgram(result.program, analysis);
   return { ...result, warnings };
 }
 
