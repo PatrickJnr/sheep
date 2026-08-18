@@ -353,10 +353,9 @@ describe("regression: workflows that fail before they start", () => {
     }
   });
 
-  // Trusted publishing generates provenance itself when the build qualifies,
-  // and a private repository does not qualify: npm does not attest a build
-  // nobody can inspect. Passing the flag is then an error rather than a
-  // no-op, so it must not creep back in.
+  // Trusted publishing decides provenance for itself: it attests a build the
+  // public can inspect, which this one now is. Passing the flag explicitly is
+  // an error rather than a no-op, so it must not creep back in.
   it("does not pass --provenance, which trusted publishing decides for itself", () => {
     for (const name of workflows) {
       // Comments are stripped: this is about what the runner executes, and the
@@ -402,7 +401,7 @@ describe("regression: issue-template contact links", () => {
       assert.doesNotMatch(
         url,
         /\/security\/advisories\/new/,
-        "link to SECURITY.md instead: /security/advisories/new 404s on a private repository",
+        "link to SECURITY.md instead: /security/advisories/new 404s unless private vulnerability reporting is switched on",
       );
     }
   });

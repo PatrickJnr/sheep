@@ -159,10 +159,7 @@ involved in the build.
 
 **What is not done.** The runtime is not yet *inside* the npm package as an
 `optionalDependencies` entry, so the download is a manual step rather than
-something `npm install -g baa-lang` arranges. And while the repository is
-private, a release asset needs access to fetch: the URL the CLI prints is
-correct and returns a 404 page to anyone else. Both are recorded in
-[docs/building-windows-apps.md](docs/building-windows-apps.md).
+something `npm install -g baa-lang` arranges.
 
 ### Documentation for language models — **COMPLETED**
 

@@ -55,7 +55,7 @@ function pngSize(path: string): { width: number; height: number } {
 }
 const REPO = "https://github.com/PatrickJnr/sheep";
 /** The package page. This is the link a visitor can actually follow: the
- * repository is private, so anything pointing at it is a 404 for them. */
+ * repository is the source, and the site is what a reader is already on. */
 const NPM = "https://www.npmjs.com/package/baa-lang";
 
 /**

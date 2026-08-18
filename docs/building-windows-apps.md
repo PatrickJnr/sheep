@@ -57,9 +57,8 @@ anything:
 cd ~/.baa/runtime && sha256sum -c baa-native-*.sha256
 ```
 
-**While the repository is private, release downloads need access.** A plain
-`curl` of the URL above returns a 404 page rather than an archive, and a 404
-page unpacks into nothing. With the GitHub CLI:
+If you would rather not pipe a download straight into `tar`, fetch it first
+and check it:
 
 ```bash
 gh release download v0.7.0 -R PatrickJnr/sheep -p "baa-native-*"

@@ -214,8 +214,8 @@ jobs:
 
       # No token, and no `--provenance` flag. Trusted publishing authenticates
       # over OIDC and adds provenance by itself when the build qualifies, which
-      # a private repository does not: npm does not attest builds nobody can
-      # inspect. Passing the flag explicitly would fail rather than be ignored.
+      # a public repository does. Passing the flag explicitly would fail rather
+      # than be ignored, so it stays out either way.
       #
       # A trusted publisher is configured on the package's own settings page,
       # so it cannot be set up before the package exists. Until someone runs

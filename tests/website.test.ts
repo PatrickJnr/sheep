@@ -153,10 +153,10 @@ describe("brand images", () => {
     );
 
     assert.ok(refs.length >= 3, `expected the README to embed brand images, found ${refs.length}`);
-    // Served from the site rather than from the repository, because the
-    // repository is private: raw.githubusercontent.com refuses an
-    // unauthenticated request and a README image tag cannot authenticate. Each
-    // file is still committed here, which is what keeps the two in step.
+    // Served from the site rather than from raw.githubusercontent.com, which
+    // is a CDN for source files rather than an image host and carries no
+    // guarantee about caching or content type. Each file is still committed
+    // here, which is what keeps the two in step.
     for (const ref of new Set(refs)) {
       assert.ok(
         existsSync(join(PUBLISHED, ref)),
@@ -167,7 +167,7 @@ describe("brand images", () => {
     assert.doesNotMatch(
       readme,
       /raw\.githubusercontent\.com/,
-      "raw.githubusercontent.com 404s while the repository is private",
+      "embed brand images from the site, not from raw.githubusercontent.com",
     );
   });
 });
