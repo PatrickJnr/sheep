@@ -19,6 +19,7 @@ newer and nothing else.
 | Option | Effect |
 | --- | --- |
 | `--no-baa` | Neutral diagnostic wording. Codes and spans are unchanged. |
+| `--format <fmt>` | `human` (default) or `json`. Accepted by `check`, `lint` and `fmt`. |
 | `--color` / `--no-color` | Force colour on or off. |
 | `--quiet`, `-q` | Print less. Diagnostics still appear. |
 | `--help`, `-h` | Help for the command, or for `baa` itself. |
@@ -93,7 +94,7 @@ See [web.md](web.md) for serving pages this way, and for the live example.
 ## `baa check`
 
 ```
-baa check [paths...]
+baa check [paths...] [--format json]
 ```
 
 Parses and analyses without executing. Directories are searched recursively for
@@ -102,6 +103,14 @@ With no paths, checks the project (or the current directory).
 
 Exits `1` if anything failed to compile. This is the fastest way to validate a
 change.
+
+`--format json` writes one JSON object to stdout instead of rendered blocks on
+stderr, carrying every diagnostic with its code, both wordings, file and range.
+The schema is documented in [Diagnostics as JSON](diagnostics-json.md).
+
+```bash
+baa check --format json . | jq '.errors'
+```
 
 ## `baa test`
 
@@ -132,7 +141,7 @@ Exits `1` if any test fails.
 ## `baa fmt`
 
 ```
-baa fmt [paths...] [--check] [--stdout] [--indent <n>] [--line-width <n>]
+baa fmt [paths...] [--check] [--diff] [--stdout] [--indent <n>] [--line-width <n>]
 ```
 
 Formats files in place. The formatter is deterministic: the same AST always
@@ -141,15 +150,37 @@ produces the same bytes, and a second run changes nothing.
 | Option | Effect |
 | --- | --- |
 | `--check` | Do not write. Exit `1` if anything would change. |
+| `--diff` | Do not write. Print a unified diff of what would change. |
 | `--stdout` | Write the result to stdout, leaving the file alone. |
 | `--indent <n>` | Spaces per level. Default 4. |
 | `--line-width <n>` | Soft maximum line width. Default 90. |
+| `--format json` | Report as JSON, listing the files that would change. |
+
+`--diff` exits exactly like `--check`: `0` when everything is already
+formatted, `1` when anything would change. An already-formatted file prints
+nothing at all, so output means "this would change" without reading it.
 
 ```bash
 baa fmt .
 baa fmt --check .        # in CI
+baa fmt --diff .         # in a review
 baa fmt --stdout messy.baa | less
 ```
+
+```diff
+$ baa fmt --diff src/main.baa
+--- a/src/main.baa
++++ b/src/main.baa
+@@ -1,4 +1,4 @@
+-fn add(a,b){
+-  return a+b
++fn add(a, b) {
++    return a + b
+ }
+```
+
+`--format json` also writes nothing to disk: it reports what would change,
+listing the files under `changed`.
 
 ## `baa lint`
 
@@ -164,6 +195,7 @@ conditions, empty blocks, and `let` bindings that are never reassigned.
 | --- | --- |
 | `--deny-warnings` | Exit `1` when any warning is reported |
 | `--disable <code>` | Skip a rule. Repeatable. |
+| `--format json` | Report as JSON instead of rendered blocks. |
 
 Prefixing a name with `_` silences the unused-name lints for it, which is
 lighter than disabling the rule everywhere.
@@ -474,3 +506,7 @@ dependency. Commit it for applications; the `.gitignore` written by
 
 `CI=true` is set by every major provider, which turns off colour and the sheep
 wording automatically. Nothing else needs configuring.
+
+To turn diagnostics into annotations rather than log lines, add `--format json`
+to `check`, `lint` or `fmt` and read the object it writes to stdout:
+[Diagnostics as JSON](diagnostics-json.md) has a worked example.

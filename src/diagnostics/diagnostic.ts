@@ -30,6 +30,12 @@ export type Diagnostic = {
   readonly severity: Severity;
   /** Already-rendered message text (placeholders substituted). */
   readonly message: string;
+  /**
+   * The values substituted into the template. Kept so that a consumer can
+   * render the *other* wording without re-running the analysis: `--format
+   * json` reports both, and only the arguments make that possible.
+   */
+  readonly args: readonly string[];
   readonly primary: Label | null;
   readonly secondary: readonly Label[];
   /** Actionable suggestions rendered as `= help:` lines. */
@@ -89,6 +95,7 @@ export function createDiagnostic(
     code,
     severity: options.severity ?? spec.severity,
     message: formatTemplate(template, args),
+    args: [...args],
     primary,
     secondary: options.secondary ?? [],
     help,

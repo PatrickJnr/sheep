@@ -34,6 +34,22 @@ export type GlobalFlags = {
   readonly woolly: boolean;
 };
 
+/**
+ * How diagnostics are reported. `json` is accepted only by the commands whose
+ * output *is* diagnostics — see `JSON_COMMANDS` below for why `run` is not one
+ * of them.
+ */
+export type OutputFormat = "human" | "json";
+
+/**
+ * `--format json` is refused everywhere else on purpose. `baa run` and `baa
+ * test` give stdout to the program under test, so a report written there would
+ * be interleaved with whatever the program printed, and a consumer could not
+ * tell the two apart. Refusing is honest; writing JSON into a stream that also
+ * carries program output would not be.
+ */
+const JSON_COMMANDS = new Set(["check", "lint", "fmt", "format"]);
+
 export const VERSION: string = readVersion();
 
 function readVersion(): string {
@@ -69,6 +85,7 @@ COMMANDS
   version               Print the version
 
 GLOBAL OPTIONS
+  --format <fmt>        human (default) or json, on check, lint and fmt
   --no-baa              Plain diagnostics, no sheep wording (also BAA_NO_BAA=1)
   --color / --no-color  Force colour on or off (also NO_COLOR=1)
   --quiet               Print less
@@ -80,7 +97,9 @@ EXAMPLES
   baa run -- --name Dolly        Arguments after -- go to the program
   baa test tests/
   baa fmt --check .              Non-zero exit when anything is unformatted
+  baa fmt --diff .               Show what formatting would change
   baa lint --deny-warnings .     Treat warnings as failures in CI
+  baa check --format json .      Diagnostics a tool can read
 
 Docs: https://sheep.grimtech.co.uk   Source: https://github.com/PatrickJnr/sheep`;
 
@@ -91,10 +110,13 @@ const COMMAND_HELP: Record<string, string> = {
 
   --seed <n>        Seed the random number generator for reproducible runs
   --max-depth <n>   Maximum nested function calls (default 512)`,
-  check: `baa check [paths...]
+  check: `baa check [paths...] [options]
 
   Parse and analyse without executing. Directories are searched for .baa files.
-  Exits non-zero when anything fails to compile.`,
+  Exits non-zero when anything fails to compile.
+
+  --format json     One JSON object on stdout: every diagnostic with its code,
+                    both wordings, file and range. See docs/diagnostics-json.md.`,
   test: `baa test [paths...] [options]
 
   Run every \`test "name" { ... }\` block found in the given files.
@@ -107,15 +129,21 @@ const COMMAND_HELP: Record<string, string> = {
   nothing the second time.
 
   --check           Do not write; exit non-zero if anything would change
+  --diff            Do not write; print a unified diff of what would change
   --stdout          Write the result to stdout instead of the file
+  --format json     Report as JSON, listing the files that would change
   --indent <n>      Spaces per level (default 4)
-  --line-width <n>  Soft maximum line width (default 90)`,
+  --line-width <n>  Soft maximum line width (default 90)
+
+  --diff exits exactly like --check: 0 when everything is already formatted,
+  1 when anything would change. An already-formatted file prints nothing.`,
   lint: `baa lint [paths...] [options]
 
   Report warnings: unused bindings, unreachable code, empty blocks and friends.
 
   --deny-warnings   Exit non-zero when any warning is reported
-  --disable <code>  Skip a rule, e.g. --disable BAA905 (repeatable)`,
+  --disable <code>  Skip a rule, e.g. --disable BAA905 (repeatable)
+  --format json     Report as JSON instead of rendered blocks`,
   init: `baa init [dir] [options]
 
   Create baa.toml, main.baa and a starter test.
@@ -185,6 +213,7 @@ const VALUE_FLAGS = new Set([
   "disable",
   "entry",
   "out",
+  "format",
 ]);
 
 function parseArgs(argv: readonly string[]): Parsed {
@@ -252,6 +281,23 @@ function numberOption(parsed: Parsed, key: string): number | null {
   return value;
 }
 
+function resolveFormat(parsed: Parsed): OutputFormat {
+  const values = parsed.options.get("format");
+  const value = values === undefined ? null : values[values.length - 1]!;
+  if (value === null || value === "human") return "human";
+  if (value !== "json") {
+    throw BaaError.of("BAA301", [`--format ${value} is not a format Baa knows`], {
+      help: "Try `--format human` or `--format json`.",
+    });
+  }
+  if (!JSON_COMMANDS.has(parsed.command)) {
+    throw BaaError.of("BAA301", [`\`baa ${parsed.command}\` has no --format json`], {
+      help: `stdout belongs to your program there. ${[...JSON_COMMANDS].filter((name) => name !== "format").map((name) => `\`baa ${name}\``).join(", ")} report diagnostics as JSON.`,
+    });
+  }
+  return "json";
+}
+
 function stringOption(parsed: Parsed, key: string): string | null {
   const values = parsed.options.get(key);
   return values === undefined || values.length === 0 ? null : values[values.length - 1]!;
@@ -274,7 +320,15 @@ export async function main(argv: readonly string[]): Promise<number> {
   setWoollyMode(woolly);
 
   const flags: GlobalFlags = { quiet: parsed.booleans.has("quiet"), woolly };
-  const context: CommandContext = { flags, colour };
+  let format: OutputFormat;
+  try {
+    format = resolveFormat(parsed);
+  } catch (error) {
+    if (!(error instanceof BaaError)) throw error;
+    printDiagnostics([error.diagnostic], colour);
+    return 2;
+  }
+  const context: CommandContext = { flags, colour, format, version: VERSION };
 
   if (parsed.booleans.has("version") || parsed.command === "version") {
     writeLine(`baa ${VERSION}`);
@@ -329,6 +383,7 @@ export async function main(argv: readonly string[]): Promise<number> {
           {
             paths: parsed.positionals,
             check: parsed.booleans.has("check"),
+            diff: parsed.booleans.has("diff"),
             toStdout: parsed.booleans.has("stdout"),
             indent: numberOption(parsed, "indent"),
             lineWidth: numberOption(parsed, "line-width"),

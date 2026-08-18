@@ -239,6 +239,13 @@ const DOC_PAGES: readonly DocPage[] = [
     group: "Reference",
   },
   {
+    slug: "diagnostics-json",
+    source: "docs/diagnostics-json.md",
+    title: "Diagnostics as JSON",
+    description: "The --format json schema: what baa check, lint and fmt emit for a tool to read, field by field.",
+    group: "Reference",
+  },
+  {
     slug: "errors",
     source: "docs/errors.md",
     title: "Diagnostics",
@@ -311,6 +318,8 @@ const MARKDOWN_TO_SLUG: Record<string, string> = {
   "docs/cli.md": "cli",
   "docs/stdlib.md": "stdlib",
   "docs/errors.md": "errors",
+  "docs/diagnostics-json.md": "diagnostics-json",
+  "diagnostics-json.md": "diagnostics-json",
   "docs/web-applications.md": "web-applications",
   "web-applications.md": "web-applications",
   "docs/editors.md": "editors",

@@ -243,6 +243,10 @@ Three things worth knowing:
 - **Runtime failures carry a real stack**, captured where the failure happened
   rather than reconstructed afterwards, and they are catchable as a map with
   `code`, `message`, `file`, `line` and `column`.
+- **A tool can read them too.** `baa check --format json` writes one JSON
+  object carrying every diagnostic with its code, both wordings, file and
+  range, so a CI job annotates a pull request without parsing prose:
+  [docs/diagnostics-json.md](docs/diagnostics-json.md).
 
 All 46 of them are listed in [docs/errors.md](docs/errors.md).
 

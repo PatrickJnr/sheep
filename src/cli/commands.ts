@@ -18,7 +18,9 @@ import { fileURLToPath } from "node:url";
 import { checkFile, toDiagnostic } from "../api.ts";
 import type { Diagnostic } from "../diagnostics/diagnostic.ts";
 import { BaaError, createDiagnostic } from "../diagnostics/diagnostic.ts";
+import { buildReport, renderReport } from "../diagnostics/json.ts";
 import { SourceFile } from "../diagnostics/source.ts";
+import { unifiedDiff } from "../formatter/diff.ts";
 import { formatProgram } from "../formatter/formatter.ts";
 import { lintProgram } from "../linter/linter.ts";
 import { parse } from "../parser/parser.ts";
@@ -39,7 +41,7 @@ import { Interpreter } from "../runtime/interpreter.ts";
 import { ExitSignal } from "../runtime/signals.ts";
 import { resolveProgram } from "../semantic/resolver.ts";
 import { STDLIB_MODULES, STDLIB_SUMMARY } from "../stdlib/index.ts";
-import type { GlobalFlags } from "./index.ts";
+import type { GlobalFlags, OutputFormat } from "./index.ts";
 import {
   bold,
   dim,
@@ -57,7 +59,48 @@ const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "target", ".baa-cache
 export type CommandContext = {
   readonly flags: GlobalFlags;
   readonly colour: boolean;
+  /** `--format json` turns every diagnostic-reporting command machine-readable. */
+  readonly format: OutputFormat;
+  /** The running release, reported in the JSON envelope. */
+  readonly version: string;
 };
+
+/**
+ * Report diagnostics the way this run was asked to.
+ *
+ * Human mode writes rendered blocks to stderr, as it always has. JSON mode
+ * writes one report object to stdout and nothing else, which is the whole
+ * contract: a consumer can read stdout as JSON without filtering it first.
+ * Commands therefore route every diagnostic through here rather than calling
+ * `printDiagnostics`, and suppress their own prose in JSON mode.
+ */
+export function report(
+  diagnostics: readonly Diagnostic[],
+  context: CommandContext,
+  options: {
+    readonly command: string;
+    readonly files: number;
+    readonly changed?: readonly string[];
+    readonly ok?: boolean;
+  },
+): void {
+  if (context.format !== "json") {
+    printDiagnostics(diagnostics, context.colour);
+    return;
+  }
+  process.stdout.write(
+    renderReport(
+      buildReport(diagnostics, {
+        command: options.command,
+        baa: context.version,
+        woolly: context.flags.woolly,
+        files: options.files,
+        ...(options.changed === undefined ? {} : { changed: options.changed }),
+        ...(options.ok === undefined ? {} : { ok: options.ok }),
+      }),
+    ),
+  );
+}
 
 // --------------------------------------------------------------------------
 // Shared helpers
@@ -197,7 +240,8 @@ export function commandCheck(paths: readonly string[], context: CommandContext):
   const { names } = projectModules(manifest);
   const targets = collectFiles(paths.length > 0 ? paths : [defaultTarget(manifest)]);
   if (targets.length === 0) {
-    writeLine("No .baa files found.");
+    report([], context, { command: "check", files: 0 });
+    if (context.format !== "json") writeLine("No .baa files found.");
     return 0;
   }
   const all: Diagnostic[] = [];
@@ -205,9 +249,9 @@ export function commandCheck(paths: readonly string[], context: CommandContext):
     const result = checkFile(readSource(path), { modules: names });
     all.push(...result.diagnostics);
   }
-  printDiagnostics(all, context.colour);
+  report(all, context, { command: "check", files: targets.length });
   const errors = all.filter((diagnostic) => diagnostic.severity === "error").length;
-  if (!context.flags.quiet) {
+  if (context.format !== "json" && !context.flags.quiet) {
     const label = `${targets.length} file${targets.length === 1 ? "" : "s"} checked, ${summarise(all)}`;
     writeLine(errors === 0 ? success(label, context.colour) : failure(label, context.colour));
   }
@@ -252,10 +296,14 @@ export function commandLint(args: LintArgs, context: CommandContext): number {
     const analysis = resolveProgram(checked.program, file, { modules: names });
     all.push(...lintProgram(checked.program, analysis, { disable: args.disable }));
   }
-  printDiagnostics(all, context.colour);
   const errors = all.filter((diagnostic) => diagnostic.severity === "error").length;
   const warnings = all.length - errors;
-  if (!context.flags.quiet) {
+  report(all, context, {
+    command: "lint",
+    files: targets.length,
+    ok: errors === 0 && !(args.denyWarnings && warnings > 0),
+  });
+  if (context.format !== "json" && !context.flags.quiet) {
     const label = `${targets.length} file${targets.length === 1 ? "" : "s"} linted, ${summarise(all)}`;
     writeLine(all.length === 0 ? success(label, context.colour) : label);
   }
@@ -270,6 +318,12 @@ export function commandLint(args: LintArgs, context: CommandContext): number {
 export type FormatArgs = {
   readonly paths: readonly string[];
   readonly check: boolean;
+  /**
+   * Show what formatting would change, without changing it. Implies `--check`
+   * in every respect that matters: nothing is written and the exit code is the
+   * same, so a hook can swap one for the other and only the output differs.
+   */
+  readonly diff: boolean;
   readonly toStdout: boolean;
   readonly indent: number | null;
   readonly lineWidth: number | null;
@@ -282,7 +336,10 @@ export function commandFormat(args: FormatArgs, context: CommandContext): number
     ...(args.indent === null ? {} : { indent: args.indent }),
     ...(args.lineWidth === null ? {} : { lineWidth: args.lineWidth }),
   };
-  let changed = 0;
+  // `--diff` and `--format json` both only report, so neither may write.
+  const dryRun = args.check || args.diff || context.format === "json";
+  const changedPaths: string[] = [];
+  const problems: Diagnostic[] = [];
   let failed = 0;
 
   for (const path of targets) {
@@ -295,7 +352,8 @@ export function commandFormat(args: FormatArgs, context: CommandContext): number
       formatted = formatProgram(program, options);
     } catch (error) {
       if (!(error instanceof BaaError)) throw error;
-      printDiagnostics([error.diagnostic], context.colour);
+      problems.push(error.diagnostic);
+      if (context.format !== "json") printDiagnostics([error.diagnostic], context.colour);
       failed++;
       continue;
     }
@@ -305,27 +363,43 @@ export function commandFormat(args: FormatArgs, context: CommandContext): number
       continue;
     }
     if (formatted === file.text) continue;
-    changed++;
-    if (args.check) {
-      writeLine(`${failure("would reformat", context.colour)} ${shortPath(path)}`);
+    const short = shortPath(path);
+    changedPaths.push(short);
+    if (context.format === "json") continue;
+    if (args.diff) {
+      process.stdout.write(
+        unifiedDiff(file.text, formatted, { fromLabel: `a/${short}`, toLabel: `b/${short}` }),
+      );
+    } else if (args.check) {
+      writeLine(`${failure("would reformat", context.colour)} ${short}`);
     } else {
       writeFileSync(path, formatted, "utf8");
-      if (!context.flags.quiet) writeLine(`${success("formatted", context.colour)} ${shortPath(path)}`);
+      if (!context.flags.quiet) writeLine(`${success("formatted", context.colour)} ${short}`);
     }
   }
 
+  if (context.format === "json") {
+    const ok = failed === 0 && changedPaths.length === 0;
+    report(problems, context, {
+      command: "fmt",
+      files: targets.length,
+      changed: changedPaths,
+      ok,
+    });
+    return ok ? 0 : 1;
+  }
   if (failed > 0) return 1;
   if (args.toStdout) return 0;
-  if (!context.flags.quiet) {
-    const unchanged = targets.length - changed;
+  if (!context.flags.quiet && !args.diff) {
+    const unchanged = targets.length - changedPaths.length;
     writeLine(
       dim(
-        `${targets.length} file${targets.length === 1 ? "" : "s"}: ${changed} ${args.check ? "would change" : "changed"}, ${unchanged} already tidy`,
+        `${targets.length} file${targets.length === 1 ? "" : "s"}: ${changedPaths.length} ${dryRun ? "would change" : "changed"}, ${unchanged} already tidy`,
         context.colour,
       ),
     );
   }
-  return args.check && changed > 0 ? 1 : 0;
+  return dryRun && changedPaths.length > 0 ? 1 : 0;
 }
 
 // --------------------------------------------------------------------------
