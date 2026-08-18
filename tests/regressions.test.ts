@@ -134,6 +134,34 @@ describe("regression: parameter lists a caller cannot satisfy", () => {
   });
 });
 
+describe("regression: a brace in a string is an interpolation", () => {
+  // Not a bug: `{` opening an interpolation is the design. It is here because
+  // `"{" + x + "}"` is the one construct that compiles and produces a wrong
+  // answer with nothing reported, and because `llms-full.txt` states this
+  // behaviour precisely for models to rely on. If any of it ever changes, the
+  // documentation has to change with it, and this is what says so.
+  it("is a loud error when the interpolation is never closed", () => {
+    assert.deepEqual(codes('const x = 5\nbaa "{" + x'), ["BAA001"]);
+    assert.deepEqual(codes('baa "{\\"a\\": 1}"'), ["BAA001"]);
+  });
+
+  it("is silently one string when a later `}` closes it", () => {
+    // The closing `"}"` completes the interpolation, so the whole thing is a
+    // single string literal whose interpolation is the text ` + x + `.
+    // The spaces are part of it: the interpolation's text is `" + x + "`.
+    assert.equal(output('const x = 5\nbaa "{" + x + "}"'), " + x + \n");
+  });
+
+  it("is a literal brace when escaped, and in a raw string", () => {
+    assert.equal(output('const x = 5\nbaa "\\{" + x + "\\}"'), "{5}\n");
+    assert.equal(output('baa r"{a}"'), "{a}\n");
+  });
+
+  it("still interpolates when that is what was meant", () => {
+    assert.equal(output('const x = 5\nbaa "{x}"'), "5\n");
+  });
+});
+
 describe("regression: string positions count characters", () => {
   // `index_of` returned a UTF-16 offset while `[]`, `slice` and `length` all
   // counted characters, so its result could not be fed back into them.

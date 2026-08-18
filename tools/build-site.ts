@@ -528,6 +528,7 @@ ${options.body}
           <li><a href="${base}docs/roadmap.html">Roadmap</a></li>
           <li><a href="${base}docs/contributing.html">Contributing</a></li>
           <li><a href="${base}docs/rust.html">Rust port</a></li>
+          <li><a href="${base}llms.txt">For AI agents</a></li>
         </ul>
       </div>
     </div>
