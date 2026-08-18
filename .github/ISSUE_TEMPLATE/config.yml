@@ -6,6 +6,9 @@ contact_links:
   - name: Documentation
     url: https://sheep.grimtech.co.uk
     about: The language tour, specification, CLI reference and standard library.
+  # SECURITY.md rather than /security/advisories/new, which 404s: GitHub only
+  # offers private vulnerability reporting on public repositories. The document
+  # gives both routes, so it stays correct whichever this repository is.
   - name: Security issue
-    url: https://github.com/PatrickJnr/sheep/security/advisories/new
+    url: https://github.com/PatrickJnr/sheep/blob/HEAD/SECURITY.md
     about: Report a vulnerability privately. Please do not open a public issue.

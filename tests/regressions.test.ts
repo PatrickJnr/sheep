@@ -10,7 +10,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -314,6 +314,36 @@ describe("regression: workflows that fail before they start", () => {
         /id-token:\s*write/,
         `${name} publishes with provenance but never requests id-token: write`,
       );
+    }
+  });
+});
+
+describe("regression: issue-template contact links", () => {
+  const config = readFileSync(join(ROOT, ".github", "ISSUE_TEMPLATE", "config.yml"), "utf8");
+  const urls = [...config.matchAll(/^\s*url:\s*(\S+)$/gm)].map((match) => match[1]!);
+
+  it("has contact links", () => {
+    assert.ok(urls.length > 0);
+  });
+
+  // GitHub offers private vulnerability reporting on public repositories only.
+  // While this one is private the link 404s, which is a poor thing to hand
+  // somebody who has just found a vulnerability. SECURITY.md gives both routes.
+  it("does not send reporters to a page that needs a public repository", () => {
+    for (const url of urls) {
+      assert.doesNotMatch(
+        url,
+        /\/security\/advisories\/new/,
+        "link to SECURITY.md instead: /security/advisories/new 404s on a private repository",
+      );
+    }
+  });
+
+  it("points at files that exist, for links into this repository", () => {
+    for (const url of urls) {
+      const path = /github\.com\/[\w-]+\/[\w-]+\/blob\/[\w-]+\/(.+)$/.exec(url)?.[1];
+      if (path === undefined) continue;
+      assert.ok(existsSync(join(ROOT, path)), `contact link points at ${path}, which does not exist`);
     }
   });
 });
