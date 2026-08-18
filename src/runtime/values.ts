@@ -66,10 +66,35 @@ export class BaaRange {
     this.end = end;
     this.inclusive = inclusive;
   }
+
+  /**
+   * How many values `values()` yields. A range counts downwards when its start
+   * is above its end, so the distance is what matters, not the sign: `5..0`
+   * yields five values just as `0..5` does.
+   */
   get length(): number {
-    const span = this.inclusive ? this.end - this.start + 1 : this.end - this.start;
-    return Math.max(0, Math.floor(span));
+    const distance = Math.abs(this.end - this.start);
+    if (Number.isNaN(distance)) return 0;
+    if (distance === Number.POSITIVE_INFINITY) return Number.POSITIVE_INFINITY;
+    // Exclusive stops before the bound, so a fractional distance still yields
+    // its final step; inclusive always yields the start as well.
+    return this.inclusive ? Math.floor(distance) + 1 : Math.ceil(distance);
   }
+
+  /**
+   * Whether a number lies within the bounds, regardless of direction. An
+   * exclusive range omits its `end`, which for a descending range is the lower
+   * bound rather than the upper one.
+   */
+  contains(value: number): boolean {
+    const low = Math.min(this.start, this.end);
+    const high = Math.max(this.start, this.end);
+    if (this.inclusive) return value >= low && value <= high;
+    return this.start <= this.end
+      ? value >= this.start && value < this.end
+      : value <= this.start && value > this.end;
+  }
+
   *values(): Generator<number> {
     if (this.start <= this.end) {
       for (let i = this.start; this.inclusive ? i <= this.end : i < this.end; i++) {
@@ -256,7 +281,6 @@ export function formatNumber(value: number): string {
   if (Number.isNaN(value)) return "nan";
   if (value === Number.POSITIVE_INFINITY) return "inf";
   if (value === Number.NEGATIVE_INFINITY) return "-inf";
-  if (Number.isInteger(value) && Math.abs(value) < 1e21) return String(value);
   return String(value);
 }
 
@@ -337,6 +361,33 @@ export function quote(text: string): string {
 /** `wool.to_string` and string interpolation both funnel through here. */
 export function toStringValue(value: Value): string {
   return display(value);
+}
+
+// --------------------------------------------------------------------------
+// Allocation limit
+// --------------------------------------------------------------------------
+
+/**
+ * Upper bound on anything sized by a count the program supplies: `repeat`,
+ * `pad_start`, `flock.range` and friends.
+ *
+ * Without it, `"baa".repeat(1e10)` reaches a JavaScript engine limit and throws
+ * a `RangeError` that is not a Baa diagnostic at all, and `flock.repeat(0, 1e9)`
+ * exhausts memory before it gets that far. Ten million is far past any honest
+ * use and far below either failure, so the program gets a diagnostic pointing
+ * at the call instead of a crash.
+ */
+export const MAX_SIZE = 10_000_000;
+
+export function checkSize(fn: string, count: number, span: Span): number {
+  if (count > MAX_SIZE) {
+    throw BaaError.of("BAA312", [fn, formatNumber(count), formatNumber(MAX_SIZE)], {
+      span,
+      note: "too many at once",
+      help: "Build it in smaller pieces, or check the count for a mistake.",
+    });
+  }
+  return count;
 }
 
 // --------------------------------------------------------------------------

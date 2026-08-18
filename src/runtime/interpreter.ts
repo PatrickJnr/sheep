@@ -44,6 +44,7 @@ import {
   BreakSignal,
   ContinueSignal,
   ExitSignal,
+  isSignal,
   ReturnSignal,
   ThrownValue,
 } from "./signals.ts";
@@ -53,6 +54,7 @@ import {
   BaaMap,
   BaaModule,
   BaaRange,
+  checkSize,
   describeType,
   display,
   formatNumber,
@@ -642,7 +644,9 @@ export class Interpreter {
       case "**": {
         if (typeof left !== "number" || typeof right !== "number") {
           if (operator === "*" && typeof left === "string" && typeof right === "number") {
-            return left.repeat(Math.max(0, Math.floor(right)));
+            const count = Math.max(0, Math.floor(right));
+            checkSize("*", count * left.length, span);
+            return left.repeat(count);
           }
           throw this.#operandError(verbFor(operator), left, right, span);
         }
@@ -699,12 +703,7 @@ export class Interpreter {
       return isMapKey(needle) && container.entries.has(needle);
     }
     if (container instanceof BaaRange) {
-      if (typeof needle !== "number") return false;
-      const low = Math.min(container.start, container.end);
-      const high = Math.max(container.start, container.end);
-      return container.inclusive
-        ? needle >= low && needle <= high
-        : needle >= low && needle < high;
+      return typeof needle === "number" && container.contains(needle);
     }
     if (typeof container === "string" && typeof needle === "string") {
       return container.includes(needle);
@@ -773,9 +772,11 @@ export class Interpreter {
       return object.entries.has(index) ? object.entries.get(index)! : null;
     }
     if (object instanceof BaaRange) {
-      const values = [...object.values()];
-      const position = normaliseIndex(index, values.length, span, "range");
-      return values[position]!;
+      // Computed rather than materialised: indexing `0..10_000_000` should not
+      // allocate ten million numbers to hand back one of them.
+      const position = normaliseIndex(index, object.length, span, "range");
+      const step = object.start <= object.end ? 1 : -1;
+      return object.start + position * step;
     }
     throw BaaError.of("BAA305", [describeType(object), display(index)], {
       span,
@@ -883,7 +884,23 @@ export class Interpreter {
       span,
       call: (callee, callArgs, callSpan) => this.callCallback(callee, callArgs, callSpan),
     };
-    return fn.impl(args, context);
+    try {
+      return fn.impl(args, context);
+    } catch (error) {
+      // A native function that fails in a way it did not anticipate must still
+      // reach the user as a Baa diagnostic pointing at the call. Without this,
+      // a `RangeError` from deep inside a JavaScript built-in escapes the
+      // interpreter entirely and prints a stack trace from a language the
+      // program was never written in.
+      if (error instanceof BaaError || isSignal(error)) throw error;
+      if (error instanceof RangeError && /call stack/i.test(error.message)) {
+        throw BaaError.of("BAA307", [], { span, note: "call stack limit reached" });
+      }
+      throw BaaError.of("BAA301", [`\`${fn.name}\` failed: ${messageOf(error)}`], {
+        span,
+        note: "this call could not complete",
+      });
+    }
   }
 
   /**
@@ -939,7 +956,7 @@ export class Interpreter {
     }
 
     const scope = fn.closure.child(fn.name);
-    this.#bindParams(fn.params, args, scope, span);
+    this.#bindParams(fn.params, args, scope);
 
     this.#stack.push({ name: fn.name, span });
     this.#depth++;
@@ -958,7 +975,7 @@ export class Interpreter {
     }
   }
 
-  #bindParams(params: readonly Param[], args: Value[], scope: Environment, span: Span): void {
+  #bindParams(params: readonly Param[], args: Value[], scope: Environment): void {
     let index = 0;
     for (const param of params) {
       if (param.rest) {
@@ -978,7 +995,6 @@ export class Interpreter {
       }
       index++;
     }
-    void span;
   }
 
   /** Snapshot of the live call stack, innermost first. */
@@ -1069,6 +1085,10 @@ function normaliseIndex(index: Value, length: number, span: Span, what: string):
     });
   }
   return position;
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function arityText(min: number, max: number): string {

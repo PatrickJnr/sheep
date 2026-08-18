@@ -109,7 +109,6 @@ export class Environment {
 }
 
 function suggestionFor(scope: Environment, name: string): { help?: string } {
-  // Imported lazily to avoid a cycle between diagnostics and the runtime.
   const candidates = scope.names();
   let best: string | null = null;
   let bestScore = Number.POSITIVE_INFINITY;

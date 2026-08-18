@@ -50,3 +50,18 @@ export class ExitSignal {
     this.code = code;
   }
 }
+
+/**
+ * Whether a caught value is control flow rather than a failure. Anything that
+ * catches broadly has to let these through untouched, or `return` from inside
+ * a callback turns into an error.
+ */
+export function isSignal(value: unknown): boolean {
+  return (
+    value instanceof ReturnSignal ||
+    value instanceof BreakSignal ||
+    value instanceof ContinueSignal ||
+    value instanceof ThrownValue ||
+    value instanceof ExitSignal
+  );
+}

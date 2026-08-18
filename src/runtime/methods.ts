@@ -17,9 +17,10 @@ import { BaaError, suggest } from "../diagnostics/diagnostic.ts";
 import type { Span } from "../diagnostics/source.ts";
 import {
   BaaArray,
+  BaaFunction,
   BaaMap,
-  BaaModule,
   BaaRange,
+  checkSize,
   describeType,
   display,
   formatNumber,
@@ -149,9 +150,13 @@ const STRING_METHODS: Record<string, MethodSpec> = {
   ends_with: method(1, 1, "True when the string ends with a suffix.", (self, args, ctx) =>
     (self as string).endsWith(needString("ends_with", args, 0, ctx.span)),
   ),
-  index_of: method(1, 1, "First index of a substring, or -1.", (self, args, ctx) =>
-    (self as string).indexOf(needString("index_of", args, 0, ctx.span)),
-  ),
+  index_of: method(1, 1, "First index of a substring, or -1.", (self, args, ctx) => {
+    // Counted in characters, not UTF-16 units, so the result can be handed
+    // straight back to `slice` or `[]` on a string containing emoji.
+    const text = self as string;
+    const found = text.indexOf(needString("index_of", args, 0, ctx.span));
+    return found <= 0 ? found : [...text.slice(0, found)].length;
+  }),
   split: method(0, 1, "Split into an array on a separator.", (self, args, ctx) => {
     const text = self as string;
     if (args.length === 0) return new BaaArray([...text]);
@@ -193,17 +198,18 @@ const STRING_METHODS: Record<string, MethodSpec> = {
         span: ctx.span,
       });
     }
+    checkSize("repeat", count * (self as string).length, ctx.span);
     return (self as string).repeat(count);
   }),
   pad_start: method(1, 2, "Pad on the left to a target width.", (self, args, ctx) =>
     (self as string).padStart(
-      needIndex("pad_start", args, 0, ctx.span),
+      checkSize("pad_start", needIndex("pad_start", args, 0, ctx.span), ctx.span),
       args.length > 1 ? needString("pad_start", args, 1, ctx.span) : " ",
     ),
   ),
   pad_end: method(1, 2, "Pad on the right to a target width.", (self, args, ctx) =>
     (self as string).padEnd(
-      needIndex("pad_end", args, 0, ctx.span),
+      checkSize("pad_end", needIndex("pad_end", args, 0, ctx.span), ctx.span),
       args.length > 1 ? needString("pad_end", args, 1, ctx.span) : " ",
     ),
   ),
@@ -490,19 +496,14 @@ const RANGE_METHODS: Record<string, MethodSpec> = {
   is_empty: method(0, 0, "True when the range yields nothing.", (self) =>
     (self as BaaRange).length === 0,
   ),
-  contains: method(1, 1, "True when a number falls inside the range.", (self, args, ctx) => {
-    const range = self as BaaRange;
-    const value = needNumber("contains", args, 0, ctx.span);
-    const low = Math.min(range.start, range.end);
-    const high = Math.max(range.start, range.end);
-    if (range.inclusive) return value >= low && value <= high;
-    return range.start <= range.end
-      ? value >= range.start && value < range.end
-      : value <= range.start && value > range.end;
-  }),
-  to_array: method(0, 0, "Materialise the range as an array.", (self) =>
-    new BaaArray([...(self as BaaRange).values()]),
+  contains: method(1, 1, "True when a number falls inside the range.", (self, args, ctx) =>
+    (self as BaaRange).contains(needNumber("contains", args, 0, ctx.span)),
   ),
+  to_array: method(0, 0, "Materialise the range as an array.", (self, _args, ctx) => {
+    const range = self as BaaRange;
+    checkSize("to_array", range.length, ctx.span);
+    return new BaaArray([...range.values()]);
+  }),
 };
 
 const NUMBER_METHODS: Record<string, MethodSpec> = {
@@ -546,10 +547,7 @@ function tableFor(value: Value): Record<string, MethodSpec> | null {
   if (value instanceof BaaArray) return ARRAY_METHODS;
   if (value instanceof BaaMap) return MAP_METHODS;
   if (value instanceof BaaRange) return RANGE_METHODS;
-  if (value instanceof NativeFunction) return FUNCTION_METHODS;
-  if (typeof value === "object" && value !== null && !(value instanceof BaaModule)) {
-    return FUNCTION_METHODS;
-  }
+  if (value instanceof NativeFunction || value instanceof BaaFunction) return FUNCTION_METHODS;
   return null;
 }
 
