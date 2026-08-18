@@ -3,16 +3,45 @@
   "name": "Baa",
   "scopeName": "source.baa",
   "patterns": [
-    { "include": "#comments" },
-    { "include": "#strings" },
-    { "include": "#numbers" },
-    { "include": "#declarations" },
-    { "include": "#keywords" },
-    { "include": "#constants" },
-    { "include": "#modules" },
-    { "include": "#calls" },
-    { "include": "#operators" },
-    { "include": "#punctuation" }
+    {
+      "include": "#raw-block-strings"
+    },
+    {
+      "include": "#raw-strings"
+    },
+    {
+      "include": "#block-strings"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#declarations"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#modules"
+    },
+    {
+      "include": "#calls"
+    },
+    {
+      "include": "#operators"
+    },
+    {
+      "include": "#punctuation"
+    }
   ],
   "repository": {
     "comments": {
@@ -29,7 +58,11 @@
           "name": "comment.block.baa",
           "begin": "/\\*",
           "end": "\\*/",
-          "patterns": [{ "include": "#comments" }]
+          "patterns": [
+            {
+              "include": "#comments"
+            }
+          ]
         }
       ]
     },
@@ -51,12 +84,20 @@
           "begin": "\\{",
           "end": "\\}",
           "beginCaptures": {
-            "0": { "name": "punctuation.section.interpolation.begin.baa" }
+            "0": {
+              "name": "punctuation.section.interpolation.begin.baa"
+            }
           },
           "endCaptures": {
-            "0": { "name": "punctuation.section.interpolation.end.baa" }
+            "0": {
+              "name": "punctuation.section.interpolation.end.baa"
+            }
           },
-          "patterns": [{ "include": "$self" }]
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
         }
       ]
     },
@@ -85,21 +126,31 @@
         {
           "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
-            "1": { "name": "storage.type.function.baa" },
-            "2": { "name": "entity.name.function.baa" }
+            "1": {
+              "name": "storage.type.function.baa"
+            },
+            "2": {
+              "name": "entity.name.function.baa"
+            }
           }
         },
         {
           "match": "\\b(let|const)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
-            "1": { "name": "storage.type.baa" },
-            "2": { "name": "variable.other.declaration.baa" }
+            "1": {
+              "name": "storage.type.baa"
+            },
+            "2": {
+              "name": "variable.other.declaration.baa"
+            }
           }
         },
         {
           "match": "\\b(test)\\s+(?=\")",
           "captures": {
-            "1": { "name": "keyword.control.test.baa" }
+            "1": {
+              "name": "keyword.control.test.baa"
+            }
           }
         }
       ]
@@ -149,19 +200,25 @@
         {
           "match": "\\.([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
           "captures": {
-            "1": { "name": "entity.name.function.method.baa" }
+            "1": {
+              "name": "entity.name.function.method.baa"
+            }
           }
         },
         {
           "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
           "captures": {
-            "1": { "name": "entity.name.function.call.baa" }
+            "1": {
+              "name": "entity.name.function.call.baa"
+            }
           }
         },
         {
           "match": "\\.([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
-            "1": { "name": "variable.other.property.baa" }
+            "1": {
+              "name": "variable.other.property.baa"
+            }
           }
         }
       ]
@@ -196,11 +253,70 @@
     },
     "punctuation": {
       "patterns": [
-        { "name": "punctuation.separator.baa", "match": "[,;:]" },
-        { "name": "punctuation.section.braces.baa", "match": "[{}]" },
-        { "name": "punctuation.section.brackets.baa", "match": "[\\[\\]]" },
-        { "name": "punctuation.section.parens.baa", "match": "[()]" }
+        {
+          "name": "punctuation.separator.baa",
+          "match": "[,;:]"
+        },
+        {
+          "name": "punctuation.section.braces.baa",
+          "match": "[{}]"
+        },
+        {
+          "name": "punctuation.section.brackets.baa",
+          "match": "[\\[\\]]"
+        },
+        {
+          "name": "punctuation.section.parens.baa",
+          "match": "[()]"
+        }
       ]
+    },
+    "block-strings": {
+      "name": "string.quoted.triple.baa",
+      "begin": "\"\"\"",
+      "end": "\"\"\"",
+      "patterns": [
+        {
+          "name": "constant.character.escape.baa",
+          "match": "\\\\(u\\{[0-9A-Fa-f]+\\}|[ntr0e\\\\\"{}])"
+        },
+        {
+          "name": "invalid.illegal.unknown-escape.baa",
+          "match": "\\\\."
+        },
+        {
+          "name": "meta.embedded.interpolation.baa",
+          "begin": "\\{",
+          "end": "\\}",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.section.interpolation.begin.baa"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.section.interpolation.end.baa"
+            }
+          },
+          "patterns": [
+            {
+              "include": "$self"
+            }
+          ]
+        }
+      ]
+    },
+    "raw-strings": {
+      "name": "string.quoted.double.raw.baa",
+      "begin": "r\"",
+      "end": "\"",
+      "patterns": []
+    },
+    "raw-block-strings": {
+      "name": "string.quoted.triple.raw.baa",
+      "begin": "r\"\"\"",
+      "end": "\"\"\"",
+      "patterns": []
     }
   }
 }
