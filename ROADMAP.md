@@ -1,7 +1,7 @@
 # Roadmap
 
 What Baa is today, what is being built next, and what has been considered and
-left out. Rewritten against the repository on 2026-08-18; every claim below is
+left out. Checked against the repository on 2026-08-19; every claim below is
 either checked by CI or marked as unbuilt.
 
 Baa follows semantic versioning from 1.0. Before then, minor versions may
@@ -114,7 +114,7 @@ time, so the same program would produce different numbers on different
 machines; the native runtime raises `BAA301` naming the fix instead of guessing
 an offset.
 
-### A VS Code language client — **COMPLETED**
+### A VS Code language client — **COMPLETED** in 0.6.0
 
 **Goal.** Make the language server that already exists start automatically in
 the editor most people use.
@@ -128,7 +128,9 @@ the same analysis the compiler runs, and the VS Code extension was declarative
 VS Code to it. It registers no providers of its own, and a test asserts that:
 a second opinion about what a program means is worse than no opinion. The
 `.vsix` is built by CI and attached to each release, and the extension is
-published to the marketplace as `baa-lang.baa-lang`.
+published to the marketplace as `baa-lang.baa-lang` — by the release workflow
+itself, which publishes when a `VSCE_PAT` secret is present and skips silently
+when the version is already on the marketplace, so a release is one tag.
 
 **Definition of done — met, and verified rather than assumed.** An integration
 test launches a real VS Code, loads the extension, opens a `.baa` file and
