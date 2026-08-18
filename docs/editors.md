@@ -127,6 +127,14 @@ starts the language server for you. Install the `.vsix` attached to a
 code --install-extension baa-lang.vsix
 ```
 
+Or in VS Code: **Extensions** → the `...` menu → **Install from VSIX…**, or drag
+the file onto the Extensions panel. Then reload the window.
+
+**Do not double-click it.** Windows registers `.vsix` to Visual Studio, which is
+a different product; it will read the package, report
+`One or more extensions are for Visual Studio Code`, and refuse. That is
+Visual Studio being right, not a broken package.
+
 Open a `.baa` file and diagnostics, formatting, hover, go to definition, find
 references and rename all work with no configuration, provided `baa` is on your
 `PATH` — which `npm install -g baa-lang` arranges. If it is somewhere else, set

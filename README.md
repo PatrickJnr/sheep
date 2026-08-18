@@ -363,7 +363,9 @@ server does not do yet, is in [docs/editors.md](docs/editors.md).
 server for you, alongside syntax highlighting, snippets, and bracket and
 comment configuration. Install the `.vsix` from a
 [release](https://github.com/PatrickJnr/sheep/releases) with
-`code --install-extension baa-lang.vsix`, open a `.baa` file, and everything
+`code --install-extension baa-lang.vsix` (double-clicking it opens Visual
+Studio, which is a different product and will refuse), open a `.baa` file,
+and everything
 above works with no configuration. It analyses nothing itself — it runs
 `baa lsp`, so the editor sees what `baa check` sees.
 
