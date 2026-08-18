@@ -36,6 +36,9 @@ with a migration note.
 - [x] Project manifest, lockfile, local dependencies
 - [x] Full diagnostic catalogue with professional mode
 - [x] 536 automated tests, benchmarks, recorded example output
+- [x] Web pages over CGI (`gate`, `baa serve`), with a
+      [live example](https://sheep.grimtech.co.uk/baa/index.baa) on shared
+      hosting
 - [x] Documentation and website
 - [x] VS Code syntax highlighting and snippets
 

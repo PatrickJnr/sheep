@@ -234,6 +234,7 @@ All 46 of them are listed in [docs/errors.md](docs/errors.md).
 | Command | What it does |
 | --- | --- |
 | `baa run [file]` | Execute a program, or the project entry point |
+| `baa <file>` | The same, without saying `run`. What a shebang uses |
 | `baa check [paths]` | Parse and analyse without running |
 | `baa test [paths]` | Run `test "..." { ... }` blocks |
 | `baa fmt [paths]` | Format source files, `--check` for CI |
@@ -284,6 +285,7 @@ suite. If one breaks, CI says so.
 | [`modules.baa`](examples/modules.baa) | Imports, aliases, local files |
 | [`errors.baa`](examples/errors.baa) | Throwing, catching, `finally` |
 | [`stdlib.baa`](examples/stdlib.baa) | Every module whose output is the same on every machine |
+| [`site/`](examples/site/) | A website: pages that answer HTTP requests over CGI, [running here](https://sheep.grimtech.co.uk/baa/index.baa) |
 | [`fizzbuzz.baa`](examples/fizzbuzz.baa) | `match` on structural patterns |
 | [`large_program.baa`](examples/large_program.baa) | A ~200-line flock register: parsing, validation, statistics, a report and JSON |
 

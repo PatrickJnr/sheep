@@ -70,6 +70,26 @@ baa run report.baa -- --format json
 baa run --seed 42 simulation.baa
 ```
 
+### Running a file without saying `run`
+
+`baa hello.baa` runs it, the way `python x.py` does. A first argument ending in
+`.baa`, or naming something that exists, is treated as a program; anything else
+is still read as a command, so a mistyped `baa buidl` gets the command list
+rather than a complaint about a missing file.
+
+This is what makes a shebang work, and it is not only a convenience. A page
+executed by the kernel arrives as `baa /path/to/page.baa`, because the script
+is appended to the interpreter's arguments:
+
+```baa
+#!/usr/bin/env baa
+import gate
+
+gate.html("<h1>Baa</h1>")
+```
+
+See [web.md](web.md) for serving pages this way, and for the live example.
+
 ## `baa check`
 
 ```
@@ -169,10 +189,15 @@ host. See [web.md](web.md).
 | `--port <n>` | Port to listen on (default 8080) |
 | `--host <address>` | Address to bind (default `127.0.0.1`) |
 
-URLs map to files: `/` runs `index.baa`, `/about` runs `about.baa`, and
-`/sheep/Shaun` runs `sheep.baa` with `/Shaun` as the path below the script.
-Anything else beside the pages is served as a static file. Paths resolving
-outside the directory are refused.
+URLs map to files: `/` runs `index.baa`, `/about` runs `about.baa`, and both
+`/sheep.baa/Shaun` and `/sheep/Shaun` run `sheep.baa` with `/Shaun` as the path
+below the script. Anything else beside the pages is served as a static file.
+Paths resolving outside the directory are refused.
+
+Both spellings resolve because only one of them survives deployment: Apache
+maps a URL to a file and will not invent the extension, so a link written as
+`/sheep/Shaun` needs a rewrite rule on a real host while `/sheep.baa/Shaun`
+does not.
 
 Not for production: one process per request, a ten second limit per page, and
 it binds to localhost unless told otherwise.

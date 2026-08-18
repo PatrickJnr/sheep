@@ -8,6 +8,14 @@ somebody asks for the URL, and what it writes to standard output is the reply.
 
 That is a real browser rendering `index.baa`, with `?name=Dolly` in the URL.
 
+## See it running
+
+**<https://sheep.grimtech.co.uk/baa/index.baa>**
+
+These files, on ordinary cPanel shared hosting, executed per request over CGI.
+No daemon, no port, no reverse proxy. How it is deployed, and the three things
+that are easy to get wrong, are in [docs/web.md](../../docs/web.md).
+
 ## Run it
 
 ```sh
@@ -106,55 +114,33 @@ reply, so it is a preview rather than a simulation.
 `baa serve` is a development server: one process per request, no concurrency
 worth the name, and it binds to localhost. Do not put it on the internet.
 
-On shared hosting with Apache and CGI enabled, which is most cPanel accounts:
+These files are running on ordinary cPanel shared hosting at
+**<https://sheep.grimtech.co.uk/baa/index.baa>**, which is where the procedure
+below comes from. It was previously written from the CGI specification and had
+never been run; doing it for real found five bugs, so the account of it now
+lives in one place rather than being repeated here.
 
-1. Install Node 22.18 or newer. On cPanel this is *Setup Node.js App*, which
-   gives you a virtual environment with its own `bin` directory.
-2. Install Baa into it, so that `baa` is on that `PATH`.
-3. Put the pages, a `.htaccess` and the stylesheet in `public_html`.
+**[docs/web.md](../../docs/web.md)** has the whole of it: the handler, the
+wrapper and why one is needed, the shebang, the permissions, how links have to
+be written so a site survives being mounted in a subdirectory, and a table of
+symptoms for when it does not work.
 
-```apache
-# public_html/.htaccess
-Options +ExecCGI
-AddHandler cgi-script .baa
-DirectoryIndex index.baa index.html
-
-# Optional: serve /sheep/Shaun rather than /sheep.baa/Shaun.
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteRule ^([^/]+)/(.*)$ /$1.baa/$2 [L]
-</IfModule>
-```
-
-Without the rewrite, `/sheep.baa/Shaun` already works: everything after the
-script name is `PATH_INFO`, which is what `gate.path()` reads, and Apache has
-done that since the 1990s. The rewrite only makes the URL prettier.
-
-The `.htaccess` above is written from the CGI specification rather than tested
-against a live cPanel account, since there is not one in this repository. The
-`baa serve` side of it is tested, in `tests/gate.test.ts`.
-
-Each page needs a shebang on its first line and the executable bit:
-
-```baa
-#!/home/you/nodevenv/site/22/bin/baa
-import gate
-
-gate.html("<h1>Baa</h1>")
-```
+The short version, which `tools/build-cgi.ts` does for you:
 
 ```sh
-chmod 755 public_html/*.baa
+BAA_CGI_BIN=$(dirname $(which baa)) BAA_CGI_DIR=/home/you/public_html/example.com/baa node tools/build-cgi.ts
 ```
 
-Baa skips a `#!` line at the very start of a file, and `baa fmt` leaves it
-alone, so the same file still runs under `baa run` and `baa serve`.
+Upload the resulting `website/baa/`, `chmod 755 *.baa baa-cgi`, and open
+`probe.baa` before anything else. It answers the question worth asking first,
+which is whether the server ran a Baa program at all.
 
-Two things to check if a page returns 500 rather than HTML: the shebang path
-must be the absolute path to a `baa` that actually exists on the server, and
-the file must be executable. Apache writes the reason to the account's error
-log, which is the first place to look.
+The one thing worth repeating here, because it is the part that looks like a
+bug in your page and is not: `baa` is itself a Node script beginning
+`#!/usr/bin/env node`. A page whose shebang names it needs `node` on the `PATH`
+that CGI provides, and CGI does not provide one. The result is a page that runs
+perfectly from a terminal and returns 500 in a browser. The generated wrapper
+exists to set that `PATH`.
 
 ## What this example does not do
 

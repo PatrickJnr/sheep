@@ -166,38 +166,119 @@ before the scheme is read, because browsers ignore them inside a URL and
 
 ## Putting a page on a real host
 
-On Apache with CGI enabled, which is most cPanel accounts:
+There is a live example: **<https://sheep.grimtech.co.uk/baa/index.baa>**. That
+page is the `index.baa` in [`examples/site/`](../examples/site/), running per
+request on ordinary cPanel shared hosting. Everything below is how it got
+there, including the parts that are not obvious.
 
-```apache
-# public_html/.htaccess
-Options +ExecCGI
-AddHandler cgi-script .baa
-DirectoryIndex index.baa index.html
+`tools/build-cgi.ts` does all of it for you:
+
+```sh
+BAA_CGI_BIN=$(dirname $(which baa)) BAA_CGI_DIR=/home/you/public_html/example.com/baa node tools/build-cgi.ts
 ```
 
-Each page needs a shebang on its first line and the executable bit:
+That writes `website/baa/`: the pages, a wrapper, an `.htaccess`, a diagnostic
+page and a README. Upload it, `chmod 755 *.baa baa-cgi`, and open `probe.baa`.
+
+### Doing it by hand
+
+Three pieces, in the order they bite.
+
+**The handler.** In the directory holding the pages:
+
+```apache
+Options +ExecCGI
+AddHandler cgi-script .baa
+DirectoryIndex index.baa
+```
+
+Keep it to directives every server has. An `.htaccess` containing one the
+server does not recognise, such as `Header` without `mod_headers`, makes every
+request in that directory a 500 whatever the page does, and the error reads as
+a fault in the program.
+
+**The wrapper.** Pages should point at a small shell script rather than at
+`baa`:
+
+```sh
+#!/bin/sh
+PATH="/home/you/.nvm/versions/node/v22.23.2/bin:$PATH"
+export PATH
+exec "/home/you/.nvm/versions/node/v22.23.2/bin/baa" "$@"
+```
+
+`baa` is itself a Node script beginning `#!/usr/bin/env node`, so running a
+page starts a chain: the page names `baa`, and `baa` asks the environment for
+`node`. An interactive shell has that directory on its `PATH` and the chain
+resolves. CGI runs with a minimal `PATH` and it does not, which is a page that
+works perfectly from a terminal and returns 500 in a browser with nothing in
+the error log.
+
+Naming node and Baa's entry point together in the shebang avoids the extra
+file, but Linux reads at most 128 bytes of a shebang line and silently
+truncates the rest, which two `nvm` paths comfortably exceed.
+
+**The pages.** Each needs the wrapper's absolute path on its first line, and
+the executable bit:
 
 ```baa
-#!/home/you/nodevenv/site/22/bin/baa
+#!/home/you/public_html/example.com/baa/baa-cgi
 import gate
 
 gate.html("<h1>Baa</h1>")
 ```
 
 ```sh
-chmod 755 public_html/*.baa
+chmod 755 *.baa baa-cgi
 ```
 
-Baa skips a `#!` line at the very start of a file, and `baa fmt` preserves it,
-so the same file still runs under `baa run` and `baa serve`.
+Baa skips a `#!` line at the very start of a file and `baa fmt` preserves it,
+so the same file still runs under `baa run` and `baa serve`. Note that FTP
+resets permissions on every upload, so the `chmod` has to be repeated.
 
-Everything after the script name is `PATH_INFO`, which is what `gate.path()`
-reads, so `/sheep.baa/Shaun` works with no rewriting. A `mod_rewrite` rule can
-make that `/sheep/Shaun`; see the example's README.
+### Links, and where the site lives
 
-If a page returns 500 rather than HTML, check the two usual causes: the shebang
-must be the absolute path to a `baa` that exists on the server, and the file
-must be executable. Apache writes the reason to the account's error log.
+A page cannot assume it sits at the root of a domain. Write links against the
+directory the page is being served from, which CGI supplies as `SCRIPT_NAME`:
+
+```baa
+export fn base() {
+    const parts = (shepherd.env("SCRIPT_NAME") ?? "/").split("/")
+    return parts.slice(0, parts.length() - 1).join("/") + "/"
+}
+```
+
+At `/index.baa` that gives `/`, and at `/baa/index.baa` it gives `/baa/`. The
+example site uses it for every link, which is why the same files serve from
+`baa serve` at the root and from a subdirectory on a host.
+
+Link to the page file rather than to a pretty path. Apache maps a URL to a file
+and will not invent the extension, so `/sheep.baa/Shaun` works and
+`/sheep/Shaun` does not without a `mod_rewrite` rule. Everything after the
+script name is `PATH_INFO`, which `gate.path()` reads. `baa serve` accepts both
+spellings.
+
+### When it does not work
+
+Open the diagnostic page first. It answers the question worth asking before any
+other, which is whether the server ran a Baa program at all.
+
+| Symptom | Cause |
+| --- | --- |
+| The source downloads | The handler is not applied, or the file is not executable |
+| 403 | `ExecCGI` is off for the directory; some hosts require it via their panel |
+| 500, and the page works from a shell | `PATH`, an unrecognised `.htaccess` directive, or suEXEC |
+
+For that last row, reproduce the `PATH` case directly:
+
+```sh
+env -i ./probe.baa
+```
+
+An empty environment is what CGI approximates. If that fails and `./probe.baa`
+succeeds, the wrapper is missing or wrong. suEXEC refuses a script whose
+directory anyone but the owner can write to, so check `ls -ld .` shows `755`
+rather than `775`.
 
 ## What Baa does not have
 
