@@ -17,7 +17,7 @@ messages, and extremely questionable sheep-related naming decisions.
 [![CI](https://github.com/PatrickJnr/sheep/actions/workflows/ci.yml/badge.svg)](https://github.com/PatrickJnr/sheep/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F4B3F)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.18-2F4B3F)](https://nodejs.org)
-[![Dependencies](https://img.shields.io/badge/dependencies-none-2F4B3F)](package.json)
+[![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-none-2F4B3F)](package.json)
 
 **[Website](https://sheep.grimtech.co.uk)** ·
 **[Playground](https://sheep.grimtech.co.uk/playground.html)** ·
@@ -204,7 +204,7 @@ Three things worth knowing:
   rather than reconstructed afterwards, and they are catchable as a map with
   `code`, `message`, `file`, `line` and `column`.
 
-All 41 of them are listed in [docs/errors.md](docs/errors.md).
+All 45 of them are listed in [docs/errors.md](docs/errors.md).
 
 ## Commands
 
@@ -227,7 +227,7 @@ Full reference, including exit codes and the manifest format:
 
 ## Standard library
 
-Seven modules, sheep-branded on the outside and completely boring on the
+Eight modules, sheep-branded on the outside and completely boring on the
 inside. An API you have to remember at 2am is no place for a joke.
 
 | Module | Contents |
@@ -259,7 +259,7 @@ suite. If one breaks, CI says so.
 | [`collections.baa`](examples/collections.baa) | Arrays and maps in anger |
 | [`modules.baa`](examples/modules.baa) | Imports, aliases, local files |
 | [`errors.baa`](examples/errors.baa) | Throwing, catching, `finally` |
-| [`stdlib.baa`](examples/stdlib.baa) | A tour of all seven modules |
+| [`stdlib.baa`](examples/stdlib.baa) | The six modules whose output is the same on every machine |
 | [`fizzbuzz.baa`](examples/fizzbuzz.baa) | `match` on structural patterns |
 | [`large_program.baa`](examples/large_program.baa) | A ~200-line flock register: parsing, validation, statistics, a report and JSON |
 
@@ -285,7 +285,7 @@ Everything a port needs already exists and is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 44 diagnostics, both wordings, ready to embed
+  all 45 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 

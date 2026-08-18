@@ -16,6 +16,9 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { check, lint, run } from "../src/api.ts";
+import { ALL_CODES } from "../src/diagnostics/codes.ts";
+import { STDLIB_MODULES } from "../src/stdlib/index.ts";
+import { PRELUDE_NAMES } from "../src/stdlib/prelude.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
@@ -344,6 +347,68 @@ describe("regression: issue-template contact links", () => {
       const path = /github\.com\/[\w-]+\/[\w-]+\/blob\/[\w-]+\/(.+)$/.exec(url)?.[1];
       if (path === undefined) continue;
       assert.ok(existsSync(join(ROOT, path)), `contact link points at ${path}, which does not exist`);
+    }
+  });
+});
+
+describe("regression: counts the README states as fact", () => {
+  // The README claimed seven standard-library modules while listing eight, and
+  // gave the number of diagnostics as 41 in one section and 44 in another,
+  // when there were 45. Hand-written numbers drift silently because nothing
+  // reads them, so this reads them.
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const suite = JSON.parse(readFileSync(join(ROOT, "tests", "conformance", "suite.json"), "utf8"));
+
+  const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+
+  const claims = (pattern: RegExp): string[] =>
+    [...readme.matchAll(pattern)].map((match) => match[1]!);
+
+  it("states the number of standard-library modules it lists", () => {
+    const stated = claims(/^(\w+) modules, sheep-branded/gm);
+    assert.equal(stated.length, 1, "expected exactly one claim about the module count");
+    assert.equal(stated[0]!.toLowerCase(), WORDS[STDLIB_MODULES.length]);
+  });
+
+  it("lists every standard-library module in its table", () => {
+    const listed = [...readme.matchAll(/^\| `(\w+)` \| /gm)].map((match) => match[1]!);
+    for (const module of STDLIB_MODULES) {
+      assert.ok(listed.includes(module), `the standard library table omits \`${module}\``);
+    }
+  });
+
+  it("states the number of diagnostics, the same way in both places", () => {
+    const stated = claims(/\b(?:All|all) (\d+) (?:of them are listed|diagnostics)/g);
+    assert.ok(stated.length >= 2, `expected both diagnostic-count claims, found ${stated.length}`);
+    for (const count of stated) {
+      assert.equal(Number(count), ALL_CODES.length);
+    }
+  });
+
+  it("states the size of the prelude", () => {
+    const stated = claims(/a (\w+)-name prelude/g);
+    assert.equal(stated.length, 1);
+    assert.equal(stated[0]!.toLowerCase(), WORDS[PRELUDE_NAMES.length]);
+  });
+
+  it("states the size of the conformance suite", () => {
+    const programs = claims(/suite\.json\): (\d+) programs/g);
+    assert.deepEqual(programs.map(Number), [suite.programs.length]);
+    const diagnostics = claims(/and (\d+) with the diagnostic codes/g);
+    assert.deepEqual(diagnostics.map(Number), [suite.diagnostics.length]);
+  });
+
+  // There are no runtime dependencies, but there are three development ones,
+  // so a badge reading "dependencies: none" was not true as written.
+  it("does not claim to have no dependencies at all", () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8"));
+    assert.deepEqual(pkg.dependencies ?? {}, {}, "a runtime dependency would make the badge wrong");
+    if (Object.keys(pkg.devDependencies ?? {}).length > 0) {
+      assert.doesNotMatch(
+        readme,
+        /badge\/dependencies-none/,
+        "say `runtime dependencies` while development dependencies exist",
+      );
     }
   });
 });
