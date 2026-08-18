@@ -1,0 +1,75 @@
+import { kind_of, outline, parse, summarise } from "../outline.baa"
+
+fn rows_for(text) {
+    const parsed = parse(text)
+    assert(parsed.ok, "expected `{text}` to parse: {parsed.message ?? ""}")
+    return outline(parsed.value)
+}
+
+test "a flat object lists its keys in order" {
+    const rows = rows_for("\{\"name\": \"Dolly\", \"age\": 6\}")
+    assert_eq(rows.length(), 3)
+    assert_eq(rows[0].kind, "object")
+    assert_eq(rows[1].key, "name")
+    assert_eq(rows[1].preview, "\"Dolly\"")
+    assert_eq(rows[2].key, "age")
+    assert_eq(rows[2].preview, "6")
+}
+
+test "nesting becomes depth" {
+    const rows = rows_for("\{\"a\": \{\"b\": \{\"c\": 1\}\}\}")
+    assert_eq(rows.map(fn(r) { return r.depth }), [0, 1, 2, 3])
+}
+
+test "arrays index their children" {
+    const rows = rows_for("[10, 20]")
+    assert_eq(rows[0].kind, "array")
+    assert_eq(rows[0].preview, "[2]")
+    assert_eq(rows[1].key, "0")
+    assert_eq(rows[2].key, "1")
+}
+
+test "every JSON kind is named" {
+    const rows = rows_for("[1, \"two\", true, null, [], \{\}]")
+    const kinds = rows.slice(1).map(fn(r) { return r.kind })
+    assert_eq(kinds, ["number", "string", "bool", "null", "array", "object"])
+}
+
+test "an empty container is a leafless row" {
+    const rows = rows_for("\{\}")
+    assert_eq(rows.length(), 1)
+    // `"{0}"` would interpolate the expression `0`, giving "0". A literal
+    // brace is `\{`, and this is the trap that bit the code it is testing.
+    assert_eq(rows[0].preview, "\{0\}")
+}
+
+test "invalid JSON is reported, not thrown" {
+    for text in ["\{", "not json", "[1, 2", "\{'single': 1\}"] {
+        const parsed = parse(text)
+        assert_eq(parsed.ok, false, "`{text}` should not parse")
+        assert(parsed.message.contains("valid JSON"))
+    }
+}
+
+test "empty input asks for input" {
+    assert(parse("").message.contains("Paste some JSON"))
+    assert(parse("   ").message.contains("Paste some JSON"))
+}
+
+test "the summary counts what the tree holds" {
+    const rows = rows_for("\{\"a\": [1, 2], \"b\": \{\"c\": true\}\}")
+    const counts = summarise(rows)
+    assert_eq(counts.objects, 2)
+    assert_eq(counts.arrays, 1)
+    assert_eq(counts.values, 3)
+    assert_eq(counts.rows, rows.length())
+}
+
+test "kind_of maps Baa types onto JSON names" {
+    assert_eq(kind_of(nil), "null")
+    assert_eq(kind_of({}), "object")
+    assert_eq(kind_of([]), "array")
+    assert_eq(kind_of("x"), "string")
+    assert_eq(kind_of(1), "number")
+    assert_eq(kind_of(true), "bool")
+}

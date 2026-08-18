@@ -40,11 +40,48 @@ fn applications() {
     }
     const found = []
     for name in pasture.list(root) {
-        if pasture.exists(pasture.join(root, name, "index.baa")) {
-            found.push(name)
+        const entry = pasture.join(root, name, "index.baa")
+        if pasture.exists(entry) {
+            found.push({ name: name, title: title_of(entry, name) })
         }
     }
-    return found.sort()
+    // Sorted by the name each application gives itself.
+    //
+    // The comparator is bound first rather than written inline: newlines are
+    // suppressed inside an unclosed `(`, so a function literal with more than
+    // one statement in it cannot be an argument (SPEC 2.2).
+    return found.sort(by_title)
+}
+
+/// `fn` declarations are hoisted; `const` bindings are not, so this is a
+/// declaration rather than a binding and can be written after its use.
+fn by_title(a, b) {
+    if a.title < b.title {
+        return -1
+    }
+    if a.title > b.title {
+        return 1
+    }
+    return 0
+}
+
+/// An application's own name, taken from the `<title>` of its page.
+///
+/// Deriving one from the directory gets "Json Viewer" out of "json-viewer",
+/// and a list of acronyms to special-case is a list somebody has to maintain.
+/// The page already knows what it is called, so it is asked.
+fn title_of(entry, fallback) {
+    const source = pasture.read(entry)
+    const opening = source.index_of("<title>")
+    if opening < 0 {
+        return fallback
+    }
+    const rest = source.slice(opening + 7)
+    const closing = rest.index_of("</title>")
+    if closing < 0 {
+        return fallback
+    }
+    return rest.slice(0, closing).trim()
 }
 
 const apps = applications()
@@ -52,13 +89,8 @@ let apps_html = ""
 if apps.length() > 0 {
     apps_html = "<h2>Applications</h2><p>Written in Baa, running here. Each one is a"
     apps_html += " program that answers a request; none of them contains any JavaScript.</p><ul>"
-    for name in apps {
-        apps_html += gate.format(
-            "<li><a href=\"%sapps/%s/\">%s</a></li>",
-            base(),
-            name,
-            wool.title_case(name.replace_all("-", " ")),
-        )
+    for app in apps {
+        apps_html += gate.format("<li><a href=\"%sapps/%s/\">%s</a></li>", base(), app.name, app.title)
     }
     apps_html += "</ul>"
 }

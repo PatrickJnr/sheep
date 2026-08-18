@@ -1,0 +1,45 @@
+/// JSON viewer.
+///
+/// Paste JSON, get a tree. The parsing and the shaping live in
+/// `outline.baa`; this file only turns rows into HTML, which is why the
+/// interesting half can be tested without a browser.
+
+import gate
+import { outline, parse, summarise } from "./outline.baa"
+
+const SAMPLE = "\{\"flock\": [\{\"name\": \"Dolly\", \"age\": 6, \"shorn\": true\}, \{\"name\": \"Shaun\", \"age\": 4, \"shorn\": false\}], \"field\": null\}"
+
+const form = gate.form()
+let text = form.get("json", "")
+if gate.method() != "POST" {
+    text = SAMPLE
+}
+
+const parsed = parse(text)
+let body = ""
+
+if parsed.ok {
+    const rows = outline(parsed.value)
+    const counts = summarise(rows)
+
+    body = "<ul class=\"counts\">" + "<li><b>" + to_string(counts.rows) + "</b> rows</li>" + "<li><b>" + to_string(counts.objects) + "</b> objects</li>" + "<li><b>" + to_string(counts.arrays) + "</b> arrays</li>" + "<li><b>" + to_string(counts.values) + "</b> values</li>" + "</ul><div class=\"tree\">"
+
+    for row in rows {
+        // Indentation is depth, drawn rather than nested, so the markup stays
+        // flat and a deep document cannot produce deep HTML.
+        let line = "<div class=\"node node--" + gate.escape(row.kind) + "\" style=\"padding-left:" + to_string(row.depth) + "rem\">"
+        if row.key != nil {
+            line += "<span class=\"node__key\">" + gate.escape(row.key) + "</span>: "
+        }
+        line += "<span class=\"node__value\">" + gate.escape(row.preview) + "</span>"
+        line += "<span class=\"node__kind\">" + gate.escape(row.kind) + "</span></div>"
+        body += line
+    }
+    body += "</div>"
+} else {
+    body = "<p class=\"message\" role=\"alert\">" + gate.escape(parsed.message) + "</p>"
+}
+
+gate.html(
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" + "<title>JSON viewer</title><link rel=\"stylesheet\" href=\"style.css\">" + "</head><body><main>" + "<h1>JSON viewer</h1>" + "<p class=\"lede\">Paste JSON and see its shape. Parsed by <code>lamb</code>, " + "walked in Baa, and printed as text: nothing here evaluates what you paste.</p>" + "<form method=\"post\">" + "<label class=\"field\"><span>JSON</span>" + "<textarea name=\"json\" spellcheck=\"false\">" + gate.escape(text) + "</textarea></label>" + "<div class=\"actions\"><button class=\"button\" type=\"submit\">Inspect</button>" + "<button class=\"button button--quiet\" type=\"submit\" name=\"json\" value=\"\">Clear</button></div>" + "</form>" + body + "</main></body></html>",
+)

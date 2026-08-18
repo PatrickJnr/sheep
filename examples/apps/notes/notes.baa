@@ -1,0 +1,125 @@
+/// Notes, as data.
+///
+/// The same shape as the todo list: operations take the collection and return
+/// the next one, so the page can rebuild its whole state from the request and
+/// the interesting half can be tested without a web server.
+
+import lamb
+import wool
+
+export fn decode(raw) {
+    if raw.trim() == "" {
+        return []
+    }
+    const decoded = lamb.try_decode(raw, [])
+    if type_of(decoded) != "array" {
+        return []
+    }
+    const notes = []
+    for entry in decoded {
+        if type_of(entry) != "map" {
+            continue
+        }
+        const title = entry.get("title", "")
+        const body = entry.get("body", "")
+        if type_of(title) != "string" || type_of(body) != "string" {
+            continue
+        }
+        notes.push({ title: title, body: body })
+    }
+    return notes
+}
+
+export fn encode(notes) {
+    return lamb.encode(notes)
+}
+
+/// A title worth showing in a list, derived when the writer has not given one.
+export fn display_title(note) {
+    const title = note.title.trim()
+    if title != "" {
+        return title
+    }
+    const first = note.body.trim().lines()[0] ?? ""
+    if first.trim() == "" {
+        return "Untitled"
+    }
+    if first.length() > 40 {
+        return first.slice(0, 40).trim() + "..."
+    }
+    return first.trim()
+}
+
+export fn create(notes) {
+    return notes + [{ title: "", body: "" }]
+}
+
+export fn save(notes, index, title, body) {
+    if index < 0 || index >= notes.length() {
+        return notes
+    }
+    const next = []
+    let at = 0
+    for note in notes {
+        if at == index {
+            next.push({ title: title, body: body })
+        } else {
+            next.push(note)
+        }
+        at += 1
+    }
+    return next
+}
+
+export fn remove(notes, index) {
+    if index < 0 || index >= notes.length() {
+        return notes
+    }
+    const next = []
+    let at = 0
+    for note in notes {
+        if at != index {
+            next.push(note)
+        }
+        at += 1
+    }
+    return next
+}
+
+/// Search both title and body, ignoring case. Returns positions in the
+/// original list, because that is what a link has to carry.
+export fn search(notes, term) {
+    const needle = term.trim().lower()
+    const found = []
+    let at = 0
+    for note in notes {
+        const haystack = (note.title + " " + note.body).lower()
+        if needle == "" || haystack.contains(needle) {
+            found.push({ index: at, note: note })
+        }
+        at += 1
+    }
+    return found
+}
+
+/// Keep a selection pointing at something that exists.
+export fn clamp(index, notes) {
+    if notes.length() == 0 {
+        return -1
+    }
+    if index < 0 {
+        return 0
+    }
+    if index >= notes.length() {
+        return notes.length() - 1
+    }
+    return index
+}
+
+export fn word_count(text) {
+    const trimmed = text.trim()
+    if trimmed == "" {
+        return 0
+    }
+    return wool.split_on(trimmed, r"\s+").length()
+}

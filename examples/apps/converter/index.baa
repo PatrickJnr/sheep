@@ -1,0 +1,64 @@
+/// Unit converter.
+///
+/// The simplest shape an application can have: every value on the page is
+/// derived from the request, so there is no state to keep between requests and
+/// nothing to carry in a hidden field. Change a select, submit, read the
+/// answer.
+
+import gate
+import { FAMILIES, convert, family_names, present, unit_names } from "./units.baa"
+
+const form = gate.query()
+let family = form.get("family", "length")
+if !FAMILIES.has(family) {
+    family = "length"
+}
+
+const units = unit_names(family)
+let source = form.get("source", units[0])
+let target = form.get("target", units[units.length() - 1])
+if !FAMILIES[family].units.has(source) {
+    source = units[0]
+}
+if !FAMILIES[family].units.has(target) {
+    target = units[units.length() - 1]
+}
+
+const raw = form.get("amount", "1").trim()
+const amount = to_number(raw)
+
+let outcome = ""
+if raw != "" {
+    const result = convert(family, source, target, amount)
+    if result.ok {
+        outcome = "<p class=\"result\"><strong>" + gate.escape(present(result.value)) + "</strong>" + "<span>" + gate.escape(raw) + " " + gate.escape(FAMILIES[family].units[source].label) + " in " + gate.escape(FAMILIES[family].units[target].label) + "</span></p>"
+    } else {
+        outcome = "<p class=\"message\" role=\"alert\">" + gate.escape(result.message) + "</p>"
+    }
+}
+
+fn options(names, selected, family_key) {
+    let html = ""
+    for code in names {
+        const label = FAMILIES[family_key].units[code].label
+        const chosen = match code {
+            x if x == selected => " selected",
+            _ => "",
+        }
+        html += "<option value=\"" + gate.escape(code) + "\"" + chosen + ">" + gate.escape(label) + "</option>"
+    }
+    return html
+}
+
+let families_html = ""
+for key in family_names() {
+    const chosen = match key {
+        x if x == family => " selected",
+        _ => "",
+    }
+    families_html += "<option value=\"" + gate.escape(key) + "\"" + chosen + ">" + gate.escape(FAMILIES[key].label) + "</option>"
+}
+
+gate.html(
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" + "<title>Unit converter</title><link rel=\"stylesheet\" href=\"style.css\">" + "</head><body><main>" + "<h1>Unit converter</h1>" + "<p class=\"lede\">Length, mass, temperature and data. Temperature is the " + "interesting one: it needs an offset as well as a scale, which is why " + "-40 &deg;C and -40 &deg;F are the same reading.</p>" + "<form method=\"get\">" + "<label class=\"field\"><span>Measuring</span>" + "<select name=\"family\" onchange=\"\">" + families_html + "</select></label>" + "<label class=\"field\"><span>Amount</span>" + "<input name=\"amount\" value=\"" + gate.escape(raw) + "\" inputmode=\"decimal\" autofocus></label>" + "<div class=\"pair\">" + "<label class=\"field\"><span>From</span><select name=\"source\">" + options(units, source, family) + "</select></label>" + "<label class=\"field\"><span>To</span><select name=\"target\">" + options(units, target, family) + "</select></label>" + "</div>" + "<div class=\"actions\"><button class=\"button\" type=\"submit\">Convert</button></div>" + "</form>" + outcome + "<footer>Changing the measurement resets the units to that family's first and last.</footer>" + "</main></body></html>",
+)

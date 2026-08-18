@@ -1,0 +1,88 @@
+/// A todo list.
+///
+/// The list travels in a hidden field, encoded as JSON, so the application
+/// keeps no state of its own and two people using it at once cannot see each
+/// other's items. Every button is a submit button: pressing one is a form
+/// submission naming the operation and its index.
+
+import gate
+import { add, clear_done, counts, decode, encode, remove, toggle, visible } from "./list.baa"
+
+const form = gate.form()
+const query = gate.query()
+
+let items = decode(form.get("items", ""))
+const action = form.get("action", "")
+const index = to_number(form.get("index", "-1")) ?? -1
+
+if action == "add" {
+    items = add(items, form.get("text", ""))
+} else if action == "toggle" {
+    items = toggle(items, index)
+} else if action == "remove" {
+    items = remove(items, index)
+} else if action == "clear_done" {
+    items = clear_done(items)
+}
+
+let filter = form.get("filter", query.get("filter", "all"))
+if filter != "active" && filter != "done" {
+    filter = "all"
+}
+
+const shown = visible(items, filter)
+const tally = counts(items)
+const encoded = gate.escape(encode(items))
+
+/// One row. The index is the position in the whole list rather than in the
+/// filtered view, or pressing a button while filtered would hit the wrong
+/// item.
+fn row(item, position) {
+    const pressed = match item.done {
+        true => "true",
+        _ => "false",
+    }
+    const classes = match item.done {
+        true => "done",
+        _ => "",
+    }
+    return "<li class=\"" + classes + "\">" + "<form method=\"post\">" + "<input type=\"hidden\" name=\"items\" value=\"" + encoded + "\">" + "<input type=\"hidden\" name=\"filter\" value=\"" + gate.escape(filter) + "\">" + "<input type=\"hidden\" name=\"index\" value=\"" + to_string(position) + "\">" + "<button class=\"tick\" type=\"submit\" name=\"action\" value=\"toggle\"" + " aria-pressed=\"" + pressed + "\" aria-label=\"Mark done\">&check;</button>" + "<span class=\"text\">" + gate.escape(item.text) + "</span>" + "<button class=\"remove\" type=\"submit\" name=\"action\" value=\"remove\"" + " aria-label=\"Remove\">&times;</button>" + "</form></li>"
+}
+
+let list_html = ""
+if items.length() == 0 {
+    list_html = "<p class=\"empty\">Nothing on the list.</p>"
+} else if shown.length() == 0 {
+    list_html = "<p class=\"empty\">Nothing matches this filter.</p>"
+} else {
+    list_html = "<ul class=\"items\">"
+    let position = 0
+    for item in items {
+        // Walk the whole list so the index is right, and print only what the
+        // filter admits.
+        const admitted = match filter {
+            "active" => !item.done,
+            "done" => item.done,
+            _ => true,
+        }
+        if admitted {
+            list_html += row(item, position)
+        }
+        position += 1
+    }
+    list_html += "</ul>"
+}
+
+let filters_html = "<nav class=\"filters\">"
+for name in ["all", "active", "done"] {
+    const current = match name {
+        x if x == filter => "true",
+        _ => "false",
+    }
+    filters_html += "<a href=\"?filter=" + gate.escape(name) + "\" aria-current=\"" + current + "\">" + gate.escape(name) + "</a>"
+}
+filters_html += "</nav>"
+
+gate.html(
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" + "<title>Todo</title><link rel=\"stylesheet\" href=\"style.css\">" + "</head><body><main>" + "<h1>Todo</h1>" + "<p class=\"lede\">The list travels with the page, in a hidden field. " + "Nothing is stored on the server, so your list is yours alone and " + "disappears when you close the tab.</p>" + "<form method=\"post\">" + "<input type=\"hidden\" name=\"items\" value=\"" + encoded + "\">" + "<input type=\"hidden\" name=\"filter\" value=\"" + gate.escape(filter) + "\">" + "<label class=\"field\"><span>New item</span>" + "<input name=\"text\" autofocus autocomplete=\"off\" placeholder=\"Shear Dolly\"></label>" + "<div class=\"actions\"><button class=\"button\" type=\"submit\" name=\"action\" value=\"add\">Add</button>" + "<button class=\"button button--quiet\" type=\"submit\" name=\"action\" value=\"clear_done\">Clear done</button></div>" + "</form>" + filters_html + list_html + "<p class=\"summary\">" + to_string(tally.active) + " active, " + to_string(tally.done) + " done, " + to_string(tally.total) + " in total.</p>" + "</main></body></html>",
+)

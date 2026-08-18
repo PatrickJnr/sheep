@@ -1,0 +1,62 @@
+/// Notes.
+///
+/// Several notes, one being edited, and a search over all of them. The whole
+/// collection travels in a hidden field, which is the same trick the todo list
+/// uses and the reason neither application needs anything on the server.
+///
+/// Browser storage would be the obvious home for this and Baa has no access to
+/// it: there is no client-side runtime. Carrying the state in the form is what
+/// the model actually supports, and it is honest about its limit, which is
+/// that closing the tab is the end of the notes.
+
+import gate
+import { clamp, create, decode, display_title, encode, remove, save, search, word_count } from "./notes.baa"
+
+const form = gate.form()
+let notes = decode(form.get("notes", ""))
+let selected = to_number(form.get("selected", "-1")) ?? -1
+const action = form.get("action", "")
+const term = form.get("term", "")
+
+if action == "save" {
+    notes = save(notes, selected, form.get("title", ""), form.get("body", ""))
+} else if action == "create" {
+    notes = create(notes)
+    selected = notes.length() - 1
+} else if action == "remove" {
+    notes = remove(notes, selected)
+    selected = clamp(selected, notes)
+} else if action == "select" {
+    selected = to_number(form.get("index", "-1")) ?? -1
+}
+
+selected = clamp(selected, notes)
+const found = search(notes, term)
+const encoded = gate.escape(encode(notes))
+
+let list_html = ""
+if notes.length() == 0 {
+    list_html = "<p class=\"empty\">No notes yet.</p>"
+} else if found.length() == 0 {
+    list_html = "<p class=\"empty\">Nothing matches that search.</p>"
+} else {
+    list_html = "<ul class=\"notes\">"
+    for hit in found {
+        const current = match hit.index {
+            x if x == selected => "true",
+            _ => "false",
+        }
+        list_html += "<li aria-current=\"" + current + "\"><form method=\"post\">" + "<input type=\"hidden\" name=\"notes\" value=\"" + encoded + "\">" + "<input type=\"hidden\" name=\"term\" value=\"" + gate.escape(term) + "\">" + "<input type=\"hidden\" name=\"index\" value=\"" + to_string(hit.index) + "\">" + "<button type=\"submit\" name=\"action\" value=\"select\">" + gate.escape(display_title(hit.note)) + "</button></form></li>"
+    }
+    list_html += "</ul>"
+}
+
+let editor = "<p class=\"empty\">Select a note, or make a new one.</p>"
+if selected >= 0 {
+    const note = notes[selected]
+    editor = "<form method=\"post\">" + "<input type=\"hidden\" name=\"notes\" value=\"" + encoded + "\">" + "<input type=\"hidden\" name=\"selected\" value=\"" + to_string(selected) + "\">" + "<input type=\"hidden\" name=\"term\" value=\"" + gate.escape(term) + "\">" + "<label class=\"field\"><span>Title</span>" + "<input name=\"title\" value=\"" + gate.escape(note.title) + "\" autocomplete=\"off\"></label>" + "<label class=\"field\"><span>Note</span>" + "<textarea name=\"body\" spellcheck=\"true\">" + gate.escape(note.body) + "</textarea></label>" + "<div class=\"actions\">" + "<button class=\"button\" type=\"submit\" name=\"action\" value=\"save\">Save</button>" + "<button class=\"button button--quiet\" type=\"submit\" name=\"action\" value=\"remove\">Delete</button>" + "</div>" + "<p class=\"meta\">" + to_string(word_count(note.body)) + " words</p>" + "</form>"
+}
+
+gate.html(
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">" + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" + "<title>Notes</title><link rel=\"stylesheet\" href=\"style.css\">" + "</head><body><main>" + "<h1>Notes</h1>" + "<p class=\"lede\">Write several notes and search them. Everything travels " + "with the page: nothing is stored on the server, and closing the tab is " + "the end of it.</p>" + "<form method=\"post\">" + "<input type=\"hidden\" name=\"notes\" value=\"" + encoded + "\">" + "<input type=\"hidden\" name=\"selected\" value=\"" + to_string(selected) + "\">" + "<label class=\"field\"><span>Search</span>" + "<input name=\"term\" value=\"" + gate.escape(term) + "\" autocomplete=\"off\" placeholder=\"shearing\"></label>" + "<div class=\"actions\">" + "<button class=\"button button--quiet\" type=\"submit\">Search</button>" + "<button class=\"button\" type=\"submit\" name=\"action\" value=\"create\">New note</button>" + "</div></form>" + "<div class=\"split\"><div>" + list_html + "</div><div>" + editor + "</div></div>" + "</main></body></html>",
+)

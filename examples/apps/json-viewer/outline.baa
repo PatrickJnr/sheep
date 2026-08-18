@@ -1,0 +1,104 @@
+/// Turning decoded JSON into something a page can print.
+///
+/// The rendering is deliberately not here. This produces a flat list of rows,
+/// each knowing its depth, its key, what kind of thing it is and how to show
+/// it; the page turns rows into HTML. That split is what makes it testable
+/// without a browser, and it is the same split the calculator uses.
+
+import lamb
+
+/// Rows, in the order they should be printed.
+///
+/// A container contributes a row of its own and then its children, so nesting
+/// is depth rather than recursion the caller has to manage.
+export fn outline(value) {
+    const rows = []
+    walk(rows, nil, value, 0)
+    return rows
+}
+
+fn walk(rows, key, value, depth) {
+    const kind = kind_of(value)
+
+    if kind == "object" {
+        rows.push({
+            depth: depth,
+            key: key,
+            kind: kind,
+            preview: "\{" + to_string(value.keys().length()) + "\}",
+            leaf: false,
+        })
+        for entry_key in value.keys() {
+            walk(rows, entry_key, value[entry_key], depth + 1)
+        }
+        return
+    }
+
+    if kind == "array" {
+        rows.push({
+            depth: depth,
+            key: key,
+            kind: kind,
+            preview: "[" + to_string(value.length()) + "]",
+            leaf: false,
+        })
+        let index = 0
+        for item in value {
+            walk(rows, to_string(index), item, depth + 1)
+            index += 1
+        }
+        return
+    }
+
+    rows.push({ depth: depth, key: key, kind: kind, preview: preview_of(value), leaf: true })
+}
+
+export fn kind_of(value) {
+    const t = type_of(value)
+    if t == "map" {
+        return "object"
+    }
+    if t == "nil" {
+        return "null"
+    }
+    return t
+}
+
+fn preview_of(value) {
+    if type_of(value) == "string" {
+        return "\"" + value + "\""
+    }
+    if value == nil {
+        return "null"
+    }
+    return to_string(value)
+}
+
+/// Parse, reporting failure rather than throwing: the text is a stranger's.
+export fn parse(text) {
+    const trimmed = text.trim()
+    if trimmed == "" {
+        return { ok: false, message: "Paste some JSON to inspect." }
+    }
+    if !lamb.is_valid(trimmed) {
+        return { ok: false, message: "That is not valid JSON." }
+    }
+    return { ok: true, value: lamb.decode(trimmed) }
+}
+
+/// Counts worth showing above the tree.
+export fn summarise(rows) {
+    let objects = 0
+    let arrays = 0
+    let leaves = 0
+    for row in rows {
+        if row.kind == "object" {
+            objects += 1
+        } else if row.kind == "array" {
+            arrays += 1
+        } else {
+            leaves += 1
+        }
+    }
+    return { objects: objects, arrays: arrays, values: leaves, rows: rows.length() }
+}

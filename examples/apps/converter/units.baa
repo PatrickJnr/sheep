@@ -1,0 +1,124 @@
+/// Unit conversion.
+///
+/// Most units convert by a single factor to a base unit and back, which is one
+/// multiplication each way. Temperature does not: Celsius and Fahrenheit have
+/// different zero points, so a factor alone gets every answer wrong except at
+/// the origin. That is why a unit here carries an offset as well as a scale.
+///
+///     value -> base:  (value + offset) * scale
+///     base -> value:  base / scale - offset
+
+import ram
+
+/// Each family converts within itself and never across: metres are not
+/// minutes, and the interface should not offer to pretend otherwise.
+export const FAMILIES = {
+    length: {
+        label: "Length",
+        base: "metre",
+        units: {
+            mm: { label: "Millimetres", scale: 0.001, offset: 0 },
+            cm: { label: "Centimetres", scale: 0.01, offset: 0 },
+            m: { label: "Metres", scale: 1, offset: 0 },
+            km: { label: "Kilometres", scale: 1000, offset: 0 },
+            in: { label: "Inches", scale: 0.0254, offset: 0 },
+            ft: { label: "Feet", scale: 0.3048, offset: 0 },
+            mi: { label: "Miles", scale: 1609.344, offset: 0 },
+        },
+    },
+    mass: {
+        label: "Mass",
+        base: "kilogram",
+        units: {
+            g: { label: "Grams", scale: 0.001, offset: 0 },
+            kg: { label: "Kilograms", scale: 1, offset: 0 },
+            t: { label: "Tonnes", scale: 1000, offset: 0 },
+            oz: { label: "Ounces", scale: 0.028349523125, offset: 0 },
+            lb: { label: "Pounds", scale: 0.45359237, offset: 0 },
+            st: { label: "Stone", scale: 6.35029318, offset: 0 },
+        },
+    },
+    temperature: {
+        label: "Temperature",
+        base: "kelvin",
+        units: {
+            c: { label: "Celsius", scale: 1, offset: 273.15 },
+            f: { label: "Fahrenheit", scale: 0.5555555555555556, offset: 459.67 },
+            k: { label: "Kelvin", scale: 1, offset: 0 },
+        },
+    },
+    data: {
+        label: "Data",
+        base: "byte",
+        units: {
+            b: { label: "Bytes", scale: 1, offset: 0 },
+            kb: { label: "Kilobytes", scale: 1000, offset: 0 },
+            kib: { label: "Kibibytes", scale: 1024, offset: 0 },
+            mb: { label: "Megabytes", scale: 1000000, offset: 0 },
+            mib: { label: "Mebibytes", scale: 1048576, offset: 0 },
+            gb: { label: "Gigabytes", scale: 1000000000, offset: 0 },
+            gib: { label: "Gibibytes", scale: 1073741824, offset: 0 },
+        },
+    },
+}
+
+export fn family_names() {
+    return FAMILIES.keys()
+}
+
+export fn unit_names(family) {
+    if !FAMILIES.has(family) {
+        return []
+    }
+    return FAMILIES[family].units.keys()
+}
+
+fn unit_of(family, code) {
+    if !FAMILIES.has(family) {
+        return nil
+    }
+    const units = FAMILIES[family].units
+    if !units.has(code) {
+        return nil
+    }
+    return units[code]
+}
+
+/// Convert, or say why not. Never throws: the inputs come from a form.
+export fn convert(family, from_code, to_code, amount) {
+    // `from` and `to` are keywords, so the bindings are named for what they
+    // hold rather than for the direction.
+    const source = unit_of(family, from_code)
+    const target = unit_of(family, to_code)
+    if source == nil || target == nil {
+        return { ok: false, message: "That is not a unit this converter knows." }
+    }
+    if type_of(amount) != "number" || amount != amount {
+        return { ok: false, message: "Enter a number to convert." }
+    }
+
+    const base = (amount + source.offset) * source.scale
+    const value = base / target.scale - target.offset
+    return { ok: true, value: value }
+}
+
+/// Round for display without inventing precision that is not there.
+export fn present(value) {
+    if value == 0 {
+        return "0"
+    }
+    const size = ram.abs(value)
+    // Very large or very small numbers lose all their digits to rounding, so
+    // they keep more of them.
+    const places = match true {
+        _ if size >= 1000 => 2,
+        _ if size >= 1 => 4,
+        _ if size >= 0.001 => 6,
+        _ => 10,
+    }
+    const rounded = ram.round(value, places)
+    if rounded == ram.trunc(rounded) && ram.abs(rounded) < 1000000000000000 {
+        return to_string(ram.trunc(rounded))
+    }
+    return to_string(rounded)
+}

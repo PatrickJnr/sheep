@@ -1,0 +1,78 @@
+import { convert, family_names, present, unit_names } from "../units.baa"
+
+fn value(family, a, b, amount) {
+    const r = convert(family, a, b, amount)
+    assert(r.ok, "expected {amount} {a} -> {b} to convert: {r.message ?? ""}")
+    return r.value
+}
+
+fn near(actual, expected, tolerance) {
+    const gap = actual - expected
+    assert(gap < tolerance && gap > 0 - tolerance, "expected {expected}, got {actual}")
+}
+
+test "length converts both ways" {
+    assert_eq(value("length", "m", "cm", 1), 100)
+    assert_eq(value("length", "km", "m", 2.5), 2500)
+    near(value("length", "in", "cm", 1), 2.54, 0.0000001)
+    near(value("length", "mi", "km", 1), 1.609344, 0.0000001)
+}
+
+test "a conversion and its reverse return the original" {
+    for pair in [["m", "ft"], ["kg", "lb"], ["b", "gib"]] {
+        const family = match pair[0] {
+            "m" => "length",
+            "kg" => "mass",
+            _ => "data",
+        }
+        const there = value(family, pair[0], pair[1], 7)
+        const back = value(family, pair[1], pair[0], there)
+        near(back, 7, 0.0000001)
+    }
+}
+
+test "temperature has offsets, not just a scale" {
+    near(value("temperature", "c", "f", 0), 32, 0.0000001)
+    near(value("temperature", "c", "f", 100), 212, 0.0000001)
+    near(value("temperature", "f", "c", 98.6), 37, 0.0001)
+    near(value("temperature", "c", "k", 0), 273.15, 0.0000001)
+    // The one that catches a scale-only implementation: -40 is the same in
+    // both scales, and only a correct offset produces it.
+    near(value("temperature", "c", "f", -40), -40, 0.0000001)
+}
+
+test "data uses both decimal and binary sizes" {
+    assert_eq(value("data", "kb", "b", 1), 1000)
+    assert_eq(value("data", "kib", "b", 1), 1024)
+    assert_eq(value("data", "gib", "mib", 1), 1024)
+}
+
+test "unknown units and families are refused" {
+    assert_eq(convert("length", "m", "furlong", 1).ok, false)
+    assert_eq(convert("nonsense", "m", "cm", 1).ok, false)
+    assert(convert("length", "m", "furlong", 1).message.contains("not a unit"))
+}
+
+test "non-numeric input is refused" {
+    assert_eq(convert("length", "m", "cm", "banana").ok, false)
+    assert_eq(convert("length", "m", "cm", nil).ok, false)
+    assert(convert("length", "m", "cm", "banana").message.contains("Enter a number"))
+}
+
+test "presentation keeps digits that matter" {
+    assert_eq(present(0), "0")
+    assert_eq(present(100), "100")
+    assert_eq(present(2.54), "2.54")
+    // Below about a millionth, Baa's own number formatting switches to
+    // exponent notation. That is left alone: it is the language being
+    // consistent, and it is more readable than a run of leading zeros.
+    assert_eq(present(0.0000001), "1e-7")
+    assert_eq(present(0.001), "0.001")
+}
+
+test "the catalogue is not empty" {
+    assert(family_names().length() >= 4)
+    for family in family_names() {
+        assert(unit_names(family).length() >= 2, "{family} needs units to convert between")
+    }
+}

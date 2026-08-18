@@ -1,0 +1,95 @@
+import { clamp, create, decode, display_title, encode, remove, save, search, word_count } from "../notes.baa"
+
+fn titles(found) {
+    return found.map(fn(hit) { return display_title(hit.note) })
+}
+
+test "creating adds an empty note" {
+    const notes = create([])
+    assert_eq(notes.length(), 1)
+    assert_eq(notes[0].title, "")
+    assert_eq(notes[0].body, "")
+}
+
+test "saving replaces exactly one note" {
+    let notes = create(create([]))
+    notes = save(notes, 1, "Second", "body text")
+    assert_eq(notes[0].title, "")
+    assert_eq(notes[1].title, "Second")
+    assert_eq(notes[1].body, "body text")
+}
+
+test "saving outside the list changes nothing" {
+    const notes = create([])
+    assert_eq(save(notes, 5, "x", "y")[0].title, "")
+    assert_eq(save(notes, -1, "x", "y")[0].title, "")
+}
+
+test "a title is derived when none is given" {
+    assert_eq(display_title({ title: "Given", body: "ignored" }), "Given")
+    assert_eq(display_title({ title: "", body: "First line\nsecond" }), "First line")
+    assert_eq(display_title({ title: "   ", body: "" }), "Untitled")
+    const long = display_title({ title: "", body: "x".repeat(60) })
+    assert(long.ends_with("..."))
+    assert(long.length() <= 43)
+}
+
+test "search looks at title and body, ignoring case" {
+    let notes = create(create(create([])))
+    notes = save(notes, 0, "Shearing", "dates for Dolly")
+    notes = save(notes, 1, "Feed", "hay order")
+    notes = save(notes, 2, "", "DOLLY needs checking")
+
+    assert_eq(search(notes, "dolly").length(), 2)
+    assert_eq(titles(search(notes, "shear")), ["Shearing"])
+    assert_eq(search(notes, "").length(), 3)
+    assert_eq(search(notes, "nothing here").length(), 0)
+}
+
+test "search reports positions in the original list" {
+    let notes = create(create([]))
+    notes = save(notes, 0, "one", "")
+    notes = save(notes, 1, "two", "")
+    const found = search(notes, "two")
+    assert_eq(found[0].index, 1)
+}
+
+test "removing takes one and shifts the rest" {
+    let notes = create(create(create([])))
+    notes = save(notes, 0, "a", "")
+    notes = save(notes, 1, "b", "")
+    notes = save(notes, 2, "c", "")
+    const after = remove(notes, 1)
+    assert_eq(after.map(fn(n) { return n.title }), ["a", "c"])
+}
+
+test "the selection is kept inside the list" {
+    const notes = create(create([]))
+    assert_eq(clamp(-3, notes), 0)
+    assert_eq(clamp(9, notes), 1)
+    assert_eq(clamp(1, notes), 1)
+    assert_eq(clamp(0, []), -1)
+}
+
+test "notes survive a round trip through the form" {
+    let notes = create(create([]))
+    notes = save(notes, 0, "Shearing", "line one\nline two")
+    notes = save(notes, 1, "", "")
+    const restored = decode(encode(notes))
+    assert_eq(restored.length(), 2)
+    assert_eq(restored[0].body, "line one\nline two")
+}
+
+test "a corrupted field costs the notes, not the page" {
+    for raw in ["not json", "\{\}", "[1]", "null", "[\{\"title\": 7\}]"] {
+        assert_eq(type_of(decode(raw)), "array", "`{raw}` should decode to an array")
+    }
+    assert_eq(decode("[\{\"title\": \"keep\", \"body\": \"\"\}, 3]").length(), 1)
+}
+
+test "words are counted across whitespace" {
+    assert_eq(word_count(""), 0)
+    assert_eq(word_count("   "), 0)
+    assert_eq(word_count("one"), 1)
+    assert_eq(word_count("one two  three\nfour"), 4)
+}

@@ -106,6 +106,44 @@ already be escaped. This is the one rule in the model that is easy to get
 wrong, and getting it wrong is a cross-site scripting hole rather than a
 cosmetic bug.
 
+## Four things the language does that surprised me
+
+Found by writing these applications rather than by reading the specification,
+and each cost a debugging session:
+
+**`if` is a statement.** `match` is the expression form, and with guards it
+reads better than the ladder would have:
+
+```baa
+const kind = match label {
+    "=" => "key key--equals",
+    x if "0123456789.".contains(x) => "key key--digit",
+    _ => "key key--operator",
+}
+```
+
+**`"{"` opens an interpolation, silently.** `"{" + x + "}"` is not
+concatenation: it is one string interpolating whatever is between the braces,
+and it does not produce an error. A literal brace is `\{`. This one is worth
+remembering because the failure is a wrong value rather than a refusal.
+
+**A function literal with more than one statement cannot be an argument.**
+Newlines are suppressed inside an unclosed `(`, so the statements run together
+and the parser stops. Bind it to a name first:
+
+```baa
+fn by_title(a, b) { ... }
+found.sort(by_title)
+```
+
+**`fn` declarations are hoisted; `let` and `const` are not.** Which is why the
+comparator above is a declaration rather than a binding, and can be written
+after the code that uses it.
+
+`from`, `to` and `flock` are also worth knowing about: the first two are
+keywords, and the third is a standard module that an ordinary binding will
+shadow.
+
 ## What this model is bad at
 
 Honestly, so that nobody discovers it the hard way:

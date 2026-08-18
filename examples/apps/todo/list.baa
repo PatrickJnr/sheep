@@ -1,0 +1,99 @@
+/// The todo list, as data.
+///
+/// Every operation takes the list and returns a new one rather than editing in
+/// place. That is not ceremony: the page rebuilds its state from the request
+/// on every hit, so a function that returns the next list is exactly what the
+/// page needs, and it makes each operation testable on its own.
+
+import lamb
+
+export const FILTERS = ["all", "active", "done"]
+
+/// Read the list out of the field it travelled in.
+///
+/// Anything unrecognisable becomes an empty list. A corrupted field should
+/// cost the visitor their list, not the page.
+export fn decode(raw) {
+    if raw.trim() == "" {
+        return []
+    }
+    const decoded = lamb.try_decode(raw, [])
+    if type_of(decoded) != "array" {
+        return []
+    }
+    const items = []
+    for entry in decoded {
+        if type_of(entry) != "map" {
+            continue
+        }
+        const text = entry.get("text", "")
+        if type_of(text) != "string" || text.trim() == "" {
+            continue
+        }
+        items.push({ text: text, done: entry.get("done", false) == true })
+    }
+    return items
+}
+
+export fn encode(items) {
+    return lamb.encode(items)
+}
+
+export fn add(items, text) {
+    const trimmed = text.trim()
+    if trimmed == "" {
+        return items
+    }
+    return items + [{ text: trimmed, done: false }]
+}
+
+export fn toggle(items, index) {
+    if index < 0 || index >= items.length() {
+        return items
+    }
+    const next = []
+    let at = 0
+    for item in items {
+        if at == index {
+            next.push({ text: item.text, done: !item.done })
+        } else {
+            next.push(item)
+        }
+        at += 1
+    }
+    return next
+}
+
+export fn remove(items, index) {
+    if index < 0 || index >= items.length() {
+        return items
+    }
+    const next = []
+    let at = 0
+    for item in items {
+        if at != index {
+            next.push(item)
+        }
+        at += 1
+    }
+    return next
+}
+
+export fn clear_done(items) {
+    return items.filter(fn(item) { return !item.done })
+}
+
+export fn visible(items, filter) {
+    if filter == "active" {
+        return items.filter(fn(item) { return !item.done })
+    }
+    if filter == "done" {
+        return items.filter(fn(item) { return item.done })
+    }
+    return items
+}
+
+export fn counts(items) {
+    const done = items.filter(fn(item) { return item.done }).length()
+    return { total: items.length(), done: done, active: items.length() - done }
+}

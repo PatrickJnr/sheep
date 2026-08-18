@@ -1,0 +1,88 @@
+import { add, clear_done, counts, decode, encode, remove, toggle, visible } from "../list.baa"
+
+fn texts(items) {
+    return items.map(fn(item) { return item.text })
+}
+
+test "adding keeps order and trims" {
+    let items = add([], "Shear Dolly")
+    items = add(items, "  Count the flock  ")
+    assert_eq(texts(items), ["Shear Dolly", "Count the flock"])
+    assert_eq(items[0].done, false)
+}
+
+test "empty text is not an item" {
+    assert_eq(add([], "").length(), 0)
+    assert_eq(add([], "   ").length(), 0)
+}
+
+test "toggling flips one item and leaves the rest" {
+    let items = add(add([], "a"), "b")
+    items = toggle(items, 0)
+    assert_eq(items[0].done, true)
+    assert_eq(items[1].done, false)
+    items = toggle(items, 0)
+    assert_eq(items[0].done, false)
+}
+
+test "an index outside the list changes nothing" {
+    const items = add([], "a")
+    assert_eq(toggle(items, 5).length(), 1)
+    assert_eq(toggle(items, -1)[0].done, false)
+    assert_eq(remove(items, 9).length(), 1)
+}
+
+test "removing takes exactly one" {
+    let items = add(add(add([], "a"), "b"), "c")
+    items = remove(items, 1)
+    assert_eq(texts(items), ["a", "c"])
+}
+
+test "clearing done keeps the active ones" {
+    let items = add(add(add([], "a"), "b"), "c")
+    items = toggle(items, 1)
+    assert_eq(texts(clear_done(items)), ["a", "c"])
+}
+
+test "filters select what they say" {
+    let items = add(add([], "a"), "b")
+    items = toggle(items, 0)
+    assert_eq(texts(visible(items, "all")), ["a", "b"])
+    assert_eq(texts(visible(items, "active")), ["b"])
+    assert_eq(texts(visible(items, "done")), ["a"])
+    // An unknown filter shows everything rather than nothing.
+    assert_eq(texts(visible(items, "nonsense")), ["a", "b"])
+}
+
+test "counts add up" {
+    let items = add(add(add([], "a"), "b"), "c")
+    items = toggle(items, 0)
+    const c = counts(items)
+    assert_eq(c.total, 3)
+    assert_eq(c.done, 1)
+    assert_eq(c.active, 2)
+}
+
+test "a list survives a round trip through the form" {
+    let items = add(add([], "Shear Dolly"), "Count the flock")
+    items = toggle(items, 1)
+    const restored = decode(encode(items))
+    assert_eq(texts(restored), texts(items))
+    assert_eq(restored[1].done, true)
+}
+
+test "a corrupted list costs the list, not the page" {
+    for raw in ["not json", "\{\}", "[1, 2, 3]", "[\{\"text\": \"\"\}]", "null"] {
+        const items = decode(raw)
+        assert_eq(type_of(items), "array", "`{raw}` should decode to an array")
+    }
+    assert_eq(decode("").length(), 0)
+    // Entries that are not usable items are dropped, not kept as holes.
+    assert_eq(decode("[\{\"text\": \"keep\"\}, 7, \{\"nope\": 1\}]").length(), 1)
+}
+
+test "text is kept exactly, including things that look like markup" {
+    const items = add([], "<script>alert(1)</script>")
+    assert_eq(items[0].text, "<script>alert(1)</script>")
+    assert_eq(decode(encode(items))[0].text, "<script>alert(1)</script>")
+}
