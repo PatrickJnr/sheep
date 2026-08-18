@@ -8,6 +8,10 @@ it cannot answer itself: which makes it safe to run unattended in CI.
 baa <command> [options]
 ```
 
+Install it with `npm install -g baa-lang`, or run a single command without
+installing anything using `npx baa-lang <command>`. It needs Node.js 22.18 or
+newer and nothing else.
+
 ---
 
 ## Global options
@@ -196,7 +200,7 @@ Expressions print their value; statements do not.
 
 ```
 $ baa repl
-Baa 0.1.0
+Baa 0.2.2
 Type :help for commands, :quit to leave.
 baa> const flock = ["Dolly", "Shaun"]
 baa> flock.map(fn(n) { return n.upper() })
@@ -288,7 +292,7 @@ resolution and colour support. Exits `1` if anything is wrong.
 ```
 ok   Node.js           v24.13.0
 ok   Platform          win32 x64
-ok   Baa               0.1.0
+ok   Baa               0.2.2
 ok   Project           hill_farm 0.1.0 (.)
 ok   Wool              1 resolved
 ok   Entry             main.baa

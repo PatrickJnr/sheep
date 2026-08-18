@@ -438,6 +438,23 @@ describe("regression: counts the README states as fact", () => {
     }
   });
 
+  // Sample output in the CLI reference showed `Baa 0.1.0` two releases later.
+  // Only Baa's own version is checked: the same document shows an example
+  // project at `hill_farm 0.1.0`, which is that project's version, not this one.
+  it("shows its own version in documentation examples", () => {
+    const version = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")).version as string;
+    const files = execFileSync("git", ["ls-files", "*.md"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n")
+      .filter(Boolean)
+      .filter((relative) => relative !== "CHANGELOG.md");
+    for (const relative of files) {
+      const text = readFileSync(join(ROOT, relative), "utf8");
+      for (const [phrase, shown] of text.matchAll(/\bBaa\s+(\d+\.\d+\.\d+)\b/g)) {
+        assert.equal(shown, version, `${relative}: "${phrase}" is not the current version`);
+      }
+    }
+  });
+
   it("states the size of the prelude", () => {
     const stated = claims(/a (\w+)-name prelude/g);
     assert.equal(stated.length, 1);

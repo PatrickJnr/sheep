@@ -93,7 +93,7 @@ The joke is the name. Everything underneath is built to be used.
 | **Serious when it needs to be** | `--no-baa`, or `CI=true`, swaps every sheep joke for neutral wording and keeps the codes identical. |
 | **Nothing to trust** | No third-party packages. Nothing is downloaded, nothing runs implicitly, and no subprocess ever sees a shell. |
 
-Verified on every commit, across Windows, Linux and macOS: **400+ tests**, a
+Verified on every commit, across Windows, Linux and macOS: **580+ tests**, a
 formatter that must be a fixed point, a linter that must be clean, and a
 conformance suite that pins the exact output of 50 programs.
 
