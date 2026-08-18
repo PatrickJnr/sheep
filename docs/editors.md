@@ -120,8 +120,15 @@ With `eglot`:
 ### VS Code
 
 The extension in [`editors/vscode/`](https://github.com/PatrickJnr/sheep/tree/HEAD/editors/vscode)
-starts the language server for you. Install the `.vsix` attached to a
-[release](https://github.com/PatrickJnr/sheep/releases):
+starts the language server for you. It is on the marketplace, so the Extensions
+panel finds it by searching for **Baa**:
+
+```bash
+code --install-extension baa-lang.baa-lang
+```
+
+Every release also attaches a `.vsix`, for an air-gapped machine or a version
+the marketplace does not have yet:
 
 ```bash
 code --install-extension baa-lang.vsix
@@ -149,9 +156,9 @@ references and rename all work with no configuration, provided `baa` is on your
 UI to type one into: a container, a CI job, a remote host started by a script.
 The setting wins when both are present.
 
-The extension is not on the marketplace, so there is no publisher to trust and
-no auto-update; the `.vsix` on each release is built by the same workflow that
-publishes the npm package.
+Published as `baa-lang.baa-lang`, so VS Code updates it the way it updates
+anything else. The `.vsix` on each release is built by the same workflow that
+publishes the npm package, from the same commit.
 
 Nothing in the extension analyses Baa. It starts `baa lsp` and connects VS Code
 to it, so the editor sees exactly what `baa check` sees. A test asserts the

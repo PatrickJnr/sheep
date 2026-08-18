@@ -18,6 +18,7 @@ messages, and extremely questionable sheep-related naming decisions.
 [![License: MIT](https://img.shields.io/badge/license-MIT-2F4B3F)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%E2%89%A522.18-2F4B3F)](https://nodejs.org)
 [![npm](https://img.shields.io/npm/v/baa-lang?color=2F4B3F&label=npm)](https://www.npmjs.com/package/baa-lang)
+[![VS Code](https://img.shields.io/visual-studio-marketplace/v/baa-lang.baa-lang?color=2F4B3F&label=vs%20code)](https://marketplace.visualstudio.com/items?itemName=baa-lang.baa-lang)
 [![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-none-2F4B3F)](package.json)
 
 **[Website](https://sheep.grimtech.co.uk)** ·
@@ -375,13 +376,21 @@ server does not do yet, is in [docs/editors.md](docs/editors.md).
 
 [`editors/vscode/`](editors/vscode/) is a VS Code extension that starts the
 server for you, alongside syntax highlighting, snippets, and bracket and
-comment configuration. Install the `.vsix` from a
-[release](https://github.com/PatrickJnr/sheep/releases) with
-`code --install-extension baa-lang.vsix` (double-clicking it opens Visual
-Studio, which is a different product and will refuse), open a `.baa` file,
-and everything
-above works with no configuration. It analyses nothing itself — it runs
-`baa lsp`, so the editor sees what `baa check` sees.
+comment configuration. Search the Extensions panel for **Baa**, or:
+
+```bash
+code --install-extension baa-lang.baa-lang
+```
+
+Open a `.baa` file and everything above works with no configuration. It
+analyses nothing itself — it runs `baa lsp`, so the editor sees what
+`baa check` sees.
+
+Every release also attaches a `.vsix`, for an air-gapped machine or a version
+the marketplace does not have yet. Install that with
+`code --install-extension baa-lang.vsix` rather than by double-clicking it,
+which hands the file to Visual Studio — a different product, which will read
+the package correctly and refuse it.
 
 Definition, references and rename read the resolver's symbol table rather than
 the text, so renaming a binding that shadows an outer one of the same name

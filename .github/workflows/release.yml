@@ -203,8 +203,8 @@ jobs:
         with:
           body_path: RELEASE_NOTES.md
           # The npm tarball and the editor extension. The VSIX is here because
-          # the extension is not on the marketplace: a release asset is how
-          # somebody installs it.
+          # the marketplace is not the only way to install it: an air-gapped
+          # machine has a release asset instead.
           files: |
             *.tgz
             baa-lang.vsix
