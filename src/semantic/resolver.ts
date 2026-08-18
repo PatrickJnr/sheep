@@ -351,6 +351,7 @@ class Resolver {
     name: string,
   ): void {
     this.#pushScope(true);
+    this.#checkParamOrder(params, name);
     const seen = new Set<string>();
     for (const param of params) {
       if (param.defaultValue !== null) this.#resolveExpression(param.defaultValue);
@@ -373,6 +374,54 @@ class Resolver {
     this.#loopDepth = savedLoopDepth;
     this.#functionDepth--;
     this.#popScope();
+  }
+
+  /**
+   * A parameter list has to be one a caller can actually satisfy.
+   *
+   * Arguments bind by position, so a required parameter sitting behind an
+   * optional one can never be reached: `fn f(a = 1, b)` called as `f(9)` binds
+   * `a` and silently leaves `b` as nil. The same goes for anything after a rest
+   * parameter, which has already swallowed every remaining argument. Each of
+   * these used to be accepted and then quietly misbehave at every call site.
+   */
+  #checkParamOrder(params: readonly Param[], name: string): void {
+    let optional: Param | null = null;
+    let rest: Param | null = null;
+    for (const param of params) {
+      if (rest !== null) {
+        this.#report("BAA204", [`\`${param.name}\` comes after the rest parameter \`..${rest.name}\``], {
+          span: param.span,
+          note: "unreachable parameter",
+          secondary: [{ span: rest.span, note: "takes every remaining argument" }],
+          help: `Move \`${param.name}\` before \`..${rest.name}\` in \`${name}\`.`,
+        });
+        continue;
+      }
+      if (param.rest) {
+        if (param.defaultValue !== null) {
+          this.#report("BAA204", [`the rest parameter \`..${param.name}\` cannot have a default`], {
+            span: param.span,
+            note: "default never applies",
+            help: "A rest parameter is an empty array when nothing is left over.",
+          });
+        }
+        rest = param;
+        continue;
+      }
+      if (param.defaultValue !== null) {
+        optional = param;
+        continue;
+      }
+      if (optional !== null) {
+        this.#report("BAA204", [`\`${param.name}\` is required but comes after optional \`${optional.name}\``], {
+          span: param.span,
+          note: "can never be reached",
+          secondary: [{ span: optional.span, note: "optional from here on" }],
+          help: `Move \`${param.name}\` before \`${optional.name}\`, or give it a default too.`,
+        });
+      }
+    }
   }
 
   // ------------------------------------------------------------- expressions
