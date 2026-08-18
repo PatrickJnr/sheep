@@ -347,3 +347,66 @@ describe("regression: issue-template contact links", () => {
     }
   });
 });
+
+describe("regression: articles in diagnostic messages", () => {
+  // Four templates wrote the article themselves ("a {0}") while every call site
+  // also supplied one, so real programs were told "You can't add a an array and
+  // a a number" and "A an array has no field". The article belongs to the
+  // phrase the call site passes, never to the template.
+  it("never writes an article in front of a placeholder", () => {
+    const source = readFileSync(join(ROOT, "src", "diagnostics", "codes.ts"), "utf8");
+    for (const [line] of source.matchAll(/^.*\b[Aa]n? \{\d\}.*$/gm)) {
+      assert.fail(`template supplies its own article, so the call site doubles it: ${line.trim()}`);
+    }
+  });
+
+  const message = (source: string): string => {
+    const result = run(source, "test.baa");
+    const diagnostic = result.diagnostics.find((d) => d.severity === "error");
+    assert.ok(diagnostic, `expected an error from: ${source}`);
+    return diagnostic.message;
+  };
+
+  it("reads as English for every type slot", () => {
+    for (const [source, expected] of [
+      ["baa [1] + 1", "You can't add an array and a number. These sheep don't herd together."],
+      ["baa [1].merge(2)", "There is no field called `merge` on an array."],
+      ["baa nil.length()", "There is no field called `length` on nil."],
+      ["for x in 5 { baa x }", "You can't herd a number: only arrays, maps, strings and ranges can be looped over."],
+      ["baa [1].concat(2)", "`concat` expected an array for argument 1, but got a number."],
+      ["baa \"x\".repeat([1])", "`repeat` expected a number for argument 1, but got an array."],
+      ["baa \"x\".repeat(-1)", "`repeat` expected a count of 0 or more for argument 1, but got a negative number."],
+    ] as const) {
+      assert.equal(message(source), expected);
+    }
+  });
+
+  // `ram.parse` and `shepherd.exit` reported the JavaScript type name, so a Baa
+  // program could be told it passed "a object" or "an undefined".
+  it("names Baa types rather than JavaScript ones", () => {
+    for (const source of [
+      'use "ram"\nbaa ram.parse([1])',
+      'use "ram"\nbaa ram.sum([1, "a"])',
+      'use "shepherd"\nshepherd.exit("x")',
+    ]) {
+      const text = message(source);
+      assert.doesNotMatch(text, /\ba(n)? (object|undefined|symbol|bigint)\b/, text);
+    }
+  });
+});
+
+describe("regression: arrays that grow without a limit", () => {
+  // Pushing to an array while iterating it grew the array until JavaScript
+  // refused the length, which surfaced as BAA301 wrapping "Invalid array
+  // length" after about forty seconds of allocation. The size limit that
+  // already guarded `repeat` and `flock.range` now guards growth too.
+  // Growing one item at a time to reach the limit would be quadratic for
+  // `unshift` and `insert`, so each mutator is handed an array that is already
+  // at the limit. That reaches the same guard for the price of one allocation.
+  it("stops at the size limit instead of exhausting memory", () => {
+    for (const call of ["a.push(1)", "a.unshift(1)", "a.insert(0, 1)", "a.concat([1])"]) {
+      const source = `import flock\nlet a = flock.range(0, 10000000)\n${call}`;
+      assert.deepEqual(codes(source), ["BAA312"], call);
+    }
+  });
+});

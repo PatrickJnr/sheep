@@ -251,7 +251,7 @@ export class Interpreter {
         return;
       case "ArrayBinding": {
         if (!(value instanceof BaaArray)) {
-          throw BaaError.of("BAA311", ["this binding", "an array", "1", typeOf(value)], {
+          throw BaaError.of("BAA311", ["this binding", "an array", "1", describeType(value)], {
             span: binding.span,
             note: "cannot be taken apart as an array",
             help: `\`[...]\` on the left needs an array on the right, not ${describeType(value)}.`,
@@ -267,7 +267,7 @@ export class Interpreter {
       }
       case "MapBinding": {
         if (!(value instanceof BaaMap)) {
-          throw BaaError.of("BAA311", ["this binding", "a map", "1", typeOf(value)], {
+          throw BaaError.of("BAA311", ["this binding", "a map", "1", describeType(value)], {
             span: binding.span,
             note: "cannot be taken apart as a map",
             help: `\`{...}\` on the left needs a map on the right, not ${describeType(value)}.`,
@@ -538,7 +538,7 @@ export class Interpreter {
         for (const entry of expression.entries) {
           const key = this.evaluate(entry.key, env);
           if (!isMapKey(key)) {
-            throw BaaError.of("BAA311", ["map key", "a string, number, bool or nil", "1", typeOf(key)], {
+            throw BaaError.of("BAA311", ["map key", "a string, number, bool or nil", "1", describeType(key)], {
               span: entry.key.span,
               note: "cannot be used as a map key",
             });
@@ -789,7 +789,7 @@ export class Interpreter {
     if (method !== null) return method;
     if (object instanceof BaaMap) return null;
     if (object === null) {
-      throw BaaError.of("BAA305", ["nil value", property], {
+      throw BaaError.of("BAA305", ["nil", property], {
         span,
         note: "nil has no fields",
         help: "Check the value before reading from it, or use `value ?? fallback`.",
@@ -815,7 +815,7 @@ export class Interpreter {
     }
     if (object instanceof BaaMap) {
       if (!isMapKey(index)) {
-        throw BaaError.of("BAA311", ["index", "a string, number, bool or nil", "1", typeOf(index)], {
+        throw BaaError.of("BAA311", ["index", "a string, number, bool or nil", "1", describeType(index)], {
           span,
           note: "cannot be used as a map key",
         });
@@ -880,7 +880,7 @@ export class Interpreter {
     }
     if (object instanceof BaaMap) {
       if (!isMapKey(index)) {
-        throw BaaError.of("BAA311", ["index", "a string, number, bool or nil", "1", typeOf(index)], {
+        throw BaaError.of("BAA311", ["index", "a string, number, bool or nil", "1", describeType(index)], {
           span: target.span,
           note: "cannot be used as a map key",
         });
@@ -1119,7 +1119,7 @@ function compareStrings(operator: string, left: string, right: string): boolean 
 
 function normaliseIndex(index: Value, length: number, span: Span, what: string): number {
   if (typeof index !== "number" || !Number.isInteger(index)) {
-    throw BaaError.of("BAA311", ["index", "a whole number", "1", typeOf(index)], {
+    throw BaaError.of("BAA311", ["index", "a whole number", "1", describeType(index)], {
       span,
       note: "indexes must be whole numbers",
     });

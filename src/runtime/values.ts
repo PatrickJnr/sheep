@@ -213,7 +213,14 @@ export function typeOf(value: Value): TypeName {
   return "module";
 }
 
-/** English article + type name, for diagnostics: "an array", "a string". */
+/**
+ * English article + type name, for diagnostics: "an array", "a string".
+ *
+ * Diagnostic templates never write the article themselves, because "a" is wrong
+ * in front of "array" and doubles up when the argument already carries one. The
+ * article belongs to the phrase, so it is produced here and at every other call
+ * site that fills a type slot.
+ */
 export function describeType(value: Value): string {
   const name = typeOf(value);
   return name === "array" ? "an array" : `a ${name}`;
@@ -427,7 +434,7 @@ export function expectNumber(
   if (typeof value !== "number") {
     throw BaaError.of(
       "BAA311",
-      [fn, "a number", String(index + 1), typeOf(value ?? null)],
+      [fn, "a number", String(index + 1), describeType(value ?? null)],
       { span, note: "wrong type here" },
     );
   }
@@ -444,7 +451,7 @@ export function expectString(
   if (typeof value !== "string") {
     throw BaaError.of(
       "BAA311",
-      [fn, "a string", String(index + 1), typeOf(value ?? null)],
+      [fn, "a string", String(index + 1), describeType(value ?? null)],
       { span, note: "wrong type here" },
     );
   }
@@ -461,7 +468,7 @@ export function expectArray(
   if (!(value instanceof BaaArray)) {
     throw BaaError.of(
       "BAA311",
-      [fn, "an array", String(index + 1), typeOf(value ?? null)],
+      [fn, "an array", String(index + 1), describeType(value ?? null)],
       { span, note: "wrong type here" },
     );
   }
@@ -476,7 +483,7 @@ export function expectMap(
 ): BaaMap {
   const value = args[index];
   if (!(value instanceof BaaMap)) {
-    throw BaaError.of("BAA311", [fn, "a map", String(index + 1), typeOf(value ?? null)], {
+    throw BaaError.of("BAA311", [fn, "a map", String(index + 1), describeType(value ?? null)], {
       span,
       note: "wrong type here",
     });
@@ -494,7 +501,7 @@ export function expectCallable(
   if (!isCallable(value ?? null)) {
     throw BaaError.of(
       "BAA311",
-      [fn, "a function", String(index + 1), typeOf(value ?? null)],
+      [fn, "a function", String(index + 1), describeType(value ?? null)],
       { span, note: "wrong type here" },
     );
   }
@@ -511,7 +518,7 @@ export function expectMapKey(
   if (!isMapKey(value)) {
     throw BaaError.of(
       "BAA311",
-      [fn, "a string, number, bool or nil", String(index + 1), typeOf(value)],
+      [fn, "a string, number, bool or nil", String(index + 1), describeType(value)],
       { span, note: "cannot be used as a map key" },
     );
   }

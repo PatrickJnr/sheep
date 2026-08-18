@@ -190,7 +190,7 @@ export const CATALOGUE = {
   BAA302: spec(
     "BAA302",
     "error",
-    "You can't {0} a {1} and a {2}. These sheep don't herd together.",
+    "You can't {0} {1} and {2}. These sheep don't herd together.",
     "Unsupported operand types for {0}: {1} and {2}.",
   ),
   BAA303: spec(
@@ -208,7 +208,7 @@ export const CATALOGUE = {
   BAA305: spec(
     "BAA305",
     "error",
-    "A {0} has no field called `{1}`.",
+    "There is no field called `{1}` on {0}.",
     "`{1}` is not a property of {0}.",
   ),
   BAA306: spec(
@@ -232,8 +232,8 @@ export const CATALOGUE = {
   BAA309: spec(
     "BAA309",
     "error",
-    "You can't herd a {0}: only arrays, maps, strings and ranges can be looped over.",
-    "{0} is not iterable.",
+    "You can't herd {0}: only arrays, maps, strings and ranges can be looped over.",
+    "Cannot iterate over {0}.",
   ),
   BAA310: spec(
     "BAA310",
@@ -244,7 +244,7 @@ export const CATALOGUE = {
   BAA311: spec(
     "BAA311",
     "error",
-    "`{0}` expected {1} for argument {2}, but got a {3}.",
+    "`{0}` expected {1} for argument {2}, but got {3}.",
     "`{0}`: argument {2} must be {1}, received {3}.",
   ),
   BAA312: spec(

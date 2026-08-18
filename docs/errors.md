@@ -58,16 +58,16 @@ The program was valid but something went wrong while it ran.
 | Code | Severity | Default wording | Plain wording |
 | --- | --- | --- | --- |
 | `BAA301` | error | The flock wandered somewhere unexpected: {0} | Runtime error: {0} |
-| `BAA302` | error | You can't {0} a {1} and a {2}. These sheep don't herd together. | Unsupported operand types for {0}: {1} and {2}. |
+| `BAA302` | error | You can't {0} {1} and {2}. These sheep don't herd together. | Unsupported operand types for {0}: {1} and {2}. |
 | `BAA303` | error | `{0}` isn't something you can call. Only functions answer when called. | `{0}` is not callable. |
 | `BAA304` | error | Index {0} is outside the fence: this {1} has length {2}. | Index {0} out of range for {1} of length {2}. |
-| `BAA305` | error | A {0} has no field called `{1}`. | `{1}` is not a property of {0}. |
+| `BAA305` | error | There is no field called `{1}` on {0}. | `{1}` is not a property of {0}. |
 | `BAA306` | error | Dividing by zero. Even sheep know better than that. | Division by zero. |
 | `BAA307` | error | The flock has been counting too deep, the stack is full. (Is a function calling itself forever?) | Maximum call depth exceeded. |
 | `BAA308` | error | Uncaught: {0} | Uncaught exception: {0} |
-| `BAA309` | error | You can't herd a {0}: only arrays, maps, strings and ranges can be looped over. | {0} is not iterable. |
+| `BAA309` | error | You can't herd {0}: only arrays, maps, strings and ranges can be looped over. | Cannot iterate over {0}. |
 | `BAA310` | error | This key isn't in the map: {0} | Missing map key: {0} |
-| `BAA311` | error | `{0}` expected {1} for argument {2}, but got a {3}. | `{0}`: argument {2} must be {1}, received {3}. |
+| `BAA311` | error | `{0}` expected {1} for argument {2}, but got {3}. | `{0}`: argument {2} must be {1}, received {3}. |
 | `BAA312` | error | `{0}` was asked to build {1} items. The pen only holds {2}. | `{0}`: requested size {1} exceeds the limit of {2}. |
 
 ## BAA4xx, Modules and projects

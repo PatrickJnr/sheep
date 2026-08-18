@@ -17,6 +17,7 @@ import {
   BaaArray,
   BaaMap,
   BaaRange,
+  describeType,
   display,
   inspect,
   NativeFunction,
@@ -39,7 +40,7 @@ function lengthOf(value: Value, span: Span): number {
   if (value instanceof BaaArray) return value.items.length;
   if (value instanceof BaaMap) return value.entries.size;
   if (value instanceof BaaRange) return value.length;
-  throw BaaError.of("BAA311", ["len", "a string, array, map or range", "1", typeOf(value)], {
+  throw BaaError.of("BAA311", ["len", "a string, array, map or range", "1", describeType(value)], {
     span,
     note: "has no length",
   });
@@ -163,7 +164,7 @@ export const PRELUDE: readonly PreludeEntry[] = [
     build: (interpreter) => (args, ctx) => {
       const code = args[0] ?? 0;
       if (typeof code !== "number" || !Number.isInteger(code)) {
-        throw BaaError.of("BAA311", ["exit", "a whole number", "1", typeOf(code)], {
+        throw BaaError.of("BAA311", ["exit", "a whole number", "1", describeType(code)], {
           span: ctx.span,
         });
       }

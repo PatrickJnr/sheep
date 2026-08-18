@@ -16,7 +16,7 @@ import process from "node:process";
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
 import type { RuntimeHost } from "../runtime/host.ts";
-import { BaaArray, BaaMap } from "../runtime/values.ts";
+import { BaaArray, BaaMap, describeType } from "../runtime/values.ts";
 import type { MapKey, Value } from "../runtime/values.ts";
 import { argArray, argString, defineModule, fn, mapOf } from "./define.ts";
 
@@ -121,7 +121,7 @@ export function createShepherd(host: RuntimeHost) {
     exit: fn(0, 1, "Exit with a status code (default 0).", (args, ctx) => {
       const code = args.length > 0 ? args[0] : 0;
       if (typeof code !== "number" || !Number.isInteger(code)) {
-        throw BaaError.of("BAA311", ["shepherd.exit", "a whole number", "1", typeof code], {
+        throw BaaError.of("BAA311", ["shepherd.exit", "a whole number", "1", describeType(code ?? null)], {
           span: ctx.span,
         });
       }

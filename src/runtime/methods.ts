@@ -53,7 +53,7 @@ function argOf(args: readonly Value[], index: number): Value {
 function needNumber(name: string, args: readonly Value[], index: number, span: Span): number {
   const value = argOf(args, index);
   if (typeof value !== "number") {
-    throw BaaError.of("BAA311", [name, "a number", String(index + 1), typeOf(value)], {
+    throw BaaError.of("BAA311", [name, "a number", String(index + 1), describeType(value)], {
       span,
       note: "wrong type here",
     });
@@ -64,7 +64,7 @@ function needNumber(name: string, args: readonly Value[], index: number, span: S
 function needString(name: string, args: readonly Value[], index: number, span: Span): string {
   const value = argOf(args, index);
   if (typeof value !== "string") {
-    throw BaaError.of("BAA311", [name, "a string", String(index + 1), typeOf(value)], {
+    throw BaaError.of("BAA311", [name, "a string", String(index + 1), describeType(value)], {
       span,
       note: "wrong type here",
     });
@@ -88,7 +88,7 @@ function needKey(name: string, args: readonly Value[], index: number, span: Span
   if (!isMapKey(value)) {
     throw BaaError.of(
       "BAA311",
-      [name, "a string, number, bool or nil", String(index + 1), typeOf(value)],
+      [name, "a string, number, bool or nil", String(index + 1), describeType(value)],
       { span, note: "cannot be used as a map key" },
     );
   }
@@ -229,8 +229,9 @@ const ARRAY_METHODS: Record<string, MethodSpec> = {
   is_empty: method(0, 0, "True when there are no items.", (self) =>
     (self as BaaArray).items.length === 0,
   ),
-  push: method(1, Number.MAX_SAFE_INTEGER, "Append items; returns the array.", (self, args) => {
+  push: method(1, Number.MAX_SAFE_INTEGER, "Append items; returns the array.", (self, args, ctx) => {
     const array = self as BaaArray;
+    checkSize("push", array.items.length + args.length, ctx.span);
     array.items.push(...args);
     return array;
   }),
@@ -242,8 +243,9 @@ const ARRAY_METHODS: Record<string, MethodSpec> = {
     const array = self as BaaArray;
     return array.items.length === 0 ? null : array.items.shift()!;
   }),
-  unshift: method(1, Number.MAX_SAFE_INTEGER, "Insert items at the front.", (self, args) => {
+  unshift: method(1, Number.MAX_SAFE_INTEGER, "Insert items at the front.", (self, args, ctx) => {
     const array = self as BaaArray;
+    checkSize("unshift", array.items.length + args.length, ctx.span);
     array.items.unshift(...args);
     return array;
   }),
@@ -255,6 +257,7 @@ const ARRAY_METHODS: Record<string, MethodSpec> = {
         span: ctx.span,
       });
     }
+    checkSize("insert", array.items.length + 1, ctx.span);
     array.items.splice(index, 0, argOf(args, 1));
     return array;
   }),
@@ -294,9 +297,11 @@ const ARRAY_METHODS: Record<string, MethodSpec> = {
   concat: method(1, 1, "New array with another array appended.", (self, args, ctx) => {
     const other = argOf(args, 0);
     if (!(other instanceof BaaArray)) {
-      throw BaaError.of("BAA311", ["concat", "an array", "1", typeOf(other)], { span: ctx.span });
+      throw BaaError.of("BAA311", ["concat", "an array", "1", describeType(other)], { span: ctx.span });
     }
-    return new BaaArray([...(self as BaaArray).items, ...other.items]);
+    const items = (self as BaaArray).items;
+    checkSize("concat", items.length + other.items.length, ctx.span);
+    return new BaaArray([...items, ...other.items]);
   }),
   join: method(0, 1, "Join items into a string.", (self, args, ctx) => {
     const separator = args.length > 0 ? needString("join", args, 0, ctx.span) : "";
@@ -368,7 +373,7 @@ const ARRAY_METHODS: Record<string, MethodSpec> = {
       items.sort((a, b) => {
         const result = ctx.call(fn, [a, b], ctx.span);
         if (typeof result !== "number") {
-          throw BaaError.of("BAA311", ["sort", "a number", "1", typeOf(result)], {
+          throw BaaError.of("BAA311", ["sort", "a number", "1", describeType(result)], {
             span: ctx.span,
             note: "the comparison function must return a number",
             help: "Return a negative number, zero, or a positive number.",
@@ -470,7 +475,7 @@ const MAP_METHODS: Record<string, MethodSpec> = {
   merge: method(1, 1, "New map with another map's entries layered on top.", (self, args, ctx) => {
     const other = argOf(args, 0);
     if (!(other instanceof BaaMap)) {
-      throw BaaError.of("BAA311", ["merge", "a map", "1", typeOf(other)], { span: ctx.span });
+      throw BaaError.of("BAA311", ["merge", "a map", "1", describeType(other)], { span: ctx.span });
     }
     return new BaaMap(new Map([...(self as BaaMap).entries, ...other.entries]));
   }),

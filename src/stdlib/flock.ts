@@ -13,6 +13,7 @@ import {
   BaaMap,
   BaaRange,
   checkSize,
+  describeType,
   inspect,
   isMapKey,
   isTruthy,
@@ -74,7 +75,7 @@ export function createFlock() {
         if (!isMapKey(key)) {
           throw BaaError.of(
             "BAA311",
-            ["flock.group_by", "a string, number, bool or nil key", "2", typeOf(key)],
+            ["flock.group_by", "a string, number, bool or nil key", "2", describeType(key)],
             { span: ctx.span, note: "the key function returned something unusable" },
           );
         }
@@ -108,7 +109,7 @@ export function createFlock() {
         if (typeof a.key === "string" && typeof b.key === "string") {
           return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
         }
-        throw BaaError.of("BAA302", ["compare", typeOf(a.key), typeOf(b.key)], {
+        throw BaaError.of("BAA302", ["compare", describeType(a.key), describeType(b.key)], {
           span: ctx.span,
           note: "sort keys must be all numbers or all strings",
         });
@@ -135,7 +136,7 @@ export function createFlock() {
         }
         const key = pair.items[0]!;
         if (!isMapKey(key)) {
-          throw BaaError.of("BAA311", ["flock.to_map", "a usable map key", "1", typeOf(key)], {
+          throw BaaError.of("BAA311", ["flock.to_map", "a usable map key", "1", describeType(key)], {
             span: ctx.span,
           });
         }
@@ -150,7 +151,7 @@ export function createFlock() {
       const entries = new Map<MapKey, Value>();
       for (const key of keys.items) {
         if (!isMapKey(key)) {
-          throw BaaError.of("BAA311", ["flock.from_keys", "usable map keys", "1", typeOf(key)], {
+          throw BaaError.of("BAA311", ["flock.from_keys", "usable map keys", "1", describeType(key)], {
             span: ctx.span,
           });
         }
@@ -164,7 +165,7 @@ export function createFlock() {
       const entries = new Map<MapKey, Value>();
       for (const [key, value] of map.entries) {
         if (!isMapKey(value)) {
-          throw BaaError.of("BAA311", ["flock.invert", "values usable as keys", "1", typeOf(value)], {
+          throw BaaError.of("BAA311", ["flock.invert", "values usable as keys", "1", describeType(value)], {
             span: ctx.span,
           });
         }
@@ -203,7 +204,7 @@ export function createFlock() {
           [...value.entries].map(([key, entry]) => new BaaArray([key, entry])),
         );
       }
-      throw BaaError.of("BAA311", ["flock.to_array", "an array, range, string or map", "1", typeOf(value)], {
+      throw BaaError.of("BAA311", ["flock.to_array", "an array, range, string or map", "1", describeType(value)], {
         span: ctx.span,
       });
     }),
@@ -218,7 +219,7 @@ function pickBy(args: Value[], ctx: NativeContext, direction: 1 | -1): Value {
   for (const item of items.items) {
     const key = ctx.call(keyFn, [item], ctx.span);
     if (typeof key !== "number" && typeof key !== "string") {
-      throw BaaError.of("BAA311", ["flock.min_by/max_by", "a number or string key", "2", typeOf(key)], {
+      throw BaaError.of("BAA311", ["flock.min_by/max_by", "a number or string key", "2", describeType(key)], {
         span: ctx.span,
       });
     }

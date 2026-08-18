@@ -144,7 +144,7 @@
     {
       "code": "BAA302",
       "severity": "error",
-      "woolly": "You can't {0} a {1} and a {2}. These sheep don't herd together.",
+      "woolly": "You can't {0} {1} and {2}. These sheep don't herd together.",
       "plain": "Unsupported operand types for {0}: {1} and {2}."
     },
     {
@@ -162,7 +162,7 @@
     {
       "code": "BAA305",
       "severity": "error",
-      "woolly": "A {0} has no field called `{1}`.",
+      "woolly": "There is no field called `{1}` on {0}.",
       "plain": "`{1}` is not a property of {0}."
     },
     {
@@ -186,8 +186,8 @@
     {
       "code": "BAA309",
       "severity": "error",
-      "woolly": "You can't herd a {0}: only arrays, maps, strings and ranges can be looped over.",
-      "plain": "{0} is not iterable."
+      "woolly": "You can't herd {0}: only arrays, maps, strings and ranges can be looped over.",
+      "plain": "Cannot iterate over {0}."
     },
     {
       "code": "BAA310",
@@ -198,7 +198,7 @@
     {
       "code": "BAA311",
       "severity": "error",
-      "woolly": "`{0}` expected {1} for argument {2}, but got a {3}.",
+      "woolly": "`{0}` expected {1} for argument {2}, but got {3}.",
       "plain": "`{0}`: argument {2} must be {1}, received {3}."
     },
     {

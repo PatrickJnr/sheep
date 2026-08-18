@@ -7,14 +7,14 @@
  */
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
-import { BaaArray, parseNumber } from "../runtime/values.ts";
+import { BaaArray, describeType, parseNumber } from "../runtime/values.ts";
 import type { Value } from "../runtime/values.ts";
 import { argArray, argNumber, defineModule, fn } from "./define.ts";
 
 function numbersOf(fnName: string, array: BaaArray, span: import("../diagnostics/source.ts").Span): number[] {
   return array.items.map((item, index) => {
     if (typeof item !== "number") {
-      throw BaaError.of("BAA311", [fnName, "an array of numbers", "1", `a ${typeof item} at index ${index}`], {
+      throw BaaError.of("BAA311", [fnName, "an array of numbers", "1", `${describeType(item)} at index ${index}`], {
         span,
         note: "every item must be a number",
       });
@@ -173,7 +173,7 @@ export function createRam() {
     parse: fn(1, 2, "Parse text as a number in a given base (default 10).", (args, ctx) => {
       const text = args[0];
       if (typeof text !== "string") {
-        throw BaaError.of("BAA311", ["ram.parse", "a string", "1", typeof text], { span: ctx.span });
+        throw BaaError.of("BAA311", ["ram.parse", "a string", "1", describeType(text ?? null)], { span: ctx.span });
       }
       const base = args.length > 1 ? argNumber("ram.parse", args, 1, ctx.span) : 10;
       if (base === 10) return parseNumber(text);

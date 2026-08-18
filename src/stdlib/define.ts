@@ -6,6 +6,7 @@ import {
   BaaArray,
   BaaMap,
   BaaModule,
+  describeType,
   NativeFunction,
   typeOf,
 } from "../runtime/values.ts";
@@ -58,7 +59,7 @@ export function wrongType(
   value: Value,
   span: Span,
 ): BaaError {
-  return BaaError.of("BAA311", [fnName, expected, String(index + 1), typeOf(value)], {
+  return BaaError.of("BAA311", [fnName, expected, String(index + 1), describeType(value)], {
     span,
     note: "wrong type here",
   });
