@@ -1,0 +1,12 @@
+# A JSON viewer, as a native application.
+[flock]
+name = "JSON viewer"
+version = "0.4.0"
+description = "Paste JSON, see its shape. Shares its outline module with the web version."
+entry = "main.baa"
+
+[app]
+name = "JsonViewer"
+title = "JSON viewer"
+width = "760"
+height = "560"

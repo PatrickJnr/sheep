@@ -51,6 +51,22 @@ export fn title(document) {
     return name + " — Notepad"
 }
 
+/// `1 line`, `2 lines`. English pluralisation is only this simple for the
+/// three words this application counts, which is why it is a helper here and
+/// not something the standard library pretends to solve.
+export fn plural(count, word) {
+    if count == 1 {
+        return "1 " + word
+    }
+    return to_string(count) + " " + word + "s"
+}
+
+/// A status line: the counts, in words.
+export fn describe(document) {
+    const counts = stats(document)
+    return plural(counts.lines, "line") + ", " + plural(counts.words, "word") + ", " + plural(counts.characters, "character")
+}
+
 /// Line and character counts for the status line.
 ///
 /// A trailing newline does not open a new line: a file ending in one has as

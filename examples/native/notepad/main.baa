@@ -31,7 +31,7 @@ const paste_item = barn.item(edit_menu, "Paste")
 
 const layout = barn.column(window, { weight: 1, spacing: 6 })
 const editor = barn.text_area(layout, { weight: 1 })
-const status = barn.label(layout, { text: "1 line, 0 characters", height: 20 })
+const status = barn.label(layout, { text: "", height: 20 })
 
 /// Push the document's state to the window: title, status line, and the text
 /// itself only when it differs from what is on screen.
@@ -41,8 +41,7 @@ const status = barn.label(layout, { text: "1 line, 0 characters", height: 20 })
 /// to make an editor unusable while every individual function looks right.
 fn refresh() {
     barn.title(window, document.title(doc))
-    const counts = document.stats(doc)
-    barn.set_text(status, "{counts.lines} lines, {counts.words} words, {counts.characters} characters")
+    barn.set_text(status, document.describe(doc))
     if barn.text(editor) != doc.text {
         barn.set_text(editor, doc.text)
     }

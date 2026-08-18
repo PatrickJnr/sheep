@@ -61,3 +61,11 @@ test "reading a file that is not there fails without throwing" {
     assert_eq(result.ok, false)
     assert(result.message.length() > 0)
 }
+
+test "counts read as English" {
+    assert_eq(document.describe(document.empty()), "1 line, 0 words, 0 characters")
+    assert_eq(
+        document.describe(document.opened(nil, "one two\nthree")),
+        "2 lines, 3 words, 13 characters",
+    )
+}

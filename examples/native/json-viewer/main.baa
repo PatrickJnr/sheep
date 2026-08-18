@@ -1,0 +1,121 @@
+/// A JSON viewer, as a native application.
+///
+/// Like the calculator, the part that does the work is not written here: it is
+/// [`examples/apps/json-viewer/outline.baa`](../../apps/json-viewer/outline.baa),
+/// the same module the web version uses, imported unchanged. It turns a
+/// decoded document into a flat list of rows that each know their depth, which
+/// is what lets a tree be shown in a plain list box — and what stops a
+/// thousand-deep document producing a thousand-deep anything.
+///
+///     baa app run
+///     baa app build
+import barn
+import { kind_of, outline, parse, summarise } from "../../apps/json-viewer/outline.baa"
+
+/// Indentation per level in the tree. Two spaces, because a list box has no
+/// columns and the depth has to be visible somehow.
+const INDENT = "  "
+
+/// A raw block string, which is the spelling that lets JSON be written as
+/// itself: `{` would otherwise open an interpolation and `"` would end the
+/// literal.
+const SAMPLE = r"""
+    {"flock": [{"name": "Dolly", "legs": 4, "woolly": true}], "count": 1}
+    """
+
+let rows = []
+
+const window = barn.window({ title: "JSON viewer", width: 760, height: 560 })
+
+const file_menu = barn.menu(window, "File")
+const paste_item = barn.item(file_menu, "Paste from clipboard")
+const sample_item = barn.item(file_menu, "Load the sample")
+barn.separator(file_menu)
+const quit_item = barn.item(file_menu, "Exit")
+
+const edit_menu = barn.menu(window, "Edit")
+const copy_item = barn.item(edit_menu, "Copy the selected row")
+const clear_item = barn.item(edit_menu, "Clear")
+
+const layout = barn.column(window, { weight: 1, spacing: 6 })
+const source = barn.text_area(layout, { weight: 2, text: SAMPLE })
+const status = barn.label(layout, { text: "", height: 20 })
+const tree = barn.list(layout, { weight: 3 })
+
+/// One row of the outline, as a line of text.
+///
+/// `depth` becomes leading spaces rather than nesting, so a document nested a
+/// thousand deep is a thousand indented lines and nothing worse.
+fn line_for(row) {
+    let text = ""
+    for _ in 0..row.depth {
+        text += INDENT
+    }
+    if row.key != nil {
+        text += row.key + ": "
+    }
+    return text + row.preview
+}
+
+/// Re-read the text and rebuild the tree. Called on every keystroke, which is
+/// affordable because `outline` is a walk over already-decoded data and the
+/// documents a person pastes into a window are small.
+fn refresh() {
+    const result = parse(barn.text(source))
+    if !result.ok {
+        rows = []
+        barn.set_items(tree, [])
+        barn.set_text(status, result.message)
+        return
+    }
+
+    rows = outline(result.value)
+    const counts = summarise(rows)
+    barn.set_items(tree, rows.map(line_for))
+    barn.set_text(
+        status,
+        "valid · {counts.rows} rows · {counts.objects} objects · {counts.arrays} arrays · {counts.values} values · top level is {kind_of(result.value)}",
+    )
+}
+
+fn on_paste() {
+    const text = barn.clipboard()
+    if text != nil {
+        barn.set_text(source, text)
+        refresh()
+    }
+}
+
+fn on_sample() {
+    barn.set_text(source, SAMPLE)
+    refresh()
+}
+
+fn on_clear() {
+    barn.set_text(source, "")
+    refresh()
+}
+
+/// Copy the selected line, so a path or a value can be taken out of a document
+/// too large to read comfortably.
+fn on_copy() {
+    const at = barn.selected(tree)
+    if at >= 0 && at < rows.length() {
+        barn.set_clipboard(line_for(rows[at]).trim())
+    }
+}
+
+fn on_quit() {
+    barn.close(window)
+}
+
+barn.on(source, "change", refresh)
+barn.on(paste_item, "click", on_paste)
+barn.on(sample_item, "click", on_sample)
+barn.on(clear_item, "click", on_clear)
+barn.on(copy_item, "click", on_copy)
+barn.on(quit_item, "click", on_quit)
+
+barn.show(window)
+refresh()
+barn.run()
