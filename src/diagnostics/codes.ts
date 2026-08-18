@@ -285,6 +285,12 @@ export const CATALOGUE = {
     "`baa.toml` is not well formed: {0}",
     "Invalid manifest: {0}",
   ),
+  BAA406: spec(
+    "BAA406",
+    "error",
+    "`baa.lock` no longer describes this flock: {0}",
+    "Lockfile is out of date: {0}",
+  ),
 
   // ---------------------------------------------------------------- BAA9xx
   BAA901: spec(

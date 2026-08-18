@@ -238,6 +238,12 @@
       "plain": "Invalid manifest: {0}"
     },
     {
+      "code": "BAA406",
+      "severity": "error",
+      "woolly": "`baa.lock` no longer describes this flock: {0}",
+      "plain": "Lockfile is out of date: {0}"
+    },
+    {
       "code": "BAA901",
       "severity": "warning",
       "woolly": "`{0}` is declared but never joins the flock.",

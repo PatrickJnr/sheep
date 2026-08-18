@@ -21,12 +21,13 @@ import { SourceFile } from "../diagnostics/source.ts";
 import { formatProgram } from "../formatter/formatter.ts";
 import { lintProgram } from "../linter/linter.ts";
 import { parse } from "../parser/parser.ts";
-import type { Manifest } from "../project/manifest.ts";
+import type { Lockfile, Manifest } from "../project/manifest.ts";
 import {
   buildLockfile,
   findManifest,
   LOCKFILE_NAME,
   MANIFEST_NAME,
+  readLockfile,
   readManifest,
   renderManifest,
   resolveDependencies,
@@ -408,7 +409,16 @@ export function commandTest(args: TestArgs, context: CommandContext): number {
 // baa build
 // --------------------------------------------------------------------------
 
-export function commandBuild(context: CommandContext): number {
+export type BuildArgs = {
+  /**
+   * Verify `baa.lock` instead of writing it. Without this the lockfile is
+   * rewritten on every build, so a dependency whose contents changed updates
+   * the recorded hash silently and the hash records nothing worth knowing.
+   */
+  readonly locked: boolean;
+};
+
+export function commandBuild(args: BuildArgs, context: CommandContext): number {
   const manifest = loadProject();
   if (manifest === null) {
     writeError(
@@ -446,13 +456,57 @@ export function commandBuild(context: CommandContext): number {
   }
 
   const lock = buildLockfile(manifest);
-  const lockPath = writeLockfile(manifest, lock);
   writeLine(`  ${targets.length} file${targets.length === 1 ? "" : "s"} validated`);
   writeLine(`  entry: ${manifest.entry}`);
   writeLine(`  wool:  ${lock.wool.length === 0 ? "none" : lock.wool.map((w) => w.name).join(", ")}`);
-  writeLine(`  wrote ${shortPath(lockPath)}`);
+
+  if (args.locked) {
+    const drift = describeLockDrift(readLockfile(manifest.root), lock);
+    if (drift !== null) {
+      printDiagnostics(
+        [
+          createDiagnostic("BAA406", [drift], {
+            help: "Run `baa build` to record the current wool, and commit the result.",
+          }),
+        ],
+        context.colour,
+      );
+      return 1;
+    }
+    writeLine(`  ${LOCKFILE_NAME} matches`);
+    writeLine(success("Ready to herd.", context.colour));
+    return 0;
+  }
+
+  writeLine(`  wrote ${shortPath(writeLockfile(manifest, lock))}`);
   writeLine(success("Ready to herd.", context.colour));
   return 0;
+}
+
+/**
+ * What changed between the lockfile on disk and the one this build produced,
+ * or null when they agree. Phrased for a person reading a failing CI job, so
+ * it names the wool rather than printing two JSON documents to compare by eye.
+ */
+function describeLockDrift(previous: Lockfile | null, current: Lockfile): string | null {
+  if (previous === null) return `there is no ${LOCKFILE_NAME}`;
+  if (previous.version !== current.version) {
+    return `it was written in format ${previous.version}, and this is format ${current.version}`;
+  }
+
+  const before = new Map(previous.wool.map((entry) => [entry.name, entry]));
+  const after = new Map(current.wool.map((entry) => [entry.name, entry]));
+  const changes: string[] = [];
+  for (const [name, entry] of after) {
+    const old = before.get(name);
+    if (old === undefined) changes.push(`\`${name}\` is new`);
+    else if (old.sha256 !== entry.sha256) changes.push(`\`${name}\` has changed`);
+    else if (old.path !== entry.path) changes.push(`\`${name}\` moved to ${entry.path}`);
+  }
+  for (const name of before.keys()) {
+    if (!after.has(name)) changes.push(`\`${name}\` is gone`);
+  }
+  return changes.length === 0 ? null : changes.sort().join(", ");
 }
 
 // --------------------------------------------------------------------------

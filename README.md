@@ -204,7 +204,7 @@ Three things worth knowing:
   rather than reconstructed afterwards, and they are catchable as a map with
   `code`, `message`, `file`, `line` and `column`.
 
-All 45 of them are listed in [docs/errors.md](docs/errors.md).
+All 46 of them are listed in [docs/errors.md](docs/errors.md).
 
 ## Commands
 
@@ -217,7 +217,7 @@ All 45 of them are listed in [docs/errors.md](docs/errors.md).
 | `baa lint [paths]` | Report warnings, `--deny-warnings` for CI |
 | `baa repl` | Interactive session |
 | `baa init [dir]` | Create a new project |
-| `baa build` | Validate the project and write `baa.lock` |
+| `baa build` | Validate the project and write `baa.lock`, `--locked` to verify it |
 | `baa add` / `baa remove` | Manage local dependencies |
 | `baa doctor` | Diagnose the installation |
 | `baa modules` | List the standard library |
@@ -285,7 +285,7 @@ Everything a port needs already exists and is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 45 diagnostics, both wordings, ready to embed
+  all 46 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 

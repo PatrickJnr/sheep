@@ -81,6 +81,7 @@ An import, a manifest or a file could not be resolved.
 | `BAA403` | error | `{0}` doesn't export anything called `{1}`. | Module `{0}` has no export named `{1}`. |
 | `BAA404` | error | Couldn't read the file: {0} | Could not read file: {0} |
 | `BAA405` | error | `baa.toml` is not well formed: {0} | Invalid manifest: {0} |
+| `BAA406` | error | `baa.lock` no longer describes this flock: {0} | Lockfile is out of date: {0} |
 
 ## BAA9xx, Lints
 

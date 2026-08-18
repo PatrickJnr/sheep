@@ -129,10 +129,13 @@ const COMMAND_HELP: Record<string, string> = {
   remove: `baa remove <name>
 
   Remove a dependency from baa.toml and refresh baa.lock.`,
-  build: `baa build
+  build: `baa build [options]
 
   Validate every file in the project, check the entry point exists and write
-  baa.lock with a hash of each dependency.`,
+  baa.lock with a hash of each dependency.
+
+  --locked          Verify baa.lock instead of writing it, and exit non-zero
+                    if any dependency has changed since it was recorded`,
   serve: `baa serve [dir] [options]
 
   Run a directory of .baa pages over HTTP, for development.
@@ -331,7 +334,7 @@ export async function main(argv: readonly string[]): Promise<number> {
           context,
         );
       case "build":
-        return commandBuild(context);
+        return commandBuild({ locked: parsed.booleans.has("locked") }, context);
       case "init":
         return commandInit(
           {

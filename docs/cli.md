@@ -221,7 +221,7 @@ Refuses to overwrite an existing `baa.toml` without `--force`.
 ## `baa build`
 
 ```
-baa build
+baa build [options]
 ```
 
 Validates every `.baa` file in the project, checks the entry point exists, and
@@ -229,6 +229,24 @@ writes `baa.lock` with a SHA-256 of each dependency's entry file.
 
 Baa is interpreted, so `build` produces no binary. It is the "is this project
 coherent?" command, and the thing to run before tagging a release.
+
+| Option | Effect |
+| --- | --- |
+| `--locked` | Verify `baa.lock` instead of writing it |
+
+`--locked` reads the committed lockfile, builds what the lockfile would say
+now, and reports `BAA406` if the two disagree, naming the wool that moved,
+changed, arrived or went away. It writes nothing, so a failing check leaves the
+file it is checking alone.
+
+Without it `build` rewrites the lockfile every time, which means a dependency
+whose contents changed quietly updates its own recorded hash. That is the right
+behaviour on a developer's machine and the wrong behaviour in CI, where the
+question is whether the tree still matches what was committed:
+
+```bash
+baa build --locked   # exits non-zero if any dependency has changed
+```
 
 ## `baa add` / `baa remove`
 

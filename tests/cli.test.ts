@@ -309,6 +309,43 @@ describe("cli: project lifecycle", () => {
     assert.match(afterRemoval.err, /BAA401/);
   });
 
+  // The lockfile records a hash of every dependency, but nothing read it back:
+  // `baa build` rewrote the file each time, so a dependency whose contents had
+  // changed simply updated its own recorded hash. `--locked` is the check that
+  // makes the hash worth recording.
+  it("verifies the lockfile under --locked instead of rewriting it", () => {
+    const dir = workspace();
+    assert.equal(baa(["init", ".", "--name", "pen"], dir).code, 0);
+    const libDir = join(dir, "libs", "shears");
+    baa(["init", "libs/shears", "--name", "shears"], dir);
+    const lib = join(libDir, "shears.baa");
+    writeFileSync(lib, 'export fn cut() {\n    return "snip"\n}\n');
+    assert.equal(baa(["add", "shears", "--path", "libs/shears"], dir).code, 0);
+
+    assert.equal(baa(["build"], dir).code, 0, "recording the lockfile");
+    const recorded = readFileSync(join(dir, "baa.lock"), "utf8");
+
+    const unchanged = baa(["build", "--locked"], dir);
+    assert.equal(unchanged.code, 0, unchanged.err);
+    assert.match(unchanged.out, /baa\.lock matches/);
+
+    writeFileSync(lib, 'export fn cut() {\n    return "SNIP"\n}\n');
+    const drifted = baa(["build", "--locked"], dir);
+    assert.equal(drifted.code, 1, "a changed dependency must fail the check");
+    assert.match(drifted.err, /BAA406/);
+    assert.match(drifted.err, /`shears` has changed/);
+    assert.equal(
+      readFileSync(join(dir, "baa.lock"), "utf8"),
+      recorded,
+      "--locked must not rewrite the file it is checking",
+    );
+
+    rmSync(join(dir, "baa.lock"));
+    const missing = baa(["build", "--locked"], dir);
+    assert.equal(missing.code, 1);
+    assert.match(missing.err, /there is no baa\.lock/);
+  });
+
   it("refuses to overwrite an existing project without --force", () => {
     const dir = workspace();
     assert.equal(baa(["init", "."], dir).code, 0);
