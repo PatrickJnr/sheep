@@ -30,6 +30,27 @@ const SRC = join(SITE, "src");
 const DOCS_OUT = join(SITE, "docs");
 
 const ORIGIN = "https://sheep.grimtech.co.uk";
+
+/** The card social platforms show. */
+const SOCIAL_IMAGE = {
+  file: "social.png",
+  alt: "Baa — a programming language with a little more Baa.",
+} as const;
+
+/**
+ * Width and height of a PNG, from its IHDR chunk.
+ *
+ * The card is rendered at 2x, so hard-coding the nominal 1200x630 would have
+ * advertised half the real size. Reading the file means the tags cannot drift
+ * from it, whatever scale it is next rendered at.
+ */
+function pngSize(path: string): { width: number; height: number } {
+  const header = readFileSync(path).subarray(0, 24);
+  if (header.length < 24 || header.readUInt32BE(0) !== 0x89504e47) {
+    throw new Error(`${path} is not a PNG`);
+  }
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+}
 const REPO = "https://github.com/PatrickJnr/sheep";
 const BLOB = `${REPO}/blob/main`;
 
@@ -212,6 +233,8 @@ function rewriteFor(fromDocs: boolean) {
 // Layout
 // --------------------------------------------------------------------------
 
+const socialSize = pngSize(join(SITE, "assets", SOCIAL_IMAGE.file));
+
 const LOGO = readFileSync(join(SITE, "assets", "icon.svg"), "utf8")
   .replace(/<\?xml[^>]*\?>\s*/g, "")
   .replace(/\n\s*/g, "")
@@ -250,22 +273,34 @@ function shell(options: ShellOptions): string {
 <meta property="og:title" content="${escapeHtml(options.title)}">
 <meta property="og:description" content="${escapeHtml(options.description)}">
 <meta property="og:url" content="${options.canonical}">
-<meta property="og:image" content="${ORIGIN}/assets/social.svg">
+<meta property="og:locale" content="en_GB">
+<!--
+  PNG, not SVG. Every social scraper worth the meta tag (Facebook, X, LinkedIn,
+  Slack, Discord, iMessage) refuses to render an SVG card, and several fall back
+  to no image at all rather than to the next candidate. The dimensions are here
+  because scrapers that have not fetched the file yet use them to reserve the
+  right shape, and an absolute URL because most of them do not resolve relative
+  ones.
+-->
+<meta property="og:image" content="${ORIGIN}/assets/${SOCIAL_IMAGE.file}">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="${socialSize.width}">
+<meta property="og:image:height" content="${socialSize.height}">
+<meta property="og:image:alt" content="${escapeHtml(SOCIAL_IMAGE.alt)}">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(options.title)}">
+<meta name="twitter:description" content="${escapeHtml(options.description)}">
+<meta name="twitter:image" content="${ORIGIN}/assets/${SOCIAL_IMAGE.file}">
+<meta name="twitter:image:alt" content="${escapeHtml(SOCIAL_IMAGE.alt)}">
 <link rel="icon" href="${base}assets/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="${base}assets/icon.svg">
+<link rel="apple-touch-icon" href="${base}assets/icon.png">
 <link rel="stylesheet" href="${base}assets/styles.css">
-<script>
-  // Applied before first paint so the page never flashes the wrong theme.
-  (function () {
-    try {
-      var stored = localStorage.getItem("baa-theme");
-      if (stored === "light" || stored === "dark") {
-        document.documentElement.setAttribute("data-theme", stored);
-      }
-    } catch (error) { /* private mode: fall back to the media query */ }
-  })();
-</script>
+<!--
+  Not inline, and not deferred: it has to run before first paint to avoid a
+  flash of the wrong theme, and it has to be a file so the site's
+  Content-Security-Policy can refuse inline scripts outright.
+-->
+<script src="${base}assets/theme.js"></script>
 ${options.extraHead ?? ""}</head>
 <body${options.bodyClass ? ` class="${options.bodyClass}"` : ""}>
 <a class="skip" href="#main">Skip to content</a>
@@ -585,7 +620,15 @@ process.stdout.write(
 );
 
 // A cheap guard against the commonest build mistake.
-const missingAssets = ["styles.css", "site.js", "highlight.js", "icon.svg"].filter(
+const missingAssets = [
+  "styles.css",
+  "site.js",
+  "theme.js",
+  "highlight.js",
+  "icon.svg",
+  "icon.png",
+  SOCIAL_IMAGE.file,
+].filter(
   (name) => !readdirSync(join(SITE, "assets")).includes(name),
 );
 if (missingAssets.length > 0) {
