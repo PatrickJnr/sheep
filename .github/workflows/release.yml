@@ -85,6 +85,17 @@ jobs:
             echo "::notice::No VSCE_PAT secret, so the extension is not published to the marketplace. The VSIX is attached to the release."
             exit 0
           fi
+
+          # Re-running a release must not turn red on the marketplace refusing
+          # a version it already has. The npm step makes the same check for the
+          # same reason: a release job should be safe to run twice.
+          version=$(node -p "require('./package.json').version")
+          published=$(npx vsce show baa-lang.baa-lang --json 2>/dev/null             | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).versions[0].version)}catch{console.log('')}})")
+          if [ "$published" = "$version" ]; then
+            echo "::notice::baa-lang.baa-lang@$version is already on the marketplace, nothing to do."
+            exit 0
+          fi
+
           npx vsce publish --packagePath baa-lang.vsix --pat "$VSCE_PAT"
 
   runtimes:
