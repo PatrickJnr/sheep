@@ -50,7 +50,20 @@ curl -L https://github.com/PatrickJnr/sheep/releases/latest/download/baa-native-
 ```
 
 Each archive carries a `.sha256` beside the binaries, because an artefact
-nobody can verify is an artefact nobody should run.
+nobody can verify is an artefact nobody should run. Check it before you run
+anything:
+
+```bash
+cd ~/.baa/runtime && sha256sum -c baa-native-*.sha256
+```
+
+**While the repository is private, release downloads need access.** A plain
+`curl` of the URL above returns a 404 page rather than an archive, and a 404
+page unpacks into nothing. With the GitHub CLI:
+
+```bash
+gh release download v0.7.0 -R PatrickJnr/sheep -p "baa-native-*"
+```
 
 **The Linux runtime has no window backend.** It runs a Baa application that
 does not import `barn` — arguments, files, JSON, subprocesses, the whole
