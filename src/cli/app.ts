@@ -13,9 +13,18 @@
  * it imports `barn` and asks for a window.
  */
 
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -232,6 +241,21 @@ function appBuild(
   }
   entry = resolve(root, entry);
 
+  // `app test` runs the project's tests, not the application. Running the
+  // entry point would show the window and block on the event loop, which is
+  // exactly what a test run must not do.
+  if (mode.tests && args.options.get("entry") === undefined) {
+    const suite = collectTests(root);
+    if (suite.length === 0) {
+      writeError(
+        `No tests found. \`baa app test\` runs every .baa file under ${join(root, "tests")}.\n` +
+          "Name one directly with --entry, or write one: see docs/application-projects.md.",
+      );
+      return 1;
+    }
+    return runTests(suite, root, app);
+  }
+
   let built;
   try {
     built = bundle({ entry, root, app });
@@ -295,6 +319,66 @@ function appBuild(
       (built.stdlib.length > 0 ? `, using ${built.stdlib.join(", ")}` : "") +
       `\n  ${(size / 1024).toFixed(0)} KB, ${windowed ? "windowed" : "console"}\n`,
   );
+  return 0;
+}
+
+/**
+ * Every `.baa` file under the project's `tests/` directory.
+ *
+ * The same place `baa test` looks with no arguments, so a project has one
+ * answer to "where are the tests" whichever runtime is running them.
+ */
+function collectTests(root: string): string[] {
+  const directory = join(root, "tests");
+  if (!existsSync(directory) || !statSync(directory).isDirectory()) return [];
+  const found: string[] = [];
+  const walk = (at: string): void => {
+    for (const entry of readdirSync(at, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const full = join(at, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".baa")) found.push(full);
+    }
+  };
+  walk(directory);
+  return found;
+}
+
+/**
+ * Runs each test file as its own image.
+ *
+ * One image per file rather than one for all of them: a test file is a
+ * complete program, and bundling several together would give them a shared
+ * global scope they do not have under `baa test`.
+ */
+function runTests(files: readonly string[], root: string, app: Record<string, string>): number {
+  const host = findHost({ windowed: false });
+  if (host === null) return 1;
+
+  let failed = 0;
+  for (const file of files) {
+    writeLine(relative(root, file).split(sep).join("/"));
+    let bytes: Uint8Array;
+    try {
+      bytes = bundle({ entry: file, root, app }).bytes;
+    } catch (error) {
+      if (error instanceof BundleError) {
+        writeError(error.message);
+        failed++;
+        continue;
+      }
+      throw error;
+    }
+    const image = join(tmpdir(), `baa-test-${process.pid}.fleece`);
+    writeFileSync(image, bytes);
+    const outcome = spawnSync(host, ["--test", image], { stdio: "inherit" });
+    if ((outcome.status ?? 1) !== 0) failed++;
+  }
+
+  if (failed > 0) {
+    writeError(`${failed} of ${files.length} test file(s) failed on the native runtime`);
+    return 1;
+  }
+  writeLine(`${files.length} test file(s) passed on the native runtime`);
   return 0;
 }
 

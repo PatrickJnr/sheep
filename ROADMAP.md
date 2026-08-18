@@ -166,7 +166,7 @@ taking, so nobody writes the lexer twice.
       not as a replacement dropped in at once.
 
       There is now a measurement to argue from. `node tools/bench-native.ts`
-      puts the native tree-walker 1.2x ahead of Node on a tight loop and 9.6x
+      puts the native tree-walker 1.2x ahead of Node on a tight loop and 10x
       ahead on process start: almost all of the win is starting up, and none of
       it is the interpreter being cleverer, because it is the same algorithm in
       a different language. A bytecode VM is where the interpreter itself would

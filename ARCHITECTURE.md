@@ -294,7 +294,7 @@ with the tree-walker about a corner of the semantics — which is exactly the
 class of bug that a second implementation exists to avoid.
 
 The measurement that would justify it now exists (`node tools/bench-native.ts`):
-the native tree-walker is 1.2x faster than Node on a tight loop and 9.6x faster
+the native tree-walker is 1.2x faster than Node on a tight loop and 10x faster
 to start. Almost all of the win is process start, and none of it comes from the
 interpreter being cleverer, because it is not. That is the honest case for a
 bytecode VM *later*, on the route in

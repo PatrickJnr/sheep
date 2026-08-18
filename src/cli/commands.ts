@@ -11,8 +11,9 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { checkFile, toDiagnostic } from "../api.ts";
 import type { Diagnostic } from "../diagnostics/diagnostic.ts";
@@ -713,6 +714,30 @@ function refreshLock(manifest: Manifest, context: CommandContext): number {
 // baa doctor
 // --------------------------------------------------------------------------
 
+/**
+ * Where `baa app build` would find the native runtime, or `null`.
+ *
+ * The same search order the build uses, kept here rather than imported so that
+ * `baa doctor` does not pull in the bundler on every run.
+ */
+function nativeRuntime(): string | null {
+  const exe = process.platform === "win32" ? ".exe" : "";
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    process.env.BAA_NATIVE_HOST ? resolve(process.env.BAA_NATIVE_HOST) : null,
+    resolve(here, "..", "..", "native"),
+    resolve(here, "..", "..", "rust", "target", "release"),
+    resolve(here, "..", "..", "rust", "target", "debug"),
+  ].filter((candidate): candidate is string => candidate !== null);
+
+  for (const directory of candidates) {
+    if (existsSync(join(directory, `baa-nativew${exe}`))) {
+      return `ready in ${directory}`;
+    }
+  }
+  return null;
+}
+
 export function commandDoctor(context: CommandContext, version: string): number {
   const rows: Array<[string, boolean, string]> = [];
 
@@ -760,6 +785,14 @@ export function commandDoctor(context: CommandContext, version: string): number 
   }
 
   rows.push(["Standard library", true, `${STDLIB_MODULES.length} modules`]);
+  // Not a failure when it is missing: the language works without it, and most
+  // people never build a native application. Reported because "why does
+  // `baa app build` not work" is otherwise a hunt through documentation.
+  rows.push([
+    "Native runtime",
+    true,
+    nativeRuntime() ?? "not built (cargo build --release --manifest-path rust/Cargo.toml)",
+  ]);
   rows.push([
     "Colour",
     true,

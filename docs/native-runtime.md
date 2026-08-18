@@ -30,9 +30,10 @@ rust/crates/baa-native/src/
 └── bin/                     two binaries: console and windowed
 ```
 
-Zero dependencies. The Win32 functions are declared in `gui/win32.rs` as about
-thirty `extern "system"` lines against an ABI that has not changed since the
-1990s, which is less to maintain than a bindings crate's version number.
+Zero dependencies. The Win32 functions are declared in `gui/win32.rs` as
+forty-three `extern "system"` declarations against an ABI that has not changed
+since the 1990s, which is less to maintain than a bindings crate's version
+number.
 
 ---
 
@@ -196,5 +197,6 @@ Implement `Backend`: create a window, sync changed widgets, pump one event,
 close, plus message boxes, file dialogs and the clipboard. Nothing in
 `gui/mod.rs`, in `barn`, or anywhere in `src/` needs to change.
 
-The honest scale of the job is that the Windows backend is about 700 lines,
-most of which is constants and struct layouts rather than logic.
+The honest scale of the job is that the Windows backend is 878 lines, and most
+of that is constants, struct layouts and `extern` declarations rather than
+logic.

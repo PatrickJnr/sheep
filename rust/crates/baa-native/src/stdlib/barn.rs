@@ -101,7 +101,15 @@ fn widget_of(interp: &Interpreter, name: &str, args: &[Value], index: usize, spa
             interp
                 .error(
                     "BAA311",
-                    vec![name.to_string(), "a widget".into(), (index + 1).to_string(), "a number".into()],
+                    // The value itself, not its type: "expected a widget,
+                    // but got a number" is true and unhelpful when the thing
+                    // it got is 999.
+                    vec![
+                        name.to_string(),
+                        "a widget".into(),
+                        (index + 1).to_string(),
+                        crate::value::display(&args[index]),
+                    ],
                     span,
                 )
                 .with_note("not a widget this program created")
@@ -536,13 +544,20 @@ fn run_event_loop(interp: &mut Interpreter, span: Span) -> Res<()> {
                     .iter()
                     .any(|(widget, kind, _)| *widget == event.widget && *kind == EventKind::Close)
             {
-                let mut backend = interp.backend.take().expect("checked above");
+                // Not an `expect`: a handler runs arbitrary Baa code between
+                // the check above and here, and an invariant that holds today
+                // should still fail as a diagnostic rather than a panic.
+                let Some(mut backend) = interp.backend.take() else {
+                    return Err(Flow::Err(no_backend(interp, span)));
+                };
                 backend.close(&mut interp.ui, event.widget);
                 interp.backend = Some(backend);
             }
         }
 
-        let mut backend = interp.backend.take().expect("checked above");
+        let Some(mut backend) = interp.backend.take() else {
+            return Err(Flow::Err(no_backend(interp, span)));
+        };
         backend.sync(&mut interp.ui);
         interp.backend = Some(backend);
     }

@@ -112,11 +112,18 @@ baa app run                 # build to a temporary image and run, with a console
 baa app build               # build/<name>.exe
 baa app build --out dist    # somewhere else
 baa app build --console     # a console application rather than a windowed one
-baa app test                # run the project's `test` blocks on the native runtime
+baa app test                # run tests/ on the native runtime, not the application
 ```
 
 `baa app run` writes nothing into the project: it builds to a temporary file
 and runs it with the console runtime, so `baa` output lands on your terminal.
+
+`baa app test` runs every `.baa` file under `tests/`, each as its own image,
+and deliberately does **not** run the entry point: an application's entry point
+opens a window and blocks on the event loop, which is the one thing a test run
+must not do. It is the same set of files `baa test` runs, on the other runtime,
+which is how you find out whether a module behaves identically on both.
+
 `baa app build` writes an executable and nothing else — no intermediate
 directory, no cache, no lockfile of its own.
 
@@ -132,5 +139,5 @@ an application after the runtime exists needs no Rust at all.
 ## What to commit
 
 Commit the manifest, the source and the tests. `build/` and `*.fleece` are in
-the default `.gitignore`: an executable is a build artefact, and a 650 KB
-binary in a repository is 650 KB in every clone forever.
+the default `.gitignore`: an executable is a build artefact, and a 620 KB
+binary in a repository is 620 KB in every clone forever.

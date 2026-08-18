@@ -56,7 +56,7 @@ lexes, parses and resolves your program with exactly the code `baa check` uses,
 then writes the resolved tree into a binary `.fleece` image. A build that would
 not pass `baa check` produces no executable.
 
-**The native runtime walks that tree.** It is a Rust program of about 6,000
+**The native runtime walks that tree.** It is a Rust program of about 8,400
 lines with no dependencies, and it is a port of the same tree-walking
 interpreter, kept close enough that both agree on the conformance suite.
 
@@ -161,23 +161,23 @@ waits for when they open an application:
 
 ```
                                        node    native   ratio
-start up and print one line           176     18       9.6x
-one million loop iterations           346     286      1.2x
-two hundred thousand function calls   386     157      2.5x
-build and sort fifty thousand items   304     103      3.0x
-encode and decode a megabyte of JSON  267     87       3.1x
+start up and print one line           194     19       10.3x
+one million loop iterations           372     309      1.2x
+two hundred thousand function calls   408     164      2.5x
+build and sort fifty thousand items   393     123      3.2x
+encode and decode a megabyte of JSON  309     106      2.9x
 
-runtime 648 KB, image for a one-line program 114 bytes
-building the calculator: 199 ms
+runtime 619 KB, image for a one-line program 114 bytes
+building the calculator: 255 ms
 ```
 
 Read that carefully rather than as a scoreboard.
 
 - **Startup is the real difference**, and it is the one that matters for an
   application: a window that appears immediately feels native and one that
-  appears after a beat does not. Most of the 176 ms is Node starting and
+  appears after a beat does not. Most of the 194 ms is Node starting and
   type-stripping the CLI's TypeScript; running the published build is faster
-  than this figure, and still not 18 ms.
+  than this figure, and still not 19 ms.
 - **Throughput is comparable**, and deliberately so. Both are tree-walking
   interpreters with the same environment-chain semantics. The 1.2x on a tight
   loop is the honest picture of what porting an interpreter buys: not much,
@@ -186,7 +186,7 @@ Read that carefully rather than as a scoreboard.
   otherwise. A bytecode VM is the next real step and is on
   [ROADMAP.md](../ROADMAP.md), where it belongs until there is a measurement
   asking for it. This is that measurement's starting line.
-- **Build time is dominated by Node**, not by the appending: 199 ms for the
+- **Build time is dominated by Node**, not by the appending: 255 ms for the
   calculator, with no compiler or linker involved at all.
 
 Run it on your own machine before believing any of it.

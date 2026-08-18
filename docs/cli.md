@@ -328,7 +328,7 @@ it.
 | `new <dir>` | Create an application project: manifest, entry point, a logic module and its tests |
 | `build` | Write `build/<name>.exe` |
 | `run` | Build to a temporary image and run it with a console attached |
-| `test` | Run the project's `test` blocks on the native runtime |
+| `test` | Run every `.baa` file under `tests/` on the native runtime |
 
 | Option | Effect |
 | --- | --- |
@@ -393,7 +393,11 @@ baa doctor
 ```
 
 Reports the Node version, platform, Baa version, project state, dependency
-resolution and colour support. Exits `1` if anything is wrong.
+resolution, whether the native runtime is built, and colour support. Exits `1`
+if anything is wrong.
+
+A missing native runtime is reported, not counted as a fault: the language
+works without it and most people never build a native application.
 
 ```
 ok   Node.js           v24.13.0
@@ -403,6 +407,7 @@ ok   Project           hill_farm 0.1.0 ()
 ok   Wool              1 resolved
 ok   Entry             main.baa
 ok   Standard library  9 modules
+ok   Native runtime    ready in ./rust/target/release
 ok   Colour            enabled
 
 The flock is healthy.
