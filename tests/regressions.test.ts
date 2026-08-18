@@ -261,14 +261,58 @@ describe("regression: files that must be identical on every platform", () => {
   // `shepherd.PLATFORM` was rendered as its value on the generating machine,
   // so the committed table read `win32`: `--check` failed on Linux, and every
   // reader not on Windows was told something untrue.
+  // Checked across every constant rather than the two that were noticed
+  // first: enumerating them is how `pasture.SEPARATOR` slipped through after
+  // `shepherd.PLATFORM` had already been fixed.
   it("generates documentation that names no particular machine", () => {
     const docs = readFileSync(join(ROOT, "docs", "stdlib.md"), "utf8");
-    for (const [row] of docs.matchAll(/^\|.*$/gm)) {
-      if (!/shepherd\.(PLATFORM|ARCH)/.test(row)) continue;
+    const hostSpecific = /^`(win32|linux|darwin|x64|arm64|ia32|\\|\/)`$/;
+    for (const [, name, value] of docs.matchAll(/^\| (`\w+\.[A-Z_]+`) \| (.+?) \|$/gm)) {
       assert.doesNotMatch(
-        row,
-        /\|\s*`(win32|linux|darwin|x64|arm64|ia32)`\s*\|/,
-        `a host-specific value reached the generated docs: ${row}`,
+        value!,
+        hostSpecific,
+        `${name} is documented as ${value}, which is only true on the machine that ` +
+          "generated it. Describe it in HOST_DEPENDENT in tools/gen-docs.ts instead.",
+      );
+    }
+  });
+});
+
+describe("regression: workflows that fail before they start", () => {
+  const dir = join(ROOT, ".github", "workflows");
+  const workflows = readdirSync(dir).filter((name) => /\.ya?ml$/.test(name));
+
+  it("has workflows to check", () => {
+    assert.ok(workflows.length > 0);
+  });
+
+  // `secrets` is not available in an `if:`. Using it there is a validation
+  // error, and GitHub fails the entire file at startup rather than the one
+  // step: the run appears with zero jobs and a name that is the file path. It
+  // reported a failure on every push while never having run anything.
+  for (const name of workflows) {
+    it(`${name} reads no secret from an if: condition`, () => {
+      const text = readFileSync(join(dir, name), "utf8");
+      for (const [index, line] of text.split("\n").entries()) {
+        if (!/^\s*if:/.test(line)) continue;
+        assert.doesNotMatch(
+          line,
+          /secrets\./,
+          `${name}:${index + 1} reads secrets in an if:, which fails the workflow at startup. ` +
+            "Lift it to a job-level `env:` and test that instead.",
+        );
+      }
+    });
+  }
+
+  it("asks for the permission npm provenance needs, wherever it publishes", () => {
+    for (const name of workflows) {
+      const text = readFileSync(join(dir, name), "utf8");
+      if (!text.includes("--provenance")) continue;
+      assert.match(
+        text,
+        /id-token:\s*write/,
+        `${name} publishes with provenance but never requests id-token: write`,
       );
     }
   });

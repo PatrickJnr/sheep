@@ -291,7 +291,7 @@ import pasture
 
 | Constant | Value |
 | --- | --- |
-| `pasture.SEPARATOR` | `\` |
+| `pasture.SEPARATOR` | the host path separator: `\` on Windows, `/` elsewhere |
 
 | Function | Arguments | Description |
 | --- | --- | --- |

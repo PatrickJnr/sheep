@@ -36,6 +36,7 @@ const DOCS = join(ROOT, "docs");
 const HOST_DEPENDENT: Readonly<Record<string, string>> = {
   "shepherd.PLATFORM": "the host platform: `win32`, `linux`, `darwin`, ...",
   "shepherd.ARCH": "the host architecture: `x64`, `arm64`, ...",
+  "pasture.SEPARATOR": "the host path separator: `\\` on Windows, `/` elsewhere",
 };
 
 const GENERATED_NOTE =

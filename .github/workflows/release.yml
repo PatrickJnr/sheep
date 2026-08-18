@@ -11,6 +11,9 @@ on:
 
 permissions:
   contents: write
+  # Required by `npm publish --provenance`, which signs the package against
+  # this workflow run. Without it the publish step fails at the last moment.
+  id-token: write
 
 jobs:
   verify:
@@ -34,6 +37,12 @@ jobs:
     name: publish release
     needs: verify
     runs-on: ubuntu-latest
+    # Lifted to the job so a step's `if:` can read it. The `secrets` context is
+    # not available in `if:` at all: using it there is a validation error, which
+    # fails the whole file at startup rather than the one step. That is why this
+    # workflow reported a failure on every push while defining no jobs.
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -74,8 +83,10 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
 
+      # Skipped, not failed, when no token is configured: a GitHub release is
+      # useful on its own and should not depend on npm being set up.
       - name: Publish to npm
-        if: ${{ secrets.NPM_TOKEN != '' }}
+        if: ${{ env.NPM_TOKEN != '' }}
         run: npm publish --access public --provenance
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
