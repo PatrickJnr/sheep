@@ -48,10 +48,13 @@ What Baa *does* promise:
 A built application has the same threat model, with two differences that both
 narrow it.
 
-The **native runtime is smaller than the language**: it has no `shepherd`, so
-nothing in a native application can start a process, and it has no `eval`, no
-FFI, no plugin mechanism and no dynamic library loading. What an application
-can execute is fixed when it is built.
+The **native runtime has no way to load code**: no `eval`, no FFI, no plugin
+mechanism, no dynamic library loading. What an application can execute is fixed
+when it is built. It can start a *program* — `shepherd.run` is in the native
+runtime as of the version after 0.4.0 — but it does so the same way the
+reference implementation does, by handing the operating system a program name
+and an explicit array of arguments. No command line is ever built from a
+string, so there is nothing for an injection to be injected into.
 
 It also **never parses at runtime**. A shipped application carries a resolved
 tree and resolves its imports to indices inside that tree at build time, so it

@@ -322,7 +322,7 @@ barn.run()
 $ baa app build
 Built build/Hello.exe
   1 module, using barn
-  621 KB, windowed
+  736 KB, windowed
 ```
 
 One executable. No Node.js on the machine that runs it, no browser inside it,

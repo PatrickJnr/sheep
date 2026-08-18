@@ -65,7 +65,7 @@ baa app build        # build/MyApp.exe
 ```
 Built C:\pens\my_app\build\MyApp.exe
   2 modules, using barn, pasture
-  638 KB, windowed
+  736 KB, windowed
 ```
 
 ## What you get

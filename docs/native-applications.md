@@ -165,14 +165,14 @@ waits for when they open an application:
 
 ```
                                        node    native   ratio
-start up and print one line           194     19       10.3x
-one million loop iterations           372     309      1.2x
-two hundred thousand function calls   408     164      2.5x
-build and sort fifty thousand items   393     123      3.2x
-encode and decode a megabyte of JSON  309     106      2.9x
+start up and print one line           211     22       9.7x
+one million loop iterations           396     319      1.2x
+two hundred thousand function calls   527     183      2.9x
+build and sort fifty thousand items   477     127      3.8x
+encode and decode a megabyte of JSON  345     108      3.2x
 
-runtime 619 KB, image for a one-line program 114 bytes
-building the calculator: 255 ms
+runtime 735 KB, image for a one-line program 114 bytes
+building the calculator: 234 ms
 ```
 
 Read that carefully rather than as a scoreboard.

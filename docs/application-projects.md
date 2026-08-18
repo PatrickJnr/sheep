@@ -139,5 +139,5 @@ an application after the runtime exists needs no Rust at all.
 ## What to commit
 
 Commit the manifest, the source and the tests. `build/` and `*.fleece` are in
-the default `.gitignore`: an executable is a build artefact, and a 620 KB
-binary in a repository is 620 KB in every clone forever.
+the default `.gitignore`: an executable is a build artefact, and a 736 KB
+binary in a repository is 736 KB in every clone forever.
