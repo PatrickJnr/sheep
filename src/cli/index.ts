@@ -13,7 +13,6 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { BaaError, setWoollyMode } from "../diagnostics/diagnostic.ts";
-import { serve } from "../lsp/server.ts";
 import {
   commandAdd,
   commandBuild,
@@ -29,8 +28,6 @@ import {
 } from "./commands.ts";
 import type { CommandContext } from "./commands.ts";
 import { BANNER, bold, detectColour, detectWoolly, dim, printDiagnostics, writeError, writeLine } from "./output.ts";
-import { commandServe } from "./serve.ts";
-import { startRepl } from "./repl.ts";
 
 export type GlobalFlags = {
   readonly quiet: boolean;
@@ -371,14 +368,22 @@ export async function main(argv: readonly string[]): Promise<number> {
         }
         return commandRemove(name, context);
       }
-      case "lsp":
+      case "lsp": {
+        // Imported here rather than at the top: the language server pulls in
+        // the whole analysis stack, and every other command, including a page
+        // served over CGI, would otherwise pay to load it.
+        const { serve } = await import("../lsp/server.ts");
         // No banner, no colour, no stray writes: stdout is the protocol.
         return await serve({ read: process.stdin, write: (text) => void process.stdout.write(text) });
+      }
       case "doctor":
         return commandDoctor(context, VERSION);
       case "modules":
         return commandModules(context);
-      case "serve":
+      case "serve": {
+        // Deferred for the same reason as `lsp`: this pulls in an HTTP server
+        // and a process spawner that no other command touches.
+        const { commandServe } = await import("./serve.ts");
         return await commandServe(
           {
             dir: parsed.positionals[0] ?? null,
@@ -387,12 +392,15 @@ export async function main(argv: readonly string[]): Promise<number> {
           },
           context,
         );
-      case "repl":
+      }
+      case "repl": {
+        const { startRepl } = await import("./repl.ts");
         return await startRepl({
           colour,
           version: VERSION,
           banner: !parsed.booleans.has("no-banner") && !flags.quiet,
         });
+      }
       default: {
         // `baa page.baa` means run it, the way `python x.py` does. This is not
         // only a convenience: a page executed by its shebang arrives here as
