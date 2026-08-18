@@ -119,6 +119,18 @@ describe("cli: run", () => {
     const dir = workspace();
     assert.equal(baa(["run"], dir).code, 2);
   });
+
+  // `run` read its entry without checking it existed, so a typo printed a
+  // Node.js stack trace under `baa: internal error`.
+  it("reports an unreadable entry as a diagnostic, not a crash", () => {
+    const dir = workspace();
+    for (const target of ["nope.baa", "."]) {
+      const result = baa(["run", target], dir);
+      assert.equal(result.code, 1, `expected exit 1 for ${target}`);
+      assert.match(result.err, /BAA404/, `expected BAA404 for ${target}`);
+      assert.doesNotMatch(result.err, /internal error/);
+    }
+  });
 });
 
 describe("cli: check", () => {
