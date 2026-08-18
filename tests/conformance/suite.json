@@ -1,0 +1,485 @@
+{
+  "$schema": "https://sheep.grimtech.co.uk/schema/conformance-1.json",
+  "version": 1,
+  "language": "baa",
+  "languageVersion": "0.1.0",
+  "description": "Language conformance suite. Any Baa implementation should produce these outputs and these diagnostic codes.",
+  "notes": [
+    "`programs` map a source string to the exact stdout it must produce, and the exit code.",
+    "`diagnostics` map a source string to the diagnostic codes it must report, in order.",
+    "`stage` is `check` when the codes must be reported without executing, `run` otherwise.",
+    "Randomness is seeded with 7. Programs depending on the clock or filesystem are excluded."
+  ],
+  "programs": [
+    {
+      "name": "print/values",
+      "source": "baa 1, 2.5, \"text\", true, nil, [1, \"a\"], { a: 1 }, 0..3",
+      "stdout": "1 2.5 text true nil [1, \"a\"] { a: 1 } 0..3\n",
+      "exit": 0
+    },
+    {
+      "name": "print/whole-numbers",
+      "source": "baa 4.0, 1e3, 7 / 2, 6 / 3",
+      "stdout": "4 1000 3.5 2\n",
+      "exit": 0
+    },
+    {
+      "name": "print/strings-bare",
+      "source": "baa \"a\", [\"a\"], { a: \"b\" }",
+      "stdout": "a [\"a\"] { a: \"b\" }\n",
+      "exit": 0
+    },
+    {
+      "name": "numbers/literals",
+      "source": "baa 1_000_000, 0xFF, 0b1010, 0o17, 2.5e-2",
+      "stdout": "1000000 255 10 15 0.025\n",
+      "exit": 0
+    },
+    {
+      "name": "numbers/precedence",
+      "source": "baa 1 + 2 * 3, (1 + 2) * 3, 2 ** 3 ** 2, -2 ** 2, 7 % 3",
+      "stdout": "7 9 512 -4 1\n",
+      "exit": 0
+    },
+    {
+      "name": "truthiness",
+      "source": "baa !nil, !false, !0, !\"\", ![]",
+      "stdout": "true true false false false\n",
+      "exit": 0
+    },
+    {
+      "name": "equality/structural",
+      "source": "baa [1, [2]] == [1, [2]], { a: 1 } == { a: 1 }, { a: 1 } == { a: 2 }",
+      "stdout": "true true false\n",
+      "exit": 0
+    },
+    {
+      "name": "operators/concat",
+      "source": "baa \"n=\" + 1, 1 + \"=n\", \"a\" + true, \"x\" + nil, [1] + [2]",
+      "stdout": "n=1 1=n atrue xnil [1, 2]\n",
+      "exit": 0
+    },
+    {
+      "name": "operators/logical",
+      "source": "baa nil ?? 5, false ?? 5, 0 ?? 5, false && 1, true || 1",
+      "stdout": "5 false 0 false true\n",
+      "exit": 0
+    },
+    {
+      "name": "operators/in",
+      "source": "baa 2 in [1, 2], \"a\" in { a: 1 }, 3 in 0..5, \"oo\" in \"wool\"",
+      "stdout": "true true true true\n",
+      "exit": 0
+    },
+    {
+      "name": "strings/interpolation",
+      "source": "const n = 3\nbaa \"there are {n + 1} sheep and {[\"a\", \"b\"].join(\", \")}\"",
+      "stdout": "there are 4 sheep and a, b\n",
+      "exit": 0
+    },
+    {
+      "name": "strings/escapes",
+      "source": "baa \"a\\nb\", \"\\{literal\\}\", \"\\u{1F411}\"",
+      "stdout": "a\nb {literal} 🐑\n",
+      "exit": 0
+    },
+    {
+      "name": "strings/indexing",
+      "source": "baa \"wool\"[0], \"wool\"[-1], \"wool\".length()",
+      "stdout": "w l 4\n",
+      "exit": 0
+    },
+    {
+      "name": "arrays/methods",
+      "source": "const a = [3, 1, 2]\nbaa a.sort(), a.reverse(), a.sum(), a.slice(1, 3)",
+      "stdout": "[1, 2, 3] [2, 1, 3] 6 [1, 2]\n",
+      "exit": 0
+    },
+    {
+      "name": "arrays/higher-order",
+      "source": "baa [1, 2, 3].map(fn(n) { return n * 2 }).filter(fn(n) { return n > 2 }).reduce(fn(t, n) { return t + n }, 0)",
+      "stdout": "10\n",
+      "exit": 0
+    },
+    {
+      "name": "maps/order",
+      "source": "const m = { b: 1, a: 2 }\nm.c = 3\nbaa m.keys(), m.values()",
+      "stdout": "[\"b\", \"a\", \"c\"] [1, 2, 3]\n",
+      "exit": 0
+    },
+    {
+      "name": "maps/missing-key",
+      "source": "const m = { a: 1 }\nbaa m[\"z\"], m.get(\"z\", 0), m.has(\"a\")",
+      "stdout": "nil 0 true\n",
+      "exit": 0
+    },
+    {
+      "name": "maps/data-beats-methods",
+      "source": "const m = { keys: \"mine\" }\nbaa m.keys",
+      "stdout": "mine\n",
+      "exit": 0
+    },
+    {
+      "name": "control/if",
+      "source": "fn size(n) {\n  if n > 10 { return \"many\" } else if n > 2 { return \"some\" } else { return \"few\" }\n}\nbaa size(20), size(5), size(1)",
+      "stdout": "many some few\n",
+      "exit": 0
+    },
+    {
+      "name": "control/for",
+      "source": "for x in [1, 2] { baa x }\nfor c in \"ab\" { baa c }\nfor i in 1..=2 { baa i }\nfor k, v in { a: 1 } { baa k, v }\nfor i, x in [\"p\"] { baa i, x }",
+      "stdout": "1\n2\na\nb\n1\n2\na 1\n0 p\n",
+      "exit": 0
+    },
+    {
+      "name": "control/break-continue",
+      "source": "for i in 0..5 {\n  if i == 1 { continue }\n  if i == 3 { break }\n  baa i\n}",
+      "stdout": "0\n2\n",
+      "exit": 0
+    },
+    {
+      "name": "control/while",
+      "source": "let n = 3\nwhile n > 0 {\n  baa n\n  n -= 1\n}",
+      "stdout": "3\n2\n1\n",
+      "exit": 0
+    },
+    {
+      "name": "functions/params",
+      "source": "fn f(a, b = 10, ..rest) { return [a, b, rest] }\nbaa f(1), f(1, 2), f(1, 2, 3, 4)",
+      "stdout": "[1, 10, []] [1, 2, []] [1, 2, [3, 4]]\n",
+      "exit": 0
+    },
+    {
+      "name": "functions/closures",
+      "source": "fn counter() {\n  let n = 0\n  return fn() {\n    n += 1\n    return n\n  }\n}\nconst next = counter()\nbaa next(), next(), counter()()",
+      "stdout": "1 2 1\n",
+      "exit": 0
+    },
+    {
+      "name": "functions/hoisting",
+      "source": "baa f()\nfn f() { return g() }\nfn g() { return 1 }",
+      "stdout": "1\n",
+      "exit": 0
+    },
+    {
+      "name": "functions/implicit-nil",
+      "source": "fn f() { baa 1 }\nbaa f()",
+      "stdout": "1\nnil\n",
+      "exit": 0
+    },
+    {
+      "name": "match/arms",
+      "source": "fn size(n) {\n  return match n {\n    0 => \"none\",\n    1 || 2 => \"few\",\n    x if x > 10 => \"many\",\n    _ => \"some\",\n  }\n}\nbaa size(0), size(2), size(50), size(5)",
+      "stdout": "none few many some\n",
+      "exit": 0
+    },
+    {
+      "name": "match/structural",
+      "source": "baa match [true, false] { [true, true] => \"both\", [true, false] => \"first\", _ => \"no\" }",
+      "stdout": "first\n",
+      "exit": 0
+    },
+    {
+      "name": "errors/throw-catch",
+      "source": "try { throw { code: \"X\" } } catch e { baa e.code }",
+      "stdout": "X\n",
+      "exit": 0
+    },
+    {
+      "name": "errors/runtime-catch",
+      "source": "try { baa [1][9] } catch e { baa e.code, e.line }",
+      "stdout": "BAA304 1\n",
+      "exit": 0
+    },
+    {
+      "name": "errors/finally",
+      "source": "fn f(fail) {\n  try {\n    if fail { throw \"x\" }\n    return \"ok\"\n  } catch e { return \"caught\" } finally { baa \"cleanup\" }\n}\nbaa f(false), f(true)",
+      "stdout": "cleanup\ncleanup\nok caught\n",
+      "exit": 0
+    },
+    {
+      "name": "scope/shadowing",
+      "source": "const a = \"outer\"\nif true {\n  const a = \"inner\"\n  baa a\n}\nbaa a",
+      "stdout": "inner\nouter\n",
+      "exit": 0
+    },
+    {
+      "name": "values/reference-semantics",
+      "source": "const a = [1]\nconst b = a\nb.push(2)\nconst c = clone(a)\nc.push(3)\nbaa a, c",
+      "stdout": "[1, 2] [1, 2, 3]\n",
+      "exit": 0
+    },
+    {
+      "name": "prelude",
+      "source": "baa len([1, 2]), type_of(1.5), to_string([1]), to_number(\"42\"), inspect(\"a\")",
+      "stdout": "2 number [1] 42 \"a\"\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/collections.baa",
+      "source": "// Arrays and maps, and the methods that come with them.\n\nimport flock\nimport ram\n\n// ---------------------------------------------------------------- arrays\n\nconst names = [\"Dolly\", \"Shaun\", \"Lambchop\"]\nbaa names.length(), names.first(), names.last()\n\nnames.push(\"Timmy\")\nbaa names\n\n// Negative indexes count from the end.\nbaa names[0], names[-1]\n\n// Slices are half-open: start included, end excluded.\nbaa names.slice(1, 3)\n\n// The usual higher-order suspects.\nconst weights = [46.5, 52.0, 38.25, 61.0]\nbaa weights.map(fn(w) { return ram.round(w) })\nbaa weights.filter(fn(w) { return w > 45 })\nbaa weights.reduce(fn(total, w) { return total + w }, 0)\nbaa weights.sum(), ram.mean(weights), ram.median(weights)\n\n// Sorting: natural order, or your own comparison.\nbaa names.sort()\nbaa names.sort(fn(a, b) { return a.length() - b.length() })\n\n// `flock` covers the shapes that are awkward as methods.\nbaa flock.zip(names, weights)\nbaa flock.chunk([1, 2, 3, 4, 5], 2)\nbaa flock.partition([1, 2, 3, 4, 5, 6], fn(n) { return n % 2 == 0 })\n\n// ------------------------------------------------------------------ maps\n\nconst sheep = { name: \"Dolly\", age: 6, woolly: true }\n\n// Fields read with a dot or with an index.\nbaa sheep.name, sheep[\"age\"]\n\n// Missing keys read as nil; `get` takes a fallback, `expect` insists.\nbaa sheep.get(\"colour\", \"white\")\nbaa sheep.has(\"age\"), sheep.keys(), sheep.values()\n\nsheep.field = \"north\"\nsheep[\"age\"] = 7\nbaa sheep\n\n// Grouping is the map operation people actually reach for.\nconst HERD = [\n    { name: \"Dolly\", farm: \"Hill\" },\n    { name: \"Shaun\", farm: \"Hill\" },\n    { name: \"Timmy\", farm: \"Dale\" },\n]\nconst by_farm = flock.group_by(HERD, fn(s) { return s.farm })\nfor farm, members in by_farm {\n    // Inside `{ ... }` you write ordinary Baa, quotes and all.\n    baa \"{farm}: {members.map(fn(s) { return s.name }).join(\", \")}\"\n}\n\n// Arrays and maps compare by value, not by identity.\nbaa [1, 2] == [1, 2]\nbaa { a: 1 } == { a: 1 }\n\n// `clone` copies deeply; assignment shares.\nconst original = { flock: [\"Dolly\"] }\nconst copy = clone(original)\ncopy.flock.push(\"Shaun\")\nbaa original.flock, copy.flock\n",
+      "stdout": "3 Dolly Lambchop\n[\"Dolly\", \"Shaun\", \"Lambchop\", \"Timmy\"]\nDolly Timmy\n[\"Shaun\", \"Lambchop\"]\n[47, 52, 38, 61]\n[46.5, 52, 61]\n197.75\n197.75 49.4375 49.25\n[\"Dolly\", \"Lambchop\", \"Shaun\", \"Timmy\"]\n[\"Dolly\", \"Shaun\", \"Timmy\", \"Lambchop\"]\n[[\"Dolly\", 46.5], [\"Shaun\", 52], [\"Lambchop\", 38.25], [\"Timmy\", 61]]\n[[1, 2], [3, 4], [5]]\n[[2, 4, 6], [1, 3, 5]]\nDolly 6\nwhite\ntrue [\"name\", \"age\", \"woolly\"] [\"Dolly\", 6, true]\n{ name: \"Dolly\", age: 7, woolly: true, field: \"north\" }\nHill: Dolly, Shaun\nDale: Timmy\ntrue\ntrue\n[\"Dolly\"] [\"Dolly\", \"Shaun\"]\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/errors.baa",
+      "source": "// Errors: throwing, catching, and what a caught runtime error looks like.\n\n// `throw` sends any value up the stack.\nfn admit(pen, name) {\n    if pen.length() >= 3 {\n        throw \"the pen is full\"\n    }\n    pen.push(name)\n    return pen.length()\n}\n\nconst pen = []\ntry {\n    for name in [\"Dolly\", \"Shaun\", \"Timmy\", \"Shirley\"] {\n        baa \"admitted {admit(pen, name)}\"\n    }\n} catch problem {\n    baa \"could not admit: {problem}\"\n}\n\n// Thrown values keep their type, so structured errors work.\nfn shear(sheep) {\n    if sheep.get(\"shorn\", false) {\n        throw { code: \"ALREADY_SHORN\", sheep: sheep.name }\n    }\n    sheep.shorn = true\n    return sheep\n}\n\ntry {\n    const dolly = { name: \"Dolly\", shorn: true }\n    shear(dolly)\n} catch problem {\n    baa \"{problem.code}: {problem.sheep}\"\n}\n\n// Runtime errors are catchable too. They arrive as a map with a stable code.\ntry {\n    const flock = [\"Dolly\"]\n    baa flock[7]\n} catch problem {\n    baa \"caught {problem.code} at line {problem.line}\"\n    baa problem.message\n}\n\n// `finally` always runs, whether or not anything went wrong.\nfn guarded(shouldFail) {\n    try {\n        if shouldFail {\n            throw \"trouble\"\n        }\n        return \"fine\"\n    } catch problem {\n        return \"handled: {problem}\"\n    } finally {\n        baa \"gate closed\"\n    }\n}\n\nbaa guarded(false)\nbaa guarded(true)\n\n// `assert` and `assert_eq` fail loudly, which is what tests are built on.\nassert(pen.length() == 3, \"the pen should hold three sheep\")\nassert_eq(pen, [\"Dolly\", \"Shaun\", \"Timmy\"])\n\nbaa \"all good\"\n",
+      "stdout": "admitted 1\nadmitted 2\nadmitted 3\ncould not admit: the pen is full\nALREADY_SHORN: Dolly\ncaught BAA304 at line 40\nIndex 7 is outside the fence: this array has length 1.\ngate closed\nfine\ngate closed\nhandled: trouble\nall good\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/fizzbuzz.baa",
+      "source": "// FizzBuzz, because a language is not real until it can do this.\n//\n// `match` compares patterns structurally, so a pair of booleans works as a\n// perfectly good pattern without any special destructuring syntax.\n\nfn fizzbuzz(n) {\n    return match [n % 3 == 0, n % 5 == 0] {\n        [true, true] => \"FizzBuzz\",\n        [true, false] => \"Fizz\",\n        [false, true] => \"Buzz\",\n        _ => to_string(n),\n    }\n}\n\nfor n in 1..=20 {\n    baa fizzbuzz(n)\n}\n",
+      "stdout": "1\n2\nFizz\n4\nBuzz\nFizz\n7\n8\nFizz\nBuzz\n11\nFizz\n13\n14\nFizzBuzz\n16\n17\nFizz\n19\nBuzz\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/functions.baa",
+      "source": "// Functions, defaults, rest parameters, closures and first-class values.\n\n/// Count the sheep in a flock.\nfn count_sheep(flock) {\n    return flock.length()\n}\n\n// Parameters can have defaults.\nfn greet(name, greeting = \"Baa\") {\n    return \"{greeting}, {name}!\"\n}\n\n// `..rest` collects everything left over into an array.\nfn tally(label, ..counts) {\n    return \"{label}: {counts.sum()}\"\n}\n\n// Functions are values. This one takes another function.\nfn apply_twice(f, value) {\n    return f(f(value))\n}\n\n// Closures capture the scope they were declared in.\nfn make_counter(start) {\n    let count = start\n    return fn() {\n        count += 1\n        return count\n    }\n}\n\n// Functions are hoisted, so this call to `double` resolves fine.\nbaa apply_twice(double, 3)\n\nfn double(n) {\n    return n * 2\n}\n\nconst FLOCK = [\"Dolly\", \"Shaun\", \"Lambchop\"]\n\nbaa count_sheep(FLOCK)\nbaa greet(\"Dolly\")\nbaa greet(\"Shaun\", \"Hello\")\nbaa tally(\"this week\", 3, 4, 5)\n\nconst next = make_counter(10)\nbaa next(), next(), next()\n\n// Anonymous functions inline.\nconst shout = fn(text) { return text.upper() + \"!\" }\nbaa shout(\"baa\")\n\n// Recursion.\nfn fib(n) {\n    if n < 2 {\n        return n\n    }\n    return fib(n - 1) + fib(n - 2)\n}\n\nbaa \"fib(20) = {fib(20)}\"\n",
+      "stdout": "12\n3\nBaa, Dolly!\nHello, Shaun!\nthis week: 12\n11 12 13\nBAA!\nfib(20) = 6765\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/hello.baa",
+      "source": "// The smallest Baa program that does something.\n// Run it with: baa run examples/hello.baa\n\nbaa \"Hello, flock!\"\n\nconst FLOCK = [\"Dolly\", \"Shaun\", \"Lambchop\"]\n\nfor name in FLOCK {\n    baa \"Baa, {name}!\"\n}\n\nbaa \"That is {len(FLOCK)} sheep, all present and accounted for.\"\n",
+      "stdout": "Hello, flock!\nBaa, Dolly!\nBaa, Shaun!\nBaa, Lambchop!\nThat is 3 sheep, all present and accounted for.\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/large_program.baa",
+      "source": "// A larger program: a flock register that parses records, validates them,\n// computes statistics and prints a report. It exercises most of the language\n// in one place, and it is the program `baa bench` times.\n//\n//     baa run examples/large_program.baa\n\nimport wool\nimport flock\nimport ram\nimport lamb\n\nconst HEADER = \"name,farm,age,weight,shorn\"\n\nconst RAW = [\n    \"Dolly,Hill,6,46.5,true\",\n    \"Shaun,Hill,4,52.0,false\",\n    \"Lambchop,Dale,2,38.25,true\",\n    \"Timmy,Dale,1,21.0,false\",\n    \"Shirley,Hill,7,61.0,true\",\n    \"Nuts,Meadowbank,3,44.75,false\",\n    \"Hazel,Meadowbank,5,49.5,true\",\n    \"Bitzer,Hill,8,58.0,false\",\n]\n\n// --------------------------------------------------------------- parsing\n\n/// Turn one CSV line into a sheep record, or throw a descriptive error.\nfn parse_sheep(line, line_number) {\n    const fields = line.split(\",\")\n    if fields.length() != 5 {\n        throw {\n            code: \"BAD_RECORD\",\n            line: line_number,\n            detail: \"expected 5 fields, found {fields.length()}\",\n        }\n    }\n\n    const age = fields[2].to_number()\n    const weight = fields[3].to_number()\n    if age == nil || weight == nil {\n        throw {\n            code: \"BAD_NUMBER\",\n            line: line_number,\n            detail: \"age and weight must be numbers\",\n        }\n    }\n\n    return {\n        name: fields[0],\n        farm: fields[1],\n        age: age,\n        weight: weight,\n        shorn: fields[4] == \"true\",\n    }\n}\n\nfn parse_all(lines) {\n    const register = []\n    const problems = []\n    for index, line in lines {\n        try {\n            register.push(parse_sheep(line, index + 1))\n        } catch problem {\n            problems.push(problem)\n        }\n    }\n    return { register: register, problems: problems }\n}\n\n// ------------------------------------------------------------ statistics\n\nfn stats_for(sheep) {\n    const weights = sheep.map(fn(s) { return s.weight })\n    const ages = sheep.map(fn(s) { return s.age })\n    return {\n        count: sheep.length(),\n        total_weight: ram.round(weights.sum(), 2),\n        mean_weight: ram.round(ram.mean(weights), 2),\n        median_weight: ram.round(ram.median(weights), 2),\n        oldest: ages.sort().last(),\n        shorn: sheep.count(fn(s) { return s.shorn }),\n    }\n}\n\nfn describe_size(count) {\n    return match count {\n        0 => \"empty\",\n        1 => \"a single sheep\",\n        2 || 3 => \"a small flock\",\n        n if n >= 8 => \"a proper flock\",\n        _ => \"a decent flock\",\n    }\n}\n\n// --------------------------------------------------------------- report\n\nfn column_widths(rows) {\n    const widths = []\n    for row in rows {\n        for index, cell in row {\n            const width = cell.length()\n            if index >= widths.length() {\n                widths.push(width)\n            } else if width > widths[index] {\n                widths[index] = width\n            }\n        }\n    }\n    return widths\n}\n\nfn render_table(rows) {\n    const widths = column_widths(rows)\n    const lines = []\n    for row_index, row in rows {\n        const cells = []\n        for index, cell in row {\n            cells.push(cell.pad_end(widths[index]))\n        }\n        lines.push(cells.join(\"  \").trim_end())\n        if row_index == 0 {\n            const rule = []\n            for width in widths {\n                rule.push(\"-\".repeat(width))\n            }\n            lines.push(rule.join(\"  \"))\n        }\n    }\n    return lines.join(\"\\n\")\n}\n\n// ----------------------------------------------------------------- main\n\nfn main() {\n    baa wool.center(\" FLOCK REGISTER \", 46, \"=\")\n    baa \"\"\n\n    const parsed = parse_all(RAW)\n    const register = parsed.register\n\n    if parsed.problems.length() > 0 {\n        baa \"Rejected {parsed.problems.length()} record(s):\"\n        for problem in parsed.problems {\n            baa \"  line {problem.line}: {problem.code}, {problem.detail}\"\n        }\n        baa \"\"\n    }\n\n    // Table of every sheep, heaviest first.\n    const rows = [HEADER.split(\",\").map(fn(h) { return h.upper() })]\n    const heaviest_first = register.sort(fn(a, b) { return b.weight - a.weight })\n    for sheep in heaviest_first {\n        rows.push([\n            sheep.name,\n            sheep.farm,\n            to_string(sheep.age),\n            sheep.weight.to_fixed(2),\n            match sheep.shorn {\n                true => \"yes\",\n                _ => \"no\",\n            },\n        ])\n    }\n    baa render_table(rows)\n    baa \"\"\n\n    // Per-farm breakdown.\n    const by_farm = flock.group_by(register, fn(s) { return s.farm })\n    const farms = by_farm.keys().sort()\n    baa \"By farm ({farms.length()} farms, {describe_size(register.length())}):\"\n    for farm in farms {\n        const stats = stats_for(by_farm[farm])\n        const name = farm.pad_end(12)\n        const count = to_string(stats.count).pad_start(2)\n        const mean = to_string(stats.mean_weight).pad_start(6)\n        baa \"  {name} {count} sheep, mean {mean}kg, {stats.shorn} shorn\"\n    }\n    baa \"\"\n\n    // Whole-flock statistics.\n    const overall = stats_for(register)\n    baa \"Whole flock:\"\n    for key in overall.keys() {\n        baa \"  {key.pad_end(14)} {overall[key]}\"\n    }\n    baa \"\"\n\n    // Round-trip through JSON, because every real program eventually does.\n    const encoded = lamb.encode({ flock: register, stats: overall }, 0)\n    const decoded = lamb.decode(encoded)\n    assert_eq(decoded.flock.length(), register.length(), \"JSON round trip\")\n    baa \"JSON round trip: {encoded.length()} bytes, {decoded.flock.length()} sheep recovered\"\n\n    // A closure-driven tally, for the sake of closures.\n    const counter = make_tally()\n    for sheep in register {\n        if sheep.age >= 5 {\n            counter.add(sheep.name)\n        }\n    }\n    baa \"Five years or older: {counter.names().join(\", \")}\"\n\n    return 0\n}\n\nfn make_tally() {\n    const names = []\n    return { add: fn(name) { names.push(name) }, names: fn() { return names } }\n}\n\nmain()\n",
+      "stdout": "=============== FLOCK REGISTER ===============\n\nNAME      FARM        AGE  WEIGHT  SHORN\n--------  ----------  ---  ------  -----\nShirley   Hill        7    61.00   yes\nBitzer    Hill        8    58.00   no\nShaun     Hill        4    52.00   no\nHazel     Meadowbank  5    49.50   yes\nDolly     Hill        6    46.50   yes\nNuts      Meadowbank  3    44.75   no\nLambchop  Dale        2    38.25   yes\nTimmy     Dale        1    21.00   no\n\nBy farm (3 farms, a proper flock):\n  Dale          2 sheep, mean  29.63kg, 1 shorn\n  Hill          4 sheep, mean  54.38kg, 2 shorn\n  Meadowbank    2 sheep, mean  47.13kg, 1 shorn\n\nWhole flock:\n  count          8\n  total_weight   371\n  mean_weight    46.38\n  median_weight  48\n  oldest         8\n  shorn          4\n\nJSON round trip: 653 bytes, 8 sheep recovered\nFive years or older: Dolly, Shirley, Hazel, Bitzer\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/loops.baa",
+      "source": "// Loops, ranges, and the ways out of them.\n\nimport shepherd\n\nconst FLOCK = [\"Dolly\", \"Shaun\", \"Lambchop\", \"Timmy\"]\n\n// Iterate values.\nfor name in FLOCK {\n    baa \"Baa, {name}!\"\n}\n\n// Two bindings give you the index as well.\nfor index, name in FLOCK {\n    baa \"{index}: {name}\"\n}\n\n// Exclusive and inclusive ranges.\nfor i in 0..3 {\n    baa \"exclusive {i}\"\n}\nfor i in 1..=3 {\n    baa \"inclusive {i}\"\n}\n\n// Ranges count down too.\nfor i in 3..0 {\n    baa \"countdown {i}\"\n}\n\n// Strings iterate by character.\nfor letter in \"baa\" {\n    baa letter\n}\n\n// Maps iterate by key, or by key and value.\nconst AGES = { Dolly: 6, Shaun: 4, Timmy: 1 }\nfor name, age in AGES {\n    baa \"{name} is {age}\"\n}\n\n// `while`, `break` and `continue`.\nlet remaining = 5\nwhile remaining > 0 {\n    remaining -= 1\n    if remaining == 2 {\n        continue\n    }\n    if remaining == 0 {\n        break\n    }\n    baa \"remaining {remaining}\"\n}\n\n// Nested loops: `break` leaves the innermost one.\n// `shepherd.write` prints without a newline, unlike `baa`.\nfor row in 0..4 {\n    for column in 0..4 {\n        if column > row {\n            break\n        }\n        shepherd.write(\"#\")\n    }\n    baa \"\"\n}\n",
+      "stdout": "Baa, Dolly!\nBaa, Shaun!\nBaa, Lambchop!\nBaa, Timmy!\n0: Dolly\n1: Shaun\n2: Lambchop\n3: Timmy\nexclusive 0\nexclusive 1\nexclusive 2\ninclusive 1\ninclusive 2\ninclusive 3\ncountdown 3\ncountdown 2\ncountdown 1\nb\na\na\nDolly is 6\nShaun is 4\nTimmy is 1\nremaining 4\nremaining 3\nremaining 1\n#\n##\n###\n####\n",
+      "exit": 0
+    },
+    {
+      "name": "examples/variables.baa",
+      "source": "// Bindings, constants, and the values Baa can hold.\n\n// `let` binds a name to a value and lets you change it later.\nlet sheep = 12\nsheep = sheep + 1\nsheep += 1\nbaa \"sheep: {sheep}\"\n\n// `const` binds a name once. Reassigning it is a BAA103 error.\nconst MAX_SHEEP = 100\nbaa \"capacity: {MAX_SHEEP}\"\n\n// The primitive types.\nconst name = \"Dolly\"\nconst woolly = true\nconst weight = 46.5\nconst owner = nil\n\nbaa type_of(name), type_of(woolly), type_of(weight), type_of(owner)\n\n// Numbers are one type. Whole and fractional values live together.\nbaa 7 / 2, 7 % 2, 2 ** 10\nbaa 1_000_000, 0xFF, 0b1010, 0o17\n\n// Strings interpolate with braces, and escape a literal brace with \\{.\nbaa \"The flock holds {sheep} of a maximum {MAX_SHEEP}.\"\nbaa \"A literal brace looks like \\{this\\}.\"\n\n// `??` supplies a fallback only when the left side is nil.\nbaa owner ?? \"nobody\"\n\n// Strings and numbers concatenate when either side is text.\nbaa \"sheep #\" + sheep\n\n// Comparison and logic.\nbaa sheep > 10 && sheep < MAX_SHEEP\nbaa !woolly\n\n// Only nil and false are falsy: 0 and \"\" are truthy.\nif 0 {\n    baa \"zero is truthy in Baa\"\n}\n",
+      "stdout": "sheep: 14\ncapacity: 100\nstring bool number nil\n3.5 1 1024\n1000000 255 10 15\nThe flock holds 14 of a maximum 100.\nA literal brace looks like {this}.\nnobody\nsheep #14\ntrue\nfalse\nzero is truthy in Baa\n",
+      "exit": 0
+    }
+  ],
+  "diagnostics": [
+    {
+      "name": "syntax/bad-char",
+      "source": "let a = §",
+      "codes": [
+        "BAA002"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/unterminated-string",
+      "source": "baa \"open",
+      "codes": [
+        "BAA003"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/unterminated-comment",
+      "source": "/* open",
+      "codes": [
+        "BAA004"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/bad-number",
+      "source": "baa 12abc",
+      "codes": [
+        "BAA005"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/bad-escape",
+      "source": "baa \"\\q\"",
+      "codes": [
+        "BAA007"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/bad-assignment-target",
+      "source": "1 = 2",
+      "codes": [
+        "BAA008"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "syntax/empty-interpolation",
+      "source": "baa \"{ }\"",
+      "codes": [
+        "BAA009"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/duplicate",
+      "source": "let a = 1\nlet a = 2",
+      "codes": [
+        "BAA101"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/undefined",
+      "source": "baa nope",
+      "codes": [
+        "BAA102"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/const-assignment",
+      "source": "const a = 1\na = 2",
+      "codes": [
+        "BAA103"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/return-outside-function",
+      "source": "return 1",
+      "codes": [
+        "BAA104"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/break-outside-loop",
+      "source": "break",
+      "codes": [
+        "BAA105"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "names/use-before-declaration",
+      "source": "baa later\nlet later = 1",
+      "codes": [
+        "BAA106"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "calls/too-many",
+      "source": "fn f(a) { return a }\nf(1, 2)",
+      "codes": [
+        "BAA201"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "calls/too-few",
+      "source": "fn f(a, b) { return a }\nf(1)",
+      "codes": [
+        "BAA202"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "calls/duplicate-param",
+      "source": "fn f(a, a) { return a }",
+      "codes": [
+        "BAA203"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "modules/unknown",
+      "source": "import cotton",
+      "codes": [
+        "BAA401"
+      ],
+      "stage": "check"
+    },
+    {
+      "name": "runtime/no-match",
+      "source": "baa match 1 { 2 => \"x\" }",
+      "codes": [
+        "BAA301"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/bad-operands",
+      "source": "baa [1] - 1",
+      "codes": [
+        "BAA302"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/not-callable",
+      "source": "const n = 1\nbaa n()",
+      "codes": [
+        "BAA303"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/index-out-of-range",
+      "source": "baa [1][9]",
+      "codes": [
+        "BAA304"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/no-such-field",
+      "source": "baa nil.field",
+      "codes": [
+        "BAA305"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/divide-by-zero",
+      "source": "baa 1 / 0",
+      "codes": [
+        "BAA306"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/uncaught-throw",
+      "source": "throw \"x\"",
+      "codes": [
+        "BAA308"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/not-iterable",
+      "source": "for x in 1 { baa x }",
+      "codes": [
+        "BAA309"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/missing-key",
+      "source": "baa { a: 1 }.expect(\"b\")",
+      "codes": [
+        "BAA310"
+      ],
+      "stage": "run"
+    },
+    {
+      "name": "runtime/bad-argument-type",
+      "source": "baa \"x\".repeat(\"y\")",
+      "codes": [
+        "BAA311"
+      ],
+      "stage": "run"
+    }
+  ]
+}

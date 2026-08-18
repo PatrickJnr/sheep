@@ -1,0 +1,253 @@
+{
+  "$schema": "https://sheep.grimtech.co.uk/schema/diagnostics-1.json",
+  "version": 1,
+  "description": "Every Baa diagnostic. `woolly` is the default wording, `plain` is used under --no-baa. Placeholders {0}, {1}, ... are filled in at the point of failure.",
+  "codes": [
+    {
+      "code": "BAA001",
+      "severity": "error",
+      "woolly": "The sheep expected a closing {0} here.",
+      "plain": "Expected a closing {0}."
+    },
+    {
+      "code": "BAA002",
+      "severity": "error",
+      "woolly": "This character isn't part of the Baa alphabet: {0}",
+      "plain": "Unexpected character: {0}"
+    },
+    {
+      "code": "BAA003",
+      "severity": "error",
+      "woolly": "This string wandered off without a closing quote.",
+      "plain": "Unterminated string literal."
+    },
+    {
+      "code": "BAA004",
+      "severity": "error",
+      "woolly": "This block comment never found its way back to the pen.",
+      "plain": "Unterminated block comment."
+    },
+    {
+      "code": "BAA005",
+      "severity": "error",
+      "woolly": "This number is a bit malformed: {0}",
+      "plain": "Malformed number literal: {0}"
+    },
+    {
+      "code": "BAA006",
+      "severity": "error",
+      "woolly": "The flock expected {0} here, but found {1}.",
+      "plain": "Expected {0}, found {1}."
+    },
+    {
+      "code": "BAA007",
+      "severity": "error",
+      "woolly": "This escape sequence isn't one the sheep recognise: \\{0}",
+      "plain": "Unknown escape sequence: \\{0}"
+    },
+    {
+      "code": "BAA008",
+      "severity": "error",
+      "woolly": "You can only put a name on the left of `=`. This isn't somewhere a value can graze.",
+      "plain": "Invalid assignment target."
+    },
+    {
+      "code": "BAA009",
+      "severity": "error",
+      "woolly": "This interpolation `{{...}}` is empty: there's nothing to print.",
+      "plain": "Empty interpolation expression."
+    },
+    {
+      "code": "BAA010",
+      "severity": "error",
+      "woolly": "This statement trails off before the sheep could finish reading it.",
+      "plain": "Unexpected end of input."
+    },
+    {
+      "code": "BAA101",
+      "severity": "error",
+      "woolly": "`{0}` has already been counted in this pasture.",
+      "plain": "`{0}` is already declared in this scope."
+    },
+    {
+      "code": "BAA102",
+      "severity": "error",
+      "woolly": "`{0}` is not part of the current flock.",
+      "plain": "Undefined name `{0}`."
+    },
+    {
+      "code": "BAA103",
+      "severity": "error",
+      "woolly": "`{0}` was shorn with `const`: its value can't grow back.",
+      "plain": "Cannot assign to constant `{0}`."
+    },
+    {
+      "code": "BAA104",
+      "severity": "error",
+      "woolly": "`return` only makes sense inside a function. Out here it just echoes across the meadow.",
+      "plain": "`return` outside of a function."
+    },
+    {
+      "code": "BAA105",
+      "severity": "error",
+      "woolly": "`{0}` only makes sense inside a loop.",
+      "plain": "`{0}` outside of a loop."
+    },
+    {
+      "code": "BAA106",
+      "severity": "error",
+      "woolly": "`{0}` is used here before the flock has been introduced to it.",
+      "plain": "`{0}` is used before it is declared."
+    },
+    {
+      "code": "BAA201",
+      "severity": "error",
+      "woolly": "`{0}` was called with too many sheep: it takes {1} but got {2}.",
+      "plain": "`{0}` expects {1} argument(s) but received {2}."
+    },
+    {
+      "code": "BAA202",
+      "severity": "error",
+      "woolly": "`{0}` was called with too few sheep: it takes {1} but got {2}.",
+      "plain": "`{0}` expects {1} argument(s) but received {2}."
+    },
+    {
+      "code": "BAA203",
+      "severity": "error",
+      "woolly": "This parameter name `{0}` is used twice in the same function.",
+      "plain": "Duplicate parameter name `{0}`."
+    },
+    {
+      "code": "BAA301",
+      "severity": "error",
+      "woolly": "The flock wandered somewhere unexpected: {0}",
+      "plain": "Runtime error: {0}"
+    },
+    {
+      "code": "BAA302",
+      "severity": "error",
+      "woolly": "You can't {0} a {1} and a {2}. These sheep don't herd together.",
+      "plain": "Unsupported operand types for {0}: {1} and {2}."
+    },
+    {
+      "code": "BAA303",
+      "severity": "error",
+      "woolly": "`{0}` isn't something you can call. Only functions answer when called.",
+      "plain": "`{0}` is not callable."
+    },
+    {
+      "code": "BAA304",
+      "severity": "error",
+      "woolly": "Index {0} is outside the fence: this {1} has length {2}.",
+      "plain": "Index {0} out of range for {1} of length {2}."
+    },
+    {
+      "code": "BAA305",
+      "severity": "error",
+      "woolly": "A {0} has no field called `{1}`.",
+      "plain": "`{1}` is not a property of {0}."
+    },
+    {
+      "code": "BAA306",
+      "severity": "error",
+      "woolly": "Dividing by zero. Even sheep know better than that.",
+      "plain": "Division by zero."
+    },
+    {
+      "code": "BAA307",
+      "severity": "error",
+      "woolly": "The flock has been counting too deep, the stack is full. (Is a function calling itself forever?)",
+      "plain": "Maximum call depth exceeded."
+    },
+    {
+      "code": "BAA308",
+      "severity": "error",
+      "woolly": "Uncaught: {0}",
+      "plain": "Uncaught exception: {0}"
+    },
+    {
+      "code": "BAA309",
+      "severity": "error",
+      "woolly": "You can't herd a {0}: only arrays, maps, strings and ranges can be looped over.",
+      "plain": "{0} is not iterable."
+    },
+    {
+      "code": "BAA310",
+      "severity": "error",
+      "woolly": "This key isn't in the map: {0}",
+      "plain": "Missing map key: {0}"
+    },
+    {
+      "code": "BAA311",
+      "severity": "error",
+      "woolly": "`{0}` expected {1} for argument {2}, but got a {3}.",
+      "plain": "`{0}`: argument {2} must be {1}, received {3}."
+    },
+    {
+      "code": "BAA401",
+      "severity": "error",
+      "woolly": "No module named `{0}` is grazing anywhere the shepherd can see.",
+      "plain": "Module `{0}` could not be resolved."
+    },
+    {
+      "code": "BAA402",
+      "severity": "error",
+      "woolly": "This flock has wandered in a circle: {0}",
+      "plain": "Circular import detected: {0}"
+    },
+    {
+      "code": "BAA403",
+      "severity": "error",
+      "woolly": "`{0}` doesn't export anything called `{1}`.",
+      "plain": "Module `{0}` has no export named `{1}`."
+    },
+    {
+      "code": "BAA404",
+      "severity": "error",
+      "woolly": "Couldn't read the file: {0}",
+      "plain": "Could not read file: {0}"
+    },
+    {
+      "code": "BAA405",
+      "severity": "error",
+      "woolly": "`baa.toml` is not well formed: {0}",
+      "plain": "Invalid manifest: {0}"
+    },
+    {
+      "code": "BAA901",
+      "severity": "warning",
+      "woolly": "`{0}` is declared but never joins the flock.",
+      "plain": "`{0}` is declared but never used."
+    },
+    {
+      "code": "BAA902",
+      "severity": "warning",
+      "woolly": "This code is past a `return`: no sheep will ever reach it.",
+      "plain": "Unreachable code after `return`."
+    },
+    {
+      "code": "BAA903",
+      "severity": "warning",
+      "woolly": "`{0}` is imported but never used.",
+      "plain": "`{0}` is imported but never used."
+    },
+    {
+      "code": "BAA904",
+      "severity": "warning",
+      "woolly": "This condition is always {0}, so the branch never really decides anything.",
+      "plain": "Condition is constantly {0}."
+    },
+    {
+      "code": "BAA905",
+      "severity": "warning",
+      "woolly": "`let {0}` is never reassigned: `const {0}` says what you mean.",
+      "plain": "`{0}` is never reassigned; consider `const`."
+    },
+    {
+      "code": "BAA906",
+      "severity": "warning",
+      "woolly": "This empty block does nothing at all. Was something meant to graze here?",
+      "plain": "Empty block."
+    }
+  ]
+}
