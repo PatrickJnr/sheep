@@ -27,6 +27,7 @@ import {
   inspect,
   isMapKey,
   NativeFunction,
+  parseNumber,
   typeOf,
   valuesEqual,
 } from "./values.ts";
@@ -214,12 +215,9 @@ const STRING_METHODS: Record<string, MethodSpec> = {
     ),
   ),
   reverse: method(0, 0, "Reversed copy.", (self) => [...(self as string)].reverse().join("")),
-  to_number: method(0, 0, "Parse as a number, or nil when it isn't one.", (self) => {
-    const text = (self as string).trim();
-    if (text === "") return null;
-    const value = Number(text);
-    return Number.isNaN(value) ? null : value;
-  }),
+  to_number: method(0, 0, "Parse as a number, or nil when it isn't one.", (self) =>
+    parseNumber(self as string),
+  ),
 };
 
 // --------------------------------------------------------------------------

@@ -284,6 +284,29 @@ export function formatNumber(value: number): string {
   return String(value);
 }
 
+/**
+ * The inverse of `formatNumber`. Returns `nil` for anything that is not a Baa
+ * number literal.
+ *
+ * It lives next to `formatNumber` because the two have to agree: whatever Baa
+ * prints, Baa must be able to read back. That failed in both directions before
+ * this existed. `to_number` deferred to JavaScript's `Number`, which does not
+ * know Baa's `inf` and `nan` but does know `Infinity` and `NaN` — spellings
+ * Baa never produces and cannot lex. So the language could not parse its own
+ * output, and could parse a word from the implementation language instead.
+ */
+export function parseNumber(text: string): number | null {
+  const trimmed = text.trim();
+  if (trimmed === "") return null;
+  if (trimmed === "inf" || trimmed === "+inf") return Number.POSITIVE_INFINITY;
+  if (trimmed === "-inf") return Number.NEGATIVE_INFINITY;
+  if (trimmed === "nan") return Number.NaN;
+  // `Number` accepts these; Baa's lexer does not, so neither does this.
+  if (/^[+-]?(infinity|nan)$/i.test(trimmed)) return null;
+  const value = Number(trimmed);
+  return Number.isNaN(value) ? null : value;
+}
+
 /** `baa x` output: strings print bare, everything else prints as source-ish. */
 export function display(value: Value): string {
   return typeof value === "string" ? value : inspect(value);

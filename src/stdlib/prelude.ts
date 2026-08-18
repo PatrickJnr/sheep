@@ -20,6 +20,7 @@ import {
   display,
   inspect,
   NativeFunction,
+  parseNumber,
   typeOf,
   valuesEqual,
 } from "../runtime/values.ts";
@@ -103,10 +104,7 @@ export const PRELUDE: readonly PreludeEntry[] = [
       if (typeof value === "number") return value;
       if (typeof value === "boolean") return value ? 1 : 0;
       if (typeof value !== "string") return null;
-      const text = value.trim();
-      if (text === "") return null;
-      const parsed = Number(text);
-      return Number.isNaN(parsed) ? null : parsed;
+      return parseNumber(value);
     },
   },
   {
