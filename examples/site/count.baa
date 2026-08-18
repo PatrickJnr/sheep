@@ -3,18 +3,16 @@
 
 import gate
 import ram
-import wool
 import { page } from "./layout.baa"
 
-// Baa has no multi-line string literal, so markup of any size is concatenated.
-// It reads well enough here and badly at three times the length.
-const FORM = wool.concat(
-    "<h1>Count sheep</h1>",
-    "<form method=\"post\">",
-    "<label>How many <input name=\"n\" value=\"42\"></label> ",
-    "<button>Count</button>",
-    "</form>",
-)
+// A block string. Before these existed this was a five-argument `wool.concat`.
+const FORM = """
+    <h1>Count sheep</h1>
+    <form method="post">
+      <label>How many <input name="n" value="42"></label>
+      <button>Count</button>
+    </form>
+    """
 
 if gate.method() != "POST" {
     gate.html(page("Count sheep", FORM))
@@ -36,7 +34,11 @@ if gate.method() != "POST" {
             page(
                 "Counted",
                 gate.format(
-                    "<h1>%s sheep</h1><p>Square root: %s</p><p><a href=\"/count\">Count again</a></p>",
+                    """
+                        <h1>%s sheep</h1>
+                        <p>Square root: %s</p>
+                        <p><a href="/count">Count again</a></p>
+                        """,
                     n,
                     ram.round(ram.sqrt(ram.abs(n)), 3),
                 ),

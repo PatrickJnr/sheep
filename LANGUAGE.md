@@ -149,6 +149,39 @@ baa name            // outer
 Using a name before it is declared is an error rather than a `nil`. Functions
 are the exception: they are hoisted, so mutual recursion works in any order.
 
+### Taking a value apart
+
+The left of a binding can be a shape rather than a name:
+
+```baa
+const [first, second] = ["Dolly", "Shaun"]
+baa first                          // Dolly
+
+const [head, ..rest] = [1, 2, 3]
+baa head, rest                     // 1 [2, 3]
+
+const sheep = { name: "Dolly", age: 6 }
+const { name, age } = sheep
+baa name, age                      // Dolly 6
+
+const { name as who } = sheep      // bind under a different name
+baa who                            // Dolly
+```
+
+They nest, and a missing item or key is `nil` rather than an error:
+
+```baa
+const [{ name as leader }, ..others] = [{ name: "Shaun" }, { name: "Timmy" }]
+baa leader, len(others)            // Shaun 1
+
+const [a, b] = [1]
+baa b                              // nil
+```
+
+An array binding needs an array and a map binding needs a map; anything else
+is an error, because taking apart the wrong shape is a mistake rather than
+something to paper over.
+
 ## Strings
 
 Strings are double-quoted and single-line.
@@ -170,6 +203,278 @@ baa "the flock: {flock.join(", ")}"
 ```
 
 Escapes: `\n`, `\t`, `\r`, `\0`, `\e`, `\\`, `\"`, `\{`, `\}`, `\u{1F411}`.
+
+### Strings over several lines
+
+`"""` opens a block string. The closing `"""` sits on its own line, and the
+whitespace before it is stripped from every line:
+
+```baa
+const page = """
+    <h1>Baa, {name}!</h1>
+    <p>Written on more than one line.</p>
+    """
+```
+
+That is `<h1>Baa, Dolly!</h1>\n<p>Written on more than one line.</p>`, with no
+trailing newline. Indentation *relative* to the closing delimiter is kept, so
+nested markup stays nested. Escapes and interpolation work as usual.
+
+Letting the closing delimiter set the indentation is what allows `baa fmt` to
+move the surrounding code without changing the text.
+
+### Strings that mean exactly what they say
+
+`r"..."` is raw: no escapes, no interpolation, every character itself.
+
+```baa
+baa r"C:\Users\flock"              // C:\Users\flock
+baa r"{not interpolated}"          // {not interpolated}
+```
+
+This exists because two kinds of text fight the ordinary rules. A regular
+expression is full of backslashes, and `{2}` would be read as an
+interpolation:
+
+```baa
+import wool
+baa wool.matches("2026-08", r"\d{4}-\d{2}")     // true
+```
+
+CSS has the same problem with braces. `r"""..."""` is the block form:
+
+```baa
+const style = r"""
+    body { color: green }
+    """
+```
+
+A raw string cannot contain its own closing quote, since there is no escape to
+write one with.
+
+### Finding things in text
+
+`wool` handles patterns. They are ordinary strings, which is why raw ones earn
+their keep here:
+
+```baa
+import wool
+
+baa wool.matches("sheep 42", r"\d+")                  // true
+baa wool.find("sheep 42", r"\d+").get("match")        // 42
+baa wool.find_all("a1 b22", r"\d+").length()          // 2
+baa wool.substitute("a1b2", r"(\d)", "[$1]")          // a[1]b[2]
+baa wool.split_on("a1b22c", r"\d+")                   // ["a", "b", "c"]
+```
+
+`find` gives back a map of `match`, `start`, `end`, `groups` and `named`, or
+`nil`. Offsets count characters, like everything else about Baa strings. Flags
+go last: `i` ignores case, `m` matches `^` and `# The Baa language tour
+
+A guided walk through Baa, from `baa "hello"` to modules and error handling.
+Every snippet here runs. If you want the precise rules instead of the friendly
+version, read [SPEC.md](SPEC.md).
+
+---
+
+## Contents
+
+1. [Hello, flock](#hello-flock)
+2. [Comments](#comments)
+3. [Values](#values)
+4. [Bindings](#bindings)
+5. [Strings](#strings)
+6. [Operators](#operators)
+7. [Conditionals](#conditionals)
+8. [Loops](#loops)
+9. [Functions](#functions)
+10. [Closures](#closures)
+11. [Arrays](#arrays)
+12. [Maps](#maps)
+13. [Ranges](#ranges)
+14. [Match](#match)
+15. [Errors](#errors)
+16. [Modules](#modules)
+17. [Tests](#tests)
+18. [Style](#style)
+
+---
+
+## Hello, flock
+
+A Baa program is a file of statements, executed top to bottom. `baa` prints.
+
+```baa
+baa "Hello, flock!"
+```
+
+```
+$ baa run hello.baa
+Hello, flock!
+```
+
+`baa` takes any number of values and separates them with a space:
+
+```baa
+baa "sheep:", 12, true, nil
+// sheep: 12 true nil
+```
+
+There are no semicolons. A statement ends at the end of the line, unless the
+line clearly is not finished, which Baa works out for you:
+
+```baa
+const total = 1 +
+    2 +
+    3
+
+const names = [
+    "Dolly",
+    "Shaun",
+]
+
+const shouted = names
+    .map(fn(n) { return n.upper() })
+    .join(", ")
+```
+
+A line continues when it ends with an operator or a comma, when you are inside
+`(` or `[`, or when the next line starts with `.`. Everything else is a new
+statement.
+
+## Comments
+
+```baa
+// A line comment.
+
+/*
+   A block comment.
+   /* They nest, which is handy when commenting out code. */
+*/
+
+/// A doc comment. These attach to the declaration below them.
+fn count_sheep(flock) {
+    return flock.length()
+}
+```
+
+## Values
+
+Baa has seven kinds of value.
+
+| Type | Examples |
+| --- | --- |
+| `nil` | `nil` |
+| `bool` | `true`, `false` |
+| `number` | `12`, `3.5`, `1_000`, `0xFF`, `0b1010`, `1e6` |
+| `string` | `"Dolly"`, `"count: {n}"` |
+| `array` | `[1, 2, 3]`, `[]` |
+| `map` | `{ name: "Dolly", age: 6 }`, `{}` |
+| `range` | `0..10`, `1..=10` |
+
+Functions and modules are values too, so `type_of` can return `"function"` and
+`"module"` as well.
+
+There is one number type, a 64-bit float: `12` and `12.0` are the same value.
+This removes a whole family of silent-promotion bugs; when you need integer
+behaviour, `ram.idiv`, `ram.floor` and `n.is_whole()` are there.
+
+```baa
+baa type_of(nil), type_of(1), type_of("a"), type_of([1]), type_of({ a: 1 })
+// nil number string array map
+```
+
+Only `nil` and `false` are falsy. `0`, `""` and `[]` are all truthy.
+
+## Bindings
+
+```baa
+let sheep = 12          // can be reassigned
+sheep = 13
+sheep += 1
+
+const MAX_SHEEP = 100   // cannot be reassigned
+```
+
+Reassigning a `const` is a compile-time error, not a runtime surprise:
+
+```
+error[BAA103]: `MAX_SHEEP` was shorn with `const`: its value can't grow back.
+```
+
+`const` freezes the *binding*, not the value. `const flock = []` still lets you
+`flock.push("Dolly")`: the name keeps pointing at the same array. Baa's linter
+will nudge you towards `const` for any `let` you never reassign.
+
+Names are block-scoped, and an inner scope may shadow an outer one:
+
+```baa
+const name = "outer"
+if true {
+    const name = "inner"
+    baa name        // inner
+}
+baa name            // outer
+```
+
+Using a name before it is declared is an error rather than a `nil`. Functions
+are the exception: they are hoisted, so mutual recursion works in any order.
+
+### Taking a value apart
+
+The left of a binding can be a shape rather than a name:
+
+```baa
+const [first, second] = ["Dolly", "Shaun"]
+baa first                          // Dolly
+
+const [head, ..rest] = [1, 2, 3]
+baa head, rest                     // 1 [2, 3]
+
+const sheep = { name: "Dolly", age: 6 }
+const { name, age } = sheep
+baa name, age                      // Dolly 6
+
+const { name as who } = sheep      // bind under a different name
+baa who                            // Dolly
+```
+
+They nest, and a missing item or key is `nil` rather than an error:
+
+```baa
+const [{ name as leader }, ..others] = [{ name: "Shaun" }, { name: "Timmy" }]
+baa leader, len(others)            // Shaun 1
+
+const [a, b] = [1]
+baa b                              // nil
+```
+
+An array binding needs an array and a map binding needs a map; anything else
+is an error, because taking apart the wrong shape is a mistake rather than
+something to paper over.
+
+## Strings
+
+Strings are double-quoted and single-line.
+
+```baa
+const name = "Dolly"
+
+baa "Baa, {name}!"                 // interpolation
+baa "1 + 1 = {1 + 1}"              // any expression
+baa "{name.upper()} says hello"    // including method calls
+baa "a brace: \{ and \}"           // escape braces with a backslash
+```
+
+Inside `{ ... }` you write ordinary Baa, quotes and all:
+
+```baa
+const flock = ["Dolly", "Shaun"]
+baa "the flock: {flock.join(", ")}"
+```
+
+ at line breaks, `s` lets
+`.` match a newline.
 
 Strings concatenate with `+`. If either side is text, the other is converted:
 

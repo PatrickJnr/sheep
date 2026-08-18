@@ -8,17 +8,19 @@ import wool
 /// Wrap body HTML in the document shell. `title` is escaped; `body` is not,
 /// because it is markup the caller has already built.
 export fn page(title, body) {
-    return wool.concat(
-        "<!doctype html>\n",
-        "<html lang=\"en\"><head><meta charset=\"utf-8\">",
-        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">",
-        "<title>",
+    return wool.format(
+        """
+            <!doctype html>
+            <html lang="en"><head><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
+            <title>%s</title>
+            <link rel="stylesheet" href="/style.css">
+            </head><body><main>
+            %s
+            <footer><a href="/">Home</a> &middot; served by Baa</footer>
+            </main></body></html>
+            """,
         wool.escape_html(title),
-        "</title>",
-        "<link rel=\"stylesheet\" href=\"/style.css\">",
-        "</head><body><main>",
         body,
-        "<footer><a href=\"/\">Home</a> &middot; served by Baa</footer>",
-        "</main></body></html>\n",
     )
 }

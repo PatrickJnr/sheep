@@ -96,14 +96,20 @@ All numeric literals produce a value of the single type `number` (§3.1).
 
 ### 2.5 String literals
 
+There are four spellings, differing only in what the delimiters allow:
+
 ```
-string   ::= '"' { text-char | escape | interpolation } '"'
-escape   ::= "\" ( "n" | "t" | "r" | "0" | "e" | "\" | '"' | "{" | "}"
-                 | "u" "{" hex-digits "}" )
+string     ::= plain | block | raw-plain | raw-block
+plain      ::= '"' { text-char | escape | interpolation } '"'
+block      ::= '"""' newline { line } indent '"""'
+raw-plain  ::= 'r"' { any character except '"' or newline } '"'
+raw-block  ::= 'r"""' newline { line } indent '"""'
+escape     ::= "\\" ( "n" | "t" | "r" | "0" | "e" | "\\" | '"' | "{" | "}"
+                     | "u" "{" hex-digits "}" )
 interpolation ::= "{" expression "}"
 ```
 
-A string literal may not contain a raw newline; an unterminated string is
+A plain literal may not contain a raw newline; an unterminated string is
 `BAA003`. An unrecognised escape is `BAA007`.
 
 `{` begins an interpolation. To write a literal brace, escape it: `\{`, `\}`.
@@ -120,6 +126,50 @@ baa "the flock: {names.join(", ")}"
 Braces nest, and string literals inside an interpolation are skipped when
 finding the closing brace. An empty interpolation is `BAA009`; an unterminated
 one is `BAA001`.
+
+#### Block strings
+
+A block string spans lines. The opening `"""` must be the last thing on its
+line and the closing `"""` the first thing on its own, preceded only by
+whitespace. That whitespace is the literal's *indentation*: exactly that many
+characters are removed from the start of every line, and a line indented less
+than the closing delimiter is `BAA012`, as is content on either delimiter's
+line.
+
+```baa
+const page = """
+    <h1>Baa</h1>
+    <p>{name}</p>
+    """
+```
+
+is `<h1>Baa</h1>\n<p>{name}</p>`. There is no trailing newline; write one with
+a blank line before the closing delimiter, or with `\n`. Blank lines
+contribute a newline and nothing else, whatever whitespace is on them.
+
+Defining indentation by the closing delimiter rather than by the least-indented
+line means the value does not change when the surrounding code is re-indented,
+which is what allows a formatter to reindent code containing one.
+
+Escapes and interpolation behave exactly as in a plain string.
+
+#### Raw strings
+
+`r"..."` and `r"""..."""` process no escapes and no interpolation: every
+character between the delimiters stands for itself. Consequently a raw string
+cannot contain its own closing delimiter.
+
+They exist for text that fights the ordinary rules, which in practice means
+regular expressions and CSS: `\d` is not a Baa escape and `{2}` would be read
+as an interpolation, so a pattern written as a plain string is wrong twice
+over.
+
+```baa
+wool.matches(text, r"\d{4}-\d{2}")
+```
+
+A raw block string is indented by its closing delimiter in the same way as a
+block string.
 
 ### 2.6 Operators and punctuation
 
@@ -375,6 +425,31 @@ Assigning to a `const`, a function name or an import is `BAA103`.
 A `for` loop's bindings live in a fresh scope per iteration, so a closure
 created inside the body captures that iteration's values.
 
+#### Bindings
+
+The left of a `let` or `const` is a *binding*, which is either a name or a
+pattern that takes the value apart:
+
+```
+binding       ::= identifier | array-binding | map-binding
+array-binding ::= "[" [ element { "," element } [ "," ] ] "]"
+element       ::= [ ".." ] binding
+map-binding   ::= "{" [ entry { "," entry } [ "," ] ] "}"
+entry         ::= identifier [ "as" binding ]
+```
+
+Bindings nest: `let [{ name }, ..rest] = people` is one binding.
+
+An array binding requires an `array` and a map binding requires a `map`;
+anything else is `BAA311`. A missing item or key binds `nil` rather than
+failing, matching how reading a missing key already behaves. `..name` collects
+the remaining items into an array and may appear only as the last element,
+which is `BAA204` otherwise.
+
+Every name a binding introduces is declared with the mutability of the
+keyword, and all of them are hoisted for use-before-declaration checking.
+`export let { a, b } = ...` exports both names.
+
 ### 5.2 `baa`
 
 `baa e1, e2, ...` writes each value's text form, separated by a single space,
@@ -516,8 +591,8 @@ materialised with `to_array`, and `"x" * n`.
 
 Baa 0.1 has no classes, no inheritance, no interfaces, no operator
 overloading, no implicit numeric coercion, no `null` distinct from `nil`, no
-variadic call spreading (`f(..args)`), no destructuring in `let` or in `match`
-patterns, and no concurrency. Each of these was left out to keep the core small
+variadic call spreading (`f(..args)`), no destructuring in `match` patterns,
+and no concurrency. Each of these was left out to keep the core small
 enough to learn in an afternoon; the ones with a plan are listed in
 [ROADMAP.md](ROADMAP.md).
 

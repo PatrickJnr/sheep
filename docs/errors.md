@@ -25,6 +25,7 @@ The shape of the source is wrong. Reported before anything runs.
 | `BAA009` | error | This interpolation `{{...}}` is empty: there's nothing to print. | Empty interpolation expression. |
 | `BAA010` | error | This statement trails off before the sheep could finish reading it. | Unexpected end of input. |
 | `BAA011` | error | This is nested deeper than the flock can follow: more than {0} levels. | Nesting depth exceeds the limit of {0}. |
+| `BAA012` | error | This block string isn't laid out the way the sheep expect. | Malformed block string literal. |
 
 ## BAA1xx, Names and scope
 

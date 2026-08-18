@@ -172,6 +172,11 @@ import wool
 | `wool.safe_url` | 1 | A URL if its scheme is safe to link to, otherwise nil. |
 | `wool.percent_encode` | 1 | Percent-encode text for use in a URL. |
 | `wool.percent_decode` | 1 | Decode percent-encoded text, or nil when it is malformed. |
+| `wool.matches` | 2–3 | True when a pattern matches anywhere in the text. |
+| `wool.find` | 2–3 | First match as a map of match, start, end and groups, or nil. |
+| `wool.find_all` | 2–3 | Every non-overlapping match, as an array of maps. |
+| `wool.substitute` | 3–4 | Replace every match. `$1` in the replacement is a group. |
+| `wool.split_on` | 2–3 | Split text on every match of a pattern. |
 | `wool.is_blank` | 1 | True when a string is empty or only whitespace. |
 | `wool.to_bytes` | 1 | UTF-8 byte values of a string. |
 | `wool.from_bytes` | 1 | Build a string from an array of UTF-8 byte values. |

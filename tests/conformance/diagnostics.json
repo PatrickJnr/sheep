@@ -70,6 +70,12 @@
       "plain": "Nesting depth exceeds the limit of {0}."
     },
     {
+      "code": "BAA012",
+      "severity": "error",
+      "woolly": "This block string isn't laid out the way the sheep expect.",
+      "plain": "Malformed block string literal."
+    },
+    {
       "code": "BAA101",
       "severity": "error",
       "woolly": "`{0}` has already been counted in this pasture.",

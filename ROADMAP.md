@@ -35,7 +35,7 @@ with a migration note.
 - [x] Test framework (`test` blocks, `baa test`)
 - [x] Project manifest, lockfile, local dependencies
 - [x] Full diagnostic catalogue with professional mode
-- [x] 501 automated tests, benchmarks, recorded example output
+- [x] 536 automated tests, benchmarks, recorded example output
 - [x] Documentation and website
 - [x] VS Code syntax highlighting and snippets
 
@@ -54,7 +54,7 @@ Ordered by how much they would improve a normal day.
 - [ ] **`baa fmt --diff`.** Show what would change instead of rewriting.
 - [ ] **Structured diagnostic output.** `--format json` for editors and CI
       annotations.
-- [ ] **Stdlib growth.** `wool` regular expressions, `pasture` recursive walk
+- [ ] **Stdlib growth.** `pasture` recursive walk
       and globbing, `flock` set operations, `meadow` durations and time zones.
 - [ ] **Neovim and JetBrains highlighting**, once the grammar has settled.
 - [ ] **Doc generation.** `baa doc` producing a reference from `///` comments,

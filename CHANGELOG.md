@@ -19,7 +19,11 @@ program in `examples/`.
   first-class `function` and `module`.
 - One numeric type (IEEE-754 double). Literals in decimal, hex (`0xFF`), octal
   (`0o17`) and binary (`0b1010`), with `_` separators and exponents.
-- `let` and `const` bindings, block-scoped, with shadowing.
+- `let` and `const` bindings, block-scoped, with shadowing, and destructuring
+  of arrays and maps (`let [a, ..rest] = xs`, `let { name as who } = sheep`).
+- Four string spellings: plain, `"""` block strings indented by their closing
+  delimiter, and `r"..."` / `r"""..."""` raw strings with no escapes and no
+  interpolation.
 - String interpolation (`"{expr}"`), with full expressions and nested string
   literals inside the braces.
 - Operators: arithmetic including `**`, comparison, `&&`, `||`, `??`, `!`,
@@ -63,7 +67,8 @@ program in `examples/`.
 
 ### Standard library
 
-- `wool`, text: formatting, case conversion, wrapping, centring, bytes.
+- `wool`, text: formatting, case conversion, wrapping, centring, bytes,
+  regular expressions, HTML and URL escaping.
 - `flock`, collections: grouping, chunking, zipping, partitioning, map
   construction.
 - `ram`, arithmetic: rounding, integer division, statistics, constants.
@@ -79,7 +84,7 @@ program in `examples/`.
 
 ### Project
 
-- 501 automated tests across lexer, parser, resolver, runtime, standard
+- 536 automated tests across lexer, parser, resolver, runtime, standard
   library, diagnostics, formatter, linter, modules, CLI and examples.
 - Baa's own test blocks, run by `baa test`.
 - Recorded example transcripts, asserted by the suite.
