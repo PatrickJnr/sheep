@@ -1,0 +1,594 @@
+/**
+ * Build the Baa website.
+ *
+ *     node tools/build-site.ts
+ *
+ * Everything the site shows about the language comes from the repository's own
+ * Markdown, so the site cannot drift from the documentation. The output is
+ * plain HTML, CSS and JavaScript with no server-side anything: copy the
+ * `website/` directory into `public_html` and it works.
+ *
+ * Generated:
+ *   website/index.html          from website/src/index.body.html
+ *   website/playground.html     from website/src/playground.body.html
+ *   website/docs/*.html         from the Markdown files listed below
+ *   website/docs/search-index.json
+ *   website/sitemap.xml
+ */
+
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+import { escapeHtml, renderMarkdown } from "./markdown.ts";
+import type { Heading } from "./markdown.ts";
+
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const SITE = join(ROOT, "website");
+const SRC = join(SITE, "src");
+const DOCS_OUT = join(SITE, "docs");
+
+const ORIGIN = "https://sheep.grimtech.co.uk";
+const REPO = "https://github.com/PatrickJnr/sheep";
+const BLOB = `${REPO}/blob/main`;
+
+if (!existsSync(SRC)) {
+  process.stdout.write("No website/src here; skipping the site build.\n");
+  process.exit(0);
+}
+
+const VERSION = (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+  version: string;
+}).version;
+
+// --------------------------------------------------------------------------
+// Pages
+// --------------------------------------------------------------------------
+
+type DocPage = {
+  /** Output file name inside `website/docs/`. */
+  readonly slug: string;
+  /** Source Markdown, relative to the repository root. */
+  readonly source: string;
+  readonly title: string;
+  readonly description: string;
+  readonly group: string;
+  /** Drop everything before the first `# heading` (README-style banners). */
+  readonly stripBanner?: boolean;
+};
+
+const DOC_PAGES: readonly DocPage[] = [
+  {
+    slug: "index",
+    source: "website/src/docs.index.md",
+    title: "Documentation",
+    description: "Every Baa document: the language tour, the specification, the CLI, the standard library and the diagnostic catalogue.",
+    group: "Start here",
+  },
+  {
+    slug: "language",
+    source: "LANGUAGE.md",
+    title: "Language tour",
+    description: "A guided walk through Baa, from hello world to modules and error handling. Every snippet runs.",
+    group: "Start here",
+  },
+  {
+    slug: "cli",
+    source: "docs/cli.md",
+    title: "CLI reference",
+    description: "Every baa command, option, exit code and environment variable, plus the project manifest format.",
+    group: "Start here",
+  },
+  {
+    slug: "faq",
+    source: "docs/faq.md",
+    title: "FAQ",
+    description: "Why one number type, why dividing by zero fails, why the language is called Baa, and other reasonable questions.",
+    group: "Start here",
+  },
+  {
+    slug: "stdlib",
+    source: "docs/stdlib.md",
+    title: "Standard library",
+    description: "Every function Baa ships with: the prelude, the methods on values, and all seven modules.",
+    group: "Reference",
+  },
+  {
+    slug: "errors",
+    source: "docs/errors.md",
+    title: "Diagnostics",
+    description: "The complete BAAnnn diagnostic catalogue, with both the default and the professional wording.",
+    group: "Reference",
+  },
+  {
+    slug: "spec",
+    source: "SPEC.md",
+    title: "Specification",
+    description: "The precise definition of Baa: lexical structure, grammar, semantics, modules and the execution model.",
+    group: "Reference",
+  },
+  {
+    slug: "architecture",
+    source: "ARCHITECTURE.md",
+    title: "Architecture",
+    description: "How Baa is built: the pipeline, the design decisions, the performance numbers and the route to a bytecode VM.",
+    group: "Project",
+  },
+  {
+    slug: "roadmap",
+    source: "ROADMAP.md",
+    title: "Roadmap",
+    description: "What is done, what is next, what is deliberately not planned, and how a Rust implementation would fit.",
+    group: "Project",
+  },
+  {
+    slug: "rust",
+    source: "rust/README.md",
+    title: "Rust implementation",
+    description: "The plan for a Rust implementation of Baa, and the conformance suite that would verify it.",
+    group: "Project",
+  },
+  {
+    slug: "contributing",
+    source: "CONTRIBUTING.md",
+    title: "Contributing",
+    description: "How to set up, what makes a good contribution, and the house rules.",
+    group: "Project",
+  },
+  {
+    slug: "security",
+    source: "SECURITY.md",
+    title: "Security",
+    description: "Baa's threat model, the design decisions made for security reasons, and how to report a vulnerability.",
+    group: "Project",
+  },
+  {
+    slug: "changelog",
+    source: "CHANGELOG.md",
+    title: "Changelog",
+    description: "Everything that has changed in Baa, release by release.",
+    group: "Project",
+  },
+];
+
+// --------------------------------------------------------------------------
+// Link rewriting
+// --------------------------------------------------------------------------
+
+const MARKDOWN_TO_SLUG: Record<string, string> = {
+  "LANGUAGE.md": "language",
+  "SPEC.md": "spec",
+  "ARCHITECTURE.md": "architecture",
+  "ROADMAP.md": "roadmap",
+  "CONTRIBUTING.md": "contributing",
+  "SECURITY.md": "security",
+  "CHANGELOG.md": "changelog",
+  "docs/cli.md": "cli",
+  "docs/stdlib.md": "stdlib",
+  "docs/errors.md": "errors",
+  "docs/faq.md": "faq",
+  "cli.md": "cli",
+  "stdlib.md": "stdlib",
+  "errors.md": "errors",
+  "faq.md": "faq",
+  "rust/README.md": "rust",
+};
+
+/** Rewrite a link from a Markdown source into a link that works on the site. */
+function rewriteFor(fromDocs: boolean) {
+  return (href: string): string | null => {
+    if (/^(https?:|mailto:|#)/.test(href)) return null;
+
+    const cleaned = href.replace(/^\.\//, "").replace(/^\.\.\//g, "");
+    const [path, fragment] = cleaned.split("#");
+    const anchor = fragment === undefined ? "" : `#${fragment}`;
+
+    const slug = MARKDOWN_TO_SLUG[path ?? ""];
+    if (slug !== undefined) {
+      const target = slug === "index" ? "" : `${slug}.html`;
+      return fromDocs ? `${target || "./"}${anchor}` : `docs/${target || "index.html"}${anchor}`;
+    }
+
+    if (path === "README.md" || path === "") {
+      return fromDocs ? `../index.html${anchor}` : `./${anchor}`;
+    }
+    if (path === "CODE_OF_CONDUCT.md") return `${BLOB}/CODE_OF_CONDUCT.md`;
+    if (path === "LICENSE") return `${BLOB}/LICENSE`;
+
+    // Anything else in the repository links to the source on GitHub.
+    if (path !== undefined && /^(src|examples|tests|tools|docs|editors|rust|website|\.github)\//.test(path)) {
+      return `${BLOB}/${path}`;
+    }
+    if (path !== undefined && path.endsWith("/")) return `${BLOB}/${path}`;
+    if (path !== undefined && /\.(baa|ts|json|toml|yml|svg)$/.test(path)) {
+      return `${BLOB}/${path}`;
+    }
+    return null;
+  };
+}
+
+// --------------------------------------------------------------------------
+// Layout
+// --------------------------------------------------------------------------
+
+const LOGO = readFileSync(join(SITE, "assets", "icon.svg"), "utf8")
+  .replace(/<\?xml[^>]*\?>\s*/g, "")
+  .replace(/\n\s*/g, "")
+  .replace('width="64" height="64"', 'width="30" height="30"');
+
+type ShellOptions = {
+  readonly title: string;
+  readonly description: string;
+  readonly body: string;
+  /** Path prefix back to the site root, e.g. "" or "../". */
+  readonly base: string;
+  readonly canonical: string;
+  readonly active: "home" | "docs" | "playground" | "";
+  readonly bodyClass?: string;
+  readonly extraHead?: string;
+  readonly extraScripts?: string;
+};
+
+function shell(options: ShellOptions): string {
+  const { base } = options;
+  const navLink = (href: string, label: string, key: string): string =>
+    `<a href="${base}${href}"${options.active === key ? ' aria-current="page"' : ""}>${label}</a>`;
+
+  return `<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(options.title)}</title>
+<meta name="description" content="${escapeHtml(options.description)}">
+<link rel="canonical" href="${options.canonical}">
+<meta name="theme-color" content="#2f4b3f" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12160f" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Baa">
+<meta property="og:title" content="${escapeHtml(options.title)}">
+<meta property="og:description" content="${escapeHtml(options.description)}">
+<meta property="og:url" content="${options.canonical}">
+<meta property="og:image" content="${ORIGIN}/assets/social.svg">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="${base}assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="${base}assets/icon.svg">
+<link rel="stylesheet" href="${base}assets/styles.css">
+<script>
+  // Applied before first paint so the page never flashes the wrong theme.
+  (function () {
+    try {
+      var stored = localStorage.getItem("baa-theme");
+      if (stored === "light" || stored === "dark") {
+        document.documentElement.setAttribute("data-theme", stored);
+      }
+    } catch (error) { /* private mode: fall back to the media query */ }
+  })();
+</script>
+${options.extraHead ?? ""}</head>
+<body${options.bodyClass ? ` class="${options.bodyClass}"` : ""}>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap site-header__inner">
+    <a class="brand" href="${base}index.html">${LOGO}<span>Baa</span></a>
+    <button class="icon-button nav-toggle" type="button" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+    <nav class="site-nav" id="site-nav" data-nav aria-label="Main">
+      ${navLink("docs/index.html", "Docs", "docs")}
+      ${navLink("docs/language.html", "Tour", "")}
+      ${navLink("playground.html", "Playground", "playground")}
+      ${navLink("docs/stdlib.html", "Library", "")}
+      <a href="${REPO}" rel="noopener">GitHub</a>
+      <button class="icon-button" type="button" data-theme-toggle aria-label="Switch theme">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+${options.body}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="site-footer__grid">
+      <div>
+        <a class="brand" href="${base}index.html">${LOGO}<span>Baa</span></a>
+        <p style="margin-top:.75rem;color:var(--ink-soft);max-width:26rem">
+          A small, readable scripting language with fast tooling, beautiful
+          diagnostics and extremely questionable sheep-related naming decisions.
+        </p>
+      </div>
+      <div>
+        <h3>Learn</h3>
+        <ul>
+          <li><a href="${base}docs/language.html">Language tour</a></li>
+          <li><a href="${base}docs/spec.html">Specification</a></li>
+          <li><a href="${base}docs/faq.html">FAQ</a></li>
+          <li><a href="${base}playground.html">Playground</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Reference</h3>
+        <ul>
+          <li><a href="${base}docs/cli.html">CLI</a></li>
+          <li><a href="${base}docs/stdlib.html">Standard library</a></li>
+          <li><a href="${base}docs/errors.html">Diagnostics</a></li>
+          <li><a href="${base}docs/architecture.html">Architecture</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Project</h3>
+        <ul>
+          <li><a href="${REPO}" rel="noopener">Source</a></li>
+          <li><a href="${base}docs/roadmap.html">Roadmap</a></li>
+          <li><a href="${base}docs/contributing.html">Contributing</a></li>
+          <li><a href="${base}docs/rust.html">Rust port</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="colophon">
+      <span>Baa ${VERSION} · MIT licensed · No third-party packages</span>
+      <span>Built with a lexer, a parser and a great deal of wool.</span>
+    </div>
+  </div>
+</footer>
+
+<script type="module" src="${base}assets/site.js"></script>
+${options.extraScripts ?? ""}</body>
+</html>
+`;
+}
+
+// --------------------------------------------------------------------------
+// Sidebar
+// --------------------------------------------------------------------------
+
+function sidebar(activeSlug: string, headings: readonly Heading[]): string {
+  const groups = new Map<string, DocPage[]>();
+  for (const page of DOC_PAGES) {
+    const list = groups.get(page.group) ?? [];
+    list.push(page);
+    groups.set(page.group, list);
+  }
+
+  const sections: string[] = [];
+  sections.push(
+    `<div class="search"><label class="visually-hidden" for="doc-search">Search the documentation</label><input id="doc-search" type="search" placeholder="Search docs…  /" autocomplete="off" data-search="./"><ul class="search__results" data-search-results></ul></div>`,
+  );
+
+  for (const [group, pages] of groups) {
+    const items = pages
+      .map((page) => {
+        const href = page.slug === "index" ? "./" : `${page.slug}.html`;
+        const current = page.slug === activeSlug ? ' aria-current="page"' : "";
+        return `<li><a href="${href}"${current}>${escapeHtml(page.title)}</a></li>`;
+      })
+      .join("");
+    sections.push(`<h2>${escapeHtml(group)}</h2><ul>${items}</ul>`);
+  }
+
+  const onThisPage = headings.filter((heading) => heading.level === 2);
+  if (onThisPage.length > 1) {
+    const items = onThisPage
+      .map((heading) => `<li><a href="#${heading.id}">${escapeHtml(heading.text)}</a></li>`)
+      .join("");
+    sections.push(`<h2>On this page</h2><ul>${items}</ul>`);
+  }
+
+  return `<nav class="sidebar" aria-label="Documentation">${sections.join("")}</nav>`;
+}
+
+function docNav(slug: string): string {
+  const index = DOC_PAGES.findIndex((page) => page.slug === slug);
+  const previous = index > 0 ? DOC_PAGES[index - 1] : undefined;
+  const next = index >= 0 && index < DOC_PAGES.length - 1 ? DOC_PAGES[index + 1] : undefined;
+  if (previous === undefined && next === undefined) return "";
+
+  const link = (page: DocPage | undefined, label: string, align: string): string =>
+    page === undefined
+      ? "<span></span>"
+      : `<a href="${page.slug === "index" ? "./" : `${page.slug}.html`}" style="text-align:${align}"><small>${label}</small>${escapeHtml(page.title)}</a>`;
+
+  return `<div class="doc-nav">${link(previous, "Previous", "left")}${link(next, "Next", "right")}</div>`;
+}
+
+// --------------------------------------------------------------------------
+// Build
+// --------------------------------------------------------------------------
+
+type SearchEntry = {
+  title: string;
+  page: string;
+  url: string;
+  text: string;
+};
+
+rmSync(DOCS_OUT, { recursive: true, force: true });
+mkdirSync(DOCS_OUT, { recursive: true });
+
+const searchIndex: SearchEntry[] = [];
+const sitemap: string[] = [];
+
+for (const page of DOC_PAGES) {
+  let markdown = readFileSync(join(ROOT, page.source), "utf8");
+  if (page.stripBanner === true) {
+    const firstHeading = markdown.indexOf("\n# ");
+    if (firstHeading !== -1) markdown = markdown.slice(firstHeading + 1);
+  }
+
+  const rendered = renderMarkdown(markdown, { rewriteLink: rewriteFor(true) });
+  const url = page.slug === "index" ? "docs/" : `docs/${page.slug}.html`;
+
+  const body = `<div class="wrap docs">
+${sidebar(page.slug, rendered.headings)}
+<article class="doc">
+${rendered.html}
+${docNav(page.slug)}
+</article>
+</div>`;
+
+  writeFileSync(
+    join(DOCS_OUT, `${page.slug}.html`),
+    shell({
+      title: `${page.title} · Baa`,
+      description: page.description,
+      body,
+      base: "../",
+      canonical: `${ORIGIN}/${url}`,
+      active: "docs",
+    }),
+    "utf8",
+  );
+
+  sitemap.push(url);
+
+  // One search entry per section, so a hit lands on the right heading.
+  const sections = splitSections(rendered.text, rendered.headings);
+  searchIndex.push({
+    title: page.title,
+    page: page.title,
+    url: page.slug === "index" ? "./" : `${page.slug}.html`,
+    text: `${page.description} ${sections.intro}`.slice(0, 600),
+  });
+  for (const section of sections.parts) {
+    searchIndex.push({
+      title: section.title,
+      page: page.title,
+      url: `${page.slug === "index" ? "./" : `${page.slug}.html`}#${section.id}`,
+      text: section.text.slice(0, 600),
+    });
+  }
+}
+
+/** Split a document's plain text into per-heading sections for the search index. */
+function splitSections(
+  text: string,
+  headings: readonly Heading[],
+): { intro: string; parts: Array<{ title: string; id: string; text: string }> } {
+  const parts: Array<{ title: string; id: string; text: string }> = [];
+  let remaining = text;
+  let intro = text.slice(0, 400);
+
+  for (const [index, heading] of headings.entries()) {
+    if (heading.level > 3) continue;
+    const start = remaining.indexOf(heading.text);
+    if (start === -1) continue;
+    if (index === 0) intro = remaining.slice(0, start);
+    const after = remaining.slice(start + heading.text.length);
+    const nextHeading = headings
+      .slice(index + 1)
+      .find((candidate) => candidate.level <= 3 && after.includes(candidate.text));
+    const end = nextHeading === undefined ? after.length : after.indexOf(nextHeading.text);
+    parts.push({ title: heading.text, id: heading.id, text: after.slice(0, end).trim() });
+    remaining = after;
+  }
+  return { intro, parts };
+}
+
+writeFileSync(
+  join(DOCS_OUT, "search-index.json"),
+  JSON.stringify(searchIndex),
+  "utf8",
+);
+
+// ------------------------------------------------------------ static pages
+
+type StaticPage = {
+  readonly file: string;
+  readonly partial: string;
+  readonly title: string;
+  readonly description: string;
+  readonly active: ShellOptions["active"];
+  readonly extraScripts?: string;
+  /** Excluded from the sitemap. */
+  readonly unlisted?: boolean;
+};
+
+const STATIC_PAGES: readonly StaticPage[] = [
+  {
+    file: "index.html",
+    partial: "index.body.html",
+    title: "Baa: a programming language with a little more Baa",
+    description:
+      "A modern, readable programming language for people who enjoy clean syntax, fast tools and extremely questionable sheep-related naming decisions.",
+    active: "home",
+  },
+  {
+    file: "playground.html",
+    partial: "playground.body.html",
+    title: "Playground · Baa",
+    description:
+      "Run Baa in your browser. The real interpreter, the same lexer, parser and runtime the CLI uses, compiled to JavaScript.",
+    active: "playground",
+    extraScripts: '<script type="module" src="assets/playground.js"></script>\n',
+  },
+  {
+    file: "404.html",
+    partial: "404.body.html",
+    title: "Page not found · Baa",
+    description:
+      "That page has wandered off. The documentation, the playground and the source are all still here.",
+    active: "",
+    unlisted: true,
+  },
+];
+
+for (const page of STATIC_PAGES) {
+  const body = readFileSync(join(SRC, page.partial), "utf8")
+    .replace(/\{\{version\}\}/g, VERSION)
+    .replace(/\{\{repo\}\}/g, REPO);
+  writeFileSync(
+    join(SITE, page.file),
+    shell({
+      title: page.title,
+      description: page.description,
+      body,
+      base: "",
+      canonical: `${ORIGIN}/${page.file === "index.html" ? "" : page.file}`,
+      active: page.active,
+      ...(page.extraScripts === undefined ? {} : { extraScripts: page.extraScripts }),
+    }),
+    "utf8",
+  );
+  if (page.unlisted !== true) sitemap.push(page.file === "index.html" ? "" : page.file);
+}
+
+// ---------------------------------------------------------------- sitemap
+
+const today = new Date(
+  Number(process.env.SOURCE_DATE_EPOCH ?? Date.now()),
+).toISOString().slice(0, 10);
+
+writeFileSync(
+  join(SITE, "sitemap.xml"),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemap
+  .map(
+    (path) =>
+      `  <url><loc>${ORIGIN}/${path}</loc><lastmod>${today}</lastmod><changefreq>weekly</changefreq></url>`,
+  )
+  .join("\n")}
+</urlset>
+`,
+  "utf8",
+);
+
+const pageCount = DOC_PAGES.length + STATIC_PAGES.length;
+process.stdout.write(
+  `Built the site: ${pageCount} pages, ${searchIndex.length} search entries.\n`,
+);
+
+// A cheap guard against the commonest build mistake.
+const missingAssets = ["styles.css", "site.js", "highlight.js", "icon.svg"].filter(
+  (name) => !readdirSync(join(SITE, "assets")).includes(name),
+);
+if (missingAssets.length > 0) {
+  process.stderr.write(`Missing assets: ${missingAssets.join(", ")}\n`);
+  process.exitCode = 1;
+}
