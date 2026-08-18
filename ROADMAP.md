@@ -115,6 +115,11 @@ Ordered by how much each would change what can be built.
       say what it needs.
 - [ ] **Timers.** `barn` has no clock, so a pomodoro or an animation cannot be
       written. This is small and only waits for an application that needs it.
+- [ ] **Prebuilt runtimes in the npm package.** Today `npm install -g baa-lang`
+      gives you the language but not the runtime, so building an application
+      means cloning the repository. Fixing it means one binary per platform,
+      which is the `optionalDependencies` pattern every native npm package
+      uses, and a release workflow that cross-compiles.
 - [ ] **`[wool]` dependencies in a bundle.** Relative imports are bundled;
       manifest dependencies are refused with a message rather than
       half-supported.

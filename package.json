@@ -48,6 +48,7 @@
     "bench:native": "node tools/bench-native.ts",
     "build": "tsc -p tsconfig.build.json",
     "check:playground": "node tools/check-playground.ts",
+    "check:tests": "node tools/check-test-count.ts",
     "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
     "fmt": "node src/cli/index.ts fmt examples tests/programs",
     "fmt:check": "node src/cli/index.ts fmt --check examples tests/programs",

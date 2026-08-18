@@ -21,6 +21,8 @@ import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
+import { CATALOGUE } from "../src/diagnostics/codes.ts";
+import { STDLIB_MODULES } from "../src/stdlib/index.ts";
 import { escapeHtml, renderMarkdown } from "./markdown.ts";
 import type { Heading } from "./markdown.ts";
 
@@ -84,6 +86,33 @@ if (!existsSync(SRC)) {
 const VERSION = (JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
   version: string;
 }).version;
+
+/**
+ * Numbers the home page states as fact.
+ *
+ * Substituted rather than typed, because the previous set was written once and
+ * then quietly stopped being true: the page claimed 415 tests when there were
+ * 628, and seven standard modules when there were nine. A number that has to
+ * be remembered is a number that goes stale.
+ *
+ * The test count comes from the README rather than from counting `it(` calls:
+ * several test files declare one and run it over a list, so the source count
+ * is well under what actually runs. The README states a floor, a regression
+ * test asserts the floor is true, and this reads it, so there is one number
+ * and one guard.
+ */
+const TESTS = testsFromReadme();
+const DIAGNOSTICS = Object.keys(CATALOGUE).length;
+const MODULES = STDLIB_MODULES.length;
+
+function testsFromReadme(): string {
+  const readme = readFileSync(join(ROOT, "README.md"), "utf8");
+  const stated = /\*\*(\d+\+?) tests\*\*/.exec(readme);
+  if (stated === null) {
+    throw new Error("README.md no longer states a test count for the site to use");
+  }
+  return stated[1]!;
+}
 
 // --------------------------------------------------------------------------
 // Pages
@@ -716,6 +745,9 @@ const STATIC_PAGES: readonly StaticPage[] = [
 for (const page of STATIC_PAGES) {
   const body = readFileSync(join(SRC, page.partial), "utf8")
     .replace(/\{\{version\}\}/g, VERSION)
+    .replace(/\{\{tests\}\}/g, TESTS)
+    .replace(/\{\{diagnostics\}\}/g, String(DIAGNOSTICS))
+    .replace(/\{\{modules\}\}/g, String(MODULES))
     .replace(/\{\{repo\}\}/g, REPO)
     .replace(/\{\{npm\}\}/g, NPM);
   writeFileSync(

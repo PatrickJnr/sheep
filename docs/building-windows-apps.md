@@ -31,6 +31,22 @@ If you have no Rust toolchain, [rustup](https://rustup.rs) installs one. On
 Windows it wants the MSVC build tools, which Visual Studio's "Desktop
 development with C++" workload provides.
 
+**The npm package does not carry the runtime.** `npm install -g baa-lang` gives
+you the whole language and every other command; it does not give you a compiled
+Rust binary, because that would be one per platform. Building applications
+means cloning the repository once:
+
+```bash
+git clone https://github.com/PatrickJnr/sheep
+cd sheep
+cargo build --release --manifest-path rust/Cargo.toml
+export BAA_NATIVE_HOST=$PWD/rust/target/release
+```
+
+`baa app build` says exactly this when it cannot find the runtime, and
+`baa doctor` reports whether it has one. Shipping prebuilt runtimes with the
+package is on [ROADMAP.md](../ROADMAP.md).
+
 `baa app build` looks for the runtime in `rust/target/release`, then
 `rust/target/debug`, then beside the installed CLI. `BAA_NATIVE_HOST` points it
 somewhere else. When it cannot find one, it prints the `cargo` command rather

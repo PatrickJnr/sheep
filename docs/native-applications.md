@@ -114,6 +114,7 @@ bug.
 | An application icon | The executable carries the runtime's icon. Changing it needs a PE resource rewrite, which the appending build deliberately avoids. |
 | Timers, images, sound, networking | Not built. No application has needed them yet, and an API with no use case is worse than no API. |
 | Tables, tabs, trees, custom drawing | The control set is the one the example applications needed. |
+| A runtime in the npm package | `npm install -g baa-lang` gives you the language, not a compiled Rust binary for your platform. Building applications means cloning the repository once; `baa app build` says so and `baa doctor` reports it. |
 
 Everything in that table is also in [ROADMAP.md](../ROADMAP.md), which is where
 it will move from when it changes.

@@ -433,11 +433,25 @@ function findHost(options: { windowed: boolean }): string | null {
     if (existsSync(candidate)) return candidate;
   }
 
+  // The advice depends on where `baa` came from. An npm install has no `rust/`
+  // directory, so telling somebody to run cargo in one is telling them to run
+  // a command that cannot work.
+  const fromRepository = existsSync(join(here, "..", "..", "rust", "Cargo.toml"));
   writeError(
-    `The native runtime (${name}) is not built.\n\n` +
-      "  cargo build --release --manifest-path rust/Cargo.toml\n\n" +
-      "Or point BAA_NATIVE_HOST at the directory holding it. The runtime is\n" +
-      "Rust and needs a Rust toolchain; the language itself does not.",
+    fromRepository
+      ? `The native runtime (${name}) is not built.\n\n` +
+          "  cargo build --release --manifest-path rust/Cargo.toml\n\n" +
+          "Or point BAA_NATIVE_HOST at the directory holding it. The runtime is\n" +
+          "Rust and needs a Rust toolchain; the language itself does not."
+      : `The native runtime (${name}) does not ship with the npm package.\n\n` +
+          "Building native applications needs it, and it is Rust, compiled from\n" +
+          "the repository:\n\n" +
+          "  git clone https://github.com/PatrickJnr/sheep\n" +
+          "  cd sheep\n" +
+          "  cargo build --release --manifest-path rust/Cargo.toml\n" +
+          "  export BAA_NATIVE_HOST=$PWD/rust/target/release\n\n" +
+          "Everything else in Baa works from the npm package. See\n" +
+          "https://sheep.grimtech.co.uk/docs/building-windows-apps.html",
   );
   return null;
 }

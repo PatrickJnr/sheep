@@ -126,6 +126,9 @@ jobs:
       - name: Brand images are committed
         run: node tools/render-assets.ts --check
 
+      - name: The stated test count is true
+        run: node tools/check-test-count.ts
+
       - name: Diagnostics read plainly in CI
         run: node src/cli/index.ts --no-baa check examples
 
