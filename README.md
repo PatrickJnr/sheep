@@ -359,12 +359,13 @@ editor cannot disagree with the command line about whether a file is valid.
 Neovim, Helix and Emacs can point at it directly. Setup for each, and what the
 server does not do yet, is in [docs/editors.md](docs/editors.md).
 
-[`editors/vscode/`](editors/vscode/) contains a VS Code extension with syntax
-highlighting, including inside string interpolations, plus bracket and comment
-configuration and snippets. To try it locally, copy or symlink the directory
-into `~/.vscode/extensions/` and reload the window. It does not start the
-language server yet: VS Code needs an extension with a JavaScript entry point
-to do that, and this one is declarative only.
+[`editors/vscode/`](editors/vscode/) is a VS Code extension that starts the
+server for you, alongside syntax highlighting, snippets, and bracket and
+comment configuration. Install the `.vsix` from a
+[release](https://github.com/PatrickJnr/sheep/releases) with
+`code --install-extension baa-lang.vsix`, open a `.baa` file, and everything
+above works with no configuration. It analyses nothing itself — it runs
+`baa lsp`, so the editor sees what `baa check` sees.
 
 Definition, references and rename read the resolver's symbol table rather than
 the text, so renaming a binding that shadows an outer one of the same name

@@ -561,6 +561,12 @@ describe("regression: counts the README states as fact", () => {
       for (const [phrase, shown] of text.matchAll(/\bBaa\s+(\d+\.\d+\.\d+)\b/g)) {
         assert.equal(shown, version, `${relative}: "${phrase}" is not the current version`);
       }
+      // ROADMAP.md opens with `Version **0.5.0**`, which the sweep above did
+      // not match. It was stale within hours of a release: the roadmap is
+      // written before the version is cut, and nothing read it afterwards.
+      for (const [phrase, shown] of text.matchAll(/\bVersion \*\*(\d+\.\d+\.\d+)\*\*/g)) {
+        assert.equal(shown, version, `${relative}: "${phrase}" is not the current version`);
+      }
     }
   });
 

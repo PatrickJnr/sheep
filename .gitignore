@@ -20,3 +20,13 @@ rust/target/
 # a build artefact like any other.
 build/
 *.fleece
+
+# The VS Code extension is compiled from editors/vscode/src and packaged into
+# a .vsix. Both are build artefacts; the sources and the lockfile are not.
+editors/vscode/out/
+editors/vscode/*.vsix
+
+# The integration test downloads its own VS Code, which is a third of a
+# gigabyte. It is a cache, not a dependency.
+.vscode-test/
+editors/vscode/.vscode-test/

@@ -26,13 +26,13 @@ carry a status label:
 
 ## Current State
 
-Version **0.4.0**. The reference implementation is TypeScript running on
+Version **0.6.0**. The reference implementation is TypeScript running on
 Node.js 22.18+ with no build step and no runtime dependencies; the native
 runtime is Rust with no dependencies either.
 
 | | |
 | --- | --- |
-| Automated tests | 644, across Windows, Linux and macOS on every commit |
+| Automated tests | 600+, across Windows, Linux and macOS on every commit |
 | Diagnostics | 46 `BAAnnn` codes, each with a default and a professional wording |
 | Standard library | 9 modules |
 | Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
@@ -88,7 +88,7 @@ the claim true and the artefact dishonest.
 toolchain; the conformance harness runs the suite against the native runtime in
 CI; every documented `barn` function has a test that drives a real window.
 
-### `shepherd` and `meadow` in the native runtime — **COMPLETED**
+### `shepherd` and `meadow` in the native runtime — **COMPLETED** in 0.5.0
 
 **Goal.** Give native applications arguments, environment variables, standard
 input, subprocesses, clocks, calendars and randomness.
@@ -113,6 +113,34 @@ One thing is deliberately absent rather than approximated:
 time, so the same program would produce different numbers on different
 machines; the native runtime raises `BAA301` naming the fix instead of guessing
 an offset.
+
+### A VS Code language client — **COMPLETED**
+
+**Goal.** Make the language server that already exists start automatically in
+the editor most people use.
+
+**Why it matters.** `baa lsp` had provided diagnostics, formatting, an outline,
+hover, go-to-definition, find-references and rename for two releases, driven by
+the same analysis the compiler runs, and the VS Code extension was declarative
+— so the best tooling Baa has was invisible to most of its users.
+
+**Delivered.** `editors/vscode/src/extension.ts` starts `baa lsp` and connects
+VS Code to it. It registers no providers of its own, and a test asserts that:
+a second opinion about what a program means is worse than no opinion. The
+`.vsix` is built by CI and attached to each release, since the extension is not
+on the marketplace.
+
+**Definition of done — met, and verified rather than assumed.** An integration
+test launches a real VS Code, loads the extension, opens a `.baa` file and
+asserts that `BAA102` arrives on the right range, that formatting returns
+edits, and that go-to-definition lands on the declaration.
+
+That test earned itself immediately. On Windows `npm install -g` writes
+`baa.cmd`, and since CVE-2024-27980 Node refuses to spawn a `.cmd` without a
+shell — so the obvious implementation found nothing on the platform most
+people use, and failed silently. Reaching for `shell: true` would have been
+re-opening the vulnerability; the extension resolves the JavaScript entry npm
+installed beside the shim instead, and runs it under the editor's own Node.
 
 ### Documentation for language models — **COMPLETED**
 
@@ -162,29 +190,7 @@ matching codes.
 
 ## Immediate Next
 
-### 1. A VS Code language client — **NEXT**
-
-**Goal.** Make the language server that already exists start automatically in
-the editor most people use.
-
-**Why it matters.** `baa lsp` provides diagnostics, formatting, an outline,
-hover, go-to-definition, find-references and rename, driven by the same
-analysis the compiler runs. Neovim, Helix and Emacs can already use it. The VS
-Code extension is declarative, so it highlights and does nothing else, which
-makes the best tooling Baa has invisible to most of its users.
-
-**Deliverables.** A JavaScript entry point using `vscode-languageclient`, a
-`main` field and activation events, a packaged `.vsix`, and instructions in
-[docs/editors.md](docs/editors.md).
-
-**Definition of done.** Installing the extension and opening a `.baa` file
-produces diagnostics with no configuration.
-
-**Dependencies.** None. It adds the editor extension's first dependency; that
-package is not something `baa` executes, and the no-dependency rule is about
-what runs a program.
-
-### 2. Prebuilt native runtimes in the npm package — **NEXT**
+### 1. Prebuilt native runtimes in the npm package — **NEXT**
 
 **Goal.** `npm install -g baa-lang` should be enough to build an application.
 
@@ -302,7 +308,7 @@ So the small core stays small on purpose rather than by neglect.
 **State: shipped for Windows, 0.4.0.** One executable, a real window, no
 browser and no wrapper. Three example applications are the tests.
 
-Queued: [prebuilt runtimes](#2-prebuilt-native-runtimes-in-the-npm-package--next),
+Queued: [prebuilt runtimes](#1-prebuilt-native-runtimes-in-the-npm-package--next),
 [a Linux backend](#a-linux-backend-for-barn--planned), icon and version
 metadata, timers, a table control.
 
@@ -361,7 +367,7 @@ is deterministic and preserves comments; the linter has six rules and an escape
 hatch; the language server is around 470 lines with no dependencies and reads
 the resolver's symbol table rather than a second copy of the analysis.
 
-Queued: [a VS Code client](#1-a-vs-code-language-client--next), `--format json`,
+Queued: `--format json`,
 `fmt --diff`, `check --watch`, `baa doc`.
 
 ### Standard library
@@ -386,7 +392,7 @@ wordings. The playground runs the real interpreter in the browser.
 Queued: the VS Code client, structured diagnostics, `fmt --diff`. The largest
 single improvement available is making `npm install -g baa-lang` sufficient to
 build a native application, which is
-[milestone 2](#2-prebuilt-native-runtimes-in-the-npm-package--next).
+[milestone 1](#1-prebuilt-native-runtimes-in-the-npm-package--next).
 
 ### Cross-platform
 

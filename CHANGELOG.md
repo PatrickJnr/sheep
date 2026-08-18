@@ -7,6 +7,44 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.6.0], 2026-08-18
+
+VS Code gets the language server it has been able to run for two releases.
+
+### Added
+
+- **A VS Code extension that actually starts `baa lsp`.** Diagnostics as you
+  type, formatting, an outline, hover, go to definition, find references and
+  rename — all from the same analysis `baa check` runs, with no configuration
+  when `baa` is on `PATH`. Install the `.vsix` attached to this release with
+  `code --install-extension baa-lang.vsix`.
+
+  The extension implements no language intelligence of its own, and a test
+  asserts it registers no providers: a second opinion about what a program
+  means is worse than no opinion.
+
+- **An integration test that launches a real VS Code**, loads the extension,
+  opens a `.baa` file and checks that `BAA102` arrives on the right range, that
+  formatting returns edits and that go to definition lands on the declaration.
+  `npm run test:vscode` in `editors/vscode`, and a CI job on Windows.
+
+  It earned itself immediately. `npm install -g` writes `baa.cmd` on Windows,
+  and since CVE-2024-27980 Node refuses to spawn a `.cmd` without a shell, so
+  the obvious implementation found nothing on the platform most people use and
+  failed silently. `shell: true` would have been re-opening that hole; the
+  extension resolves the JavaScript entry npm installed beside the shim and
+  runs it under the editor's own Node.
+
+- **The `.vsix` is built by CI** and attached to every release, since the
+  extension is not on the marketplace and there is no publisher to trust.
+
+### Changed
+
+- `actions/checkout` and `actions/setup-node` moved from v4 to v7. Both were
+  targeting Node 20 and being forced onto Node 24 with a warning on every run.
+
+[0.6.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.6.0
+
 ## [0.5.0], 2026-08-18
 
 An audit release. The largest gap between Baa's two runtimes is closed, and

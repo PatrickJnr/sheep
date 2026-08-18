@@ -104,6 +104,45 @@ jobs:
       - name: Clippy
         run: cargo clippy --manifest-path rust/Cargo.toml --all-targets -- -D warnings
 
+  extension:
+    name: vs code extension
+    # Windows on purpose. `npm install -g` writes `baa.cmd` here, which Node
+    # refuses to spawn without a shell, and an extension that cannot start its
+    # own server on the platform most people use is the failure worth catching.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Baa the way a user would
+        run: npm install -g .
+
+      - name: Compile the client
+        working-directory: editors/vscode
+        run: |
+          npm ci
+          npm run compile
+
+      - name: The extension starts the server and reports diagnostics
+        working-directory: editors/vscode
+        run: npm run test:vscode
+
+      - name: Package the VSIX
+        working-directory: editors/vscode
+        run: npm run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: baa-lang-vsix
+          path: editors/vscode/baa-lang.vsix
+          if-no-files-found: error
+
   quality:
     name: format, lint and docs
     runs-on: ubuntu-latest

@@ -120,14 +120,41 @@ With `eglot`:
 ### VS Code
 
 The extension in [`editors/vscode/`](https://github.com/PatrickJnr/sheep/tree/HEAD/editors/vscode)
-provides highlighting, snippets and editing configuration. Copy or symlink the
-directory into `~/.vscode/extensions/` and reload the window.
+starts the language server for you. Install the `.vsix` attached to a
+[release](https://github.com/PatrickJnr/sheep/releases):
 
-It does **not** yet start the language server. VS Code has no built-in way to
-attach one, unlike the editors above: it needs an extension with a JavaScript
-entry point using `vscode-languageclient`. The extension is currently
-declarative only, so wiring that up is the next piece of work here, and until
-it is done VS Code gets highlighting and snippets but not live diagnostics.
+```bash
+code --install-extension baa-lang.vsix
+```
+
+Open a `.baa` file and diagnostics, formatting, hover, go to definition, find
+references and rename all work with no configuration, provided `baa` is on your
+`PATH` — which `npm install -g baa-lang` arranges. If it is somewhere else, set
+`baa.server.path`:
+
+| Setting | What it does |
+| --- | --- |
+| `baa.server.path` | Path to `baa`, or to a `.js` entry point. Empty means "find it on `PATH`". |
+| `baa.trace.server` | `off`, `messages` or `verbose`. Logs the traffic to the **Baa Language Server** output channel. |
+
+The extension is not on the marketplace, so there is no publisher to trust and
+no auto-update; the `.vsix` on each release is built by the same workflow that
+publishes the npm package.
+
+Nothing in the extension analyses Baa. It starts `baa lsp` and connects VS Code
+to it, so the editor sees exactly what `baa check` sees. A test asserts the
+extension registers no providers of its own, because a second opinion about
+what a program means is worse than no opinion.
+
+**Building it from a checkout:**
+
+```bash
+cd editors/vscode
+npm ci
+npm run compile
+npm run package        # writes baa-lang.vsix
+npm run test:vscode    # downloads VS Code and drives the real extension
+```
 
 ## Checking it works
 

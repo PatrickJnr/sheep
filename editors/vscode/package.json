@@ -1,15 +1,23 @@
 {
   "name": "baa-lang",
   "displayName": "Baa",
-  "description": "Syntax highlighting and editing support for the Baa programming language (.baa)",
-  "version": "0.1.0",
+  "description": "The Baa programming language: syntax highlighting, plus diagnostics, formatting, hover, go to definition, find references and rename from the `baa lsp` language server.",
+  "version": "0.6.0",
   "publisher": "baa-lang",
   "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
   },
-  "categories": ["Programming Languages"],
-  "keywords": ["baa", "sheep", "language"],
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Formatters"
+  ],
+  "keywords": [
+    "baa",
+    "sheep",
+    "language"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/PatrickJnr/sheep.git",
@@ -19,8 +27,13 @@
     "languages": [
       {
         "id": "baa",
-        "aliases": ["Baa", "baa"],
-        "extensions": [".baa"],
+        "aliases": [
+          "Baa",
+          "baa"
+        ],
+        "extensions": [
+          ".baa"
+        ],
         "configuration": "./language-configuration.json",
         "icon": {
           "light": "./icons/baa-file.svg",
@@ -47,6 +60,47 @@
         "editor.tabSize": 4,
         "editor.wordBasedSuggestions": "currentDocument"
       }
+    },
+    "configuration": {
+      "title": "Baa",
+      "properties": {
+        "baa.server.path": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Path to the `baa` executable. Leave empty to use the one on your `PATH`, which is what `npm install -g baa-lang` provides. Set it to run the language server from a checkout, for example `/path/to/sheep/dist/cli/index.js`'s wrapper or a `baa` shim.",
+          "scope": "machine-overridable"
+        },
+        "baa.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Log the traffic between VS Code and the Baa language server."
+        }
+      }
     }
+  },
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:baa"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "package": "vsce package --out baa-lang.vsix",
+    "test:vscode": "node test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/vscode": "^1.75.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.2.1",
+    "typescript": "^5.7.2"
   }
 }
