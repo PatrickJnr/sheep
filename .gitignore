@@ -30,3 +30,8 @@ editors/vscode/*.vsix
 # gigabyte. It is a cache, not a dependency.
 .vscode-test/
 editors/vscode/.vscode-test/
+
+# Scratch .baa files for eyeballing the editor. Deliberately broken, so they
+# would fail the formatter and linter that run over examples/ and
+# tests/programs/. Local only.
+sandbox/
