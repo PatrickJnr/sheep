@@ -1,0 +1,17 @@
+import "./nested/deep.baa"
+
+export const NAME = "lib"
+
+export fn double(n) {
+    return n * 2
+}
+
+export fn deep_greeting() {
+    return deep.greet(NAME)
+}
+
+fn private_helper() {
+    return "hidden"
+}
+
+baa "lib loaded once"

@@ -1,0 +1,5 @@
+import "./cycle_b.baa"
+
+export fn a() {
+    return cycle_b.b()
+}

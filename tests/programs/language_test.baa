@@ -1,0 +1,196 @@
+// Baa's own test blocks, run with `baa test tests/programs`.
+// These are the language testing itself in its own syntax.
+
+import wool
+import flock
+import ram
+import lamb
+
+test "arithmetic follows the usual precedence" {
+    assert_eq(1 + 2 * 3, 7)
+    assert_eq((1 + 2) * 3, 9)
+    assert_eq(2 ** 3 ** 2, 512)
+    assert_eq(-2 ** 2, -4)
+    assert_eq(7 % 3, 1)
+}
+
+test "only nil and false are falsy" {
+    assert(!nil)
+    assert(!false)
+    assert(0)
+    assert("")
+    assert([])
+}
+
+test "strings interpolate and compare" {
+    const name = "Dolly"
+    assert_eq("Baa, {name}!", "Baa, Dolly!")
+    assert_eq("{1 + 1} sheep", "2 sheep")
+    assert("apple" < "banana")
+}
+
+test "arrays compare structurally and copy deeply" {
+    assert_eq([1, [2, 3]], [1, [2, 3]])
+
+    const original = [[1]]
+    const copy = clone(original)
+    copy[0].push(2)
+    assert_eq(original, [[1]])
+    assert_eq(copy, [[1, 2]])
+}
+
+test "maps keep insertion order" {
+    const m = { b: 1, a: 2 }
+    m.c = 3
+    assert_eq(m.keys(), ["b", "a", "c"])
+    assert_eq(m.values(), [1, 2, 3])
+}
+
+test "closures capture their scope" {
+    fn counter() {
+        let n = 0
+        return fn() {
+            n += 1
+            return n
+        }
+    }
+
+    const next = counter()
+    next()
+    assert_eq(next(), 2)
+    assert_eq(counter()(), 1, "each closure gets its own binding")
+}
+
+test "recursion computes fibonacci" {
+    fn fib(n) {
+        if n < 2 {
+            return n
+        }
+        return fib(n - 1) + fib(n - 2)
+    }
+
+    assert_eq(fib(10), 55)
+}
+
+test "default and rest parameters bind correctly" {
+    fn f(a, b = 10, ..rest) {
+        return [a, b, rest]
+    }
+
+    assert_eq(f(1), [1, 10, []])
+    assert_eq(f(1, 2, 3, 4), [1, 2, [3, 4]])
+}
+
+test "match chooses the first arm that fits" {
+    fn size(n) {
+        return match n {
+            0 => "none",
+            1 || 2 => "few",
+            x if x > 10 => "many",
+            _ => "some",
+        }
+    }
+
+    assert_eq(size(0), "none")
+    assert_eq(size(2), "few")
+    assert_eq(size(11), "many")
+    assert_eq(size(5), "some")
+}
+
+test "loops iterate every collection kind" {
+    const seen = []
+    for x in [1, 2] {
+        seen.push(x)
+    }
+    for c in "ab" {
+        seen.push(c)
+    }
+    for i in 1..=2 {
+        seen.push(i)
+    }
+    for k, v in { z: 9 } {
+        seen.push(k)
+        seen.push(v)
+    }
+    assert_eq(seen, [1, 2, "a", "b", 1, 2, "z", 9])
+}
+
+test "break and continue behave" {
+    const seen = []
+    for i in 0..6 {
+        if i % 2 == 0 {
+            continue
+        }
+        if i > 3 {
+            break
+        }
+        seen.push(i)
+    }
+    assert_eq(seen, [1, 3])
+}
+
+test "throw and catch carry values" {
+    fn risky(fail) {
+        if fail {
+            throw { code: "NOPE" }
+        }
+        return "fine"
+    }
+
+    assert_eq(risky(false), "fine")
+
+    let caught = nil
+    try {
+        risky(true)
+    } catch problem {
+        caught = problem.code
+    }
+    assert_eq(caught, "NOPE")
+}
+
+test "runtime errors are catchable and carry a code" {
+    let code = nil
+    try {
+        baa [1][9]
+    } catch problem {
+        code = problem.code
+    }
+    assert_eq(code, "BAA304")
+}
+
+test "finally always runs" {
+    const log = []
+    fn guarded(fail) {
+        try {
+            if fail {
+                throw "x"
+            }
+            return "ok"
+        } catch problem {
+            return "caught"
+        } finally {
+            log.push("cleanup")
+        }
+    }
+
+    assert_eq(guarded(false), "ok")
+    assert_eq(guarded(true), "caught")
+    assert_eq(log, ["cleanup", "cleanup"])
+}
+
+test "standard library round-trips data" {
+    assert_eq(wool.snake_case("MaxSheep"), "max_sheep")
+    assert_eq(flock.chunk([1, 2, 3], 2), [[1, 2], [3]])
+    assert_eq(ram.round(2.345, 2), 2.35)
+
+    const value = { name: "Dolly", tags: ["ewe"] }
+    assert_eq(lamb.decode(lamb.encode(value)), value)
+}
+
+test "higher-order array methods compose" {
+    const numbers = [1, 2, 3, 4, 5]
+    const result = numbers.filter(fn(n) { return n % 2 == 1 }).map(fn(n) { return n * n })
+    assert_eq(result, [1, 9, 25])
+    assert_eq(result.sum(), 35)
+    assert_eq(numbers.reduce(fn(total, n) { return total + n }, 0), 15)
+}
