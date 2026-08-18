@@ -13,6 +13,7 @@
  * in one place.
  */
 
+import { bindingNames } from "../ast/ast.ts";
 import type {
   Block,
   Expression,
@@ -220,8 +221,10 @@ class Resolver {
           params: statement.params,
         });
       } else if (statement.kind === "LetStatement") {
-        if (!scope.declared.has(statement.name)) {
-          scope.pending.set(statement.name, statement.nameSpan);
+        // Every name a binding introduces is hoisted, not only the simple
+        // case, or `let [a, b] = ...` would look undeclared to code above it.
+        for (const bound of bindingNames(statement.binding)) {
+          if (!scope.declared.has(bound.name)) scope.pending.set(bound.name, bound.span);
         }
       }
     }
@@ -232,10 +235,12 @@ class Resolver {
     switch (statement.kind) {
       case "LetStatement":
         this.#resolveExpression(statement.value);
-        this.#declare(statement.name, statement.nameSpan, statement.mutable ? "let" : "const", {
-          mutable: statement.mutable,
-          exported: statement.exported,
-        });
+        for (const bound of bindingNames(statement.binding)) {
+          this.#declare(bound.name, bound.span, statement.mutable ? "let" : "const", {
+            mutable: statement.mutable,
+            exported: statement.exported,
+          });
+        }
         return;
       case "FunctionDeclaration":
         this.#resolveFunction(statement.params, statement.body, statement.name);

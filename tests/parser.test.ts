@@ -253,7 +253,10 @@ describe("parser: errors and recovery", () => {
     assert.ok(codes.length >= 1);
     assert.ok(
       program.body.some(
-        (statement) => statement.kind === "LetStatement" && statement.name === "good",
+        (statement) =>
+          statement.kind === "LetStatement" &&
+          statement.binding.kind === "NameBinding" &&
+          statement.binding.name === "good",
       ),
       "expected the parser to recover and see `let good`",
     );

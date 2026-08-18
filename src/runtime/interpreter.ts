@@ -19,7 +19,9 @@
  * comes: see ARCHITECTURE.md.
  */
 
+import { bindingNames } from "../ast/ast.ts";
 import type {
+  Binding,
   Block,
   Expression,
   FunctionDeclaration,
@@ -156,7 +158,7 @@ export class Interpreter {
     switch (statement.kind) {
       case "LetStatement": {
         const value = this.evaluate(statement.value, env);
-        env.define(statement.name, value, statement.mutable);
+        this.#bind(statement.binding, value, env, statement.mutable);
         return null;
       }
       case "FunctionDeclaration":
@@ -232,6 +234,51 @@ export class Interpreter {
 
   executeBlock(block: Block, env: Environment): Value {
     return this.executeBody(block.body, env);
+  }
+
+  /**
+   * Take a value apart according to a binding and define the names it holds.
+   *
+   * A missing item or key binds `nil` rather than failing. That matches how
+   * reading past the end of a map already behaves, and it means an optional
+   * field does not need a different syntax; a program that wants strictness
+   * has `expect`.
+   */
+  #bind(binding: Binding, value: Value, env: Environment, mutable: boolean): void {
+    switch (binding.kind) {
+      case "NameBinding":
+        env.define(binding.name, value, mutable);
+        return;
+      case "ArrayBinding": {
+        if (!(value instanceof BaaArray)) {
+          throw BaaError.of("BAA311", ["this binding", "an array", "1", typeOf(value)], {
+            span: binding.span,
+            note: "cannot be taken apart as an array",
+            help: `\`[...]\` on the left needs an array on the right, not ${describeType(value)}.`,
+          });
+        }
+        binding.elements.forEach((element, index) => {
+          const item = element.rest
+            ? new BaaArray(value.items.slice(index))
+            : (value.items[index] ?? null);
+          this.#bind(element.binding, item, env, mutable);
+        });
+        return;
+      }
+      case "MapBinding": {
+        if (!(value instanceof BaaMap)) {
+          throw BaaError.of("BAA311", ["this binding", "a map", "1", typeOf(value)], {
+            span: binding.span,
+            note: "cannot be taken apart as a map",
+            help: `\`{...}\` on the left needs a map on the right, not ${describeType(value)}.`,
+          });
+        }
+        for (const entry of binding.entries) {
+          this.#bind(entry.binding, value.entries.get(entry.key) ?? null, env, mutable);
+        }
+        return;
+      }
+    }
   }
 
   #executeFor(statement: Extract<Statement, { kind: "ForStatement" }>, env: Environment): Value {
@@ -446,7 +493,11 @@ export class Interpreter {
         (statement.kind === "LetStatement" || statement.kind === "FunctionDeclaration") &&
         statement.exported
       ) {
-        exports.set(statement.name, scope.get(statement.name, statement.span));
+        const names =
+          statement.kind === "FunctionDeclaration"
+            ? [{ name: statement.name, span: statement.span }]
+            : bindingNames(statement.binding);
+        for (const bound of names) exports.set(bound.name, scope.get(bound.name, bound.span));
       }
     }
     const module = new BaaModule(moduleNameOf(resolved), exports, resolved);
