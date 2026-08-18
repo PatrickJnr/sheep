@@ -34,7 +34,7 @@ const ORIGIN = "https://sheep.grimtech.co.uk";
 /** The card social platforms show. */
 const SOCIAL_IMAGE = {
   file: "social.png",
-  alt: "Baa — a programming language with a little more Baa.",
+  alt: "Baa: a programming language with a little more Baa.",
 } as const;
 
 /**
