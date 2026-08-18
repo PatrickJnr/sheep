@@ -202,7 +202,10 @@ iteration operate on code points, not UTF-16 units.
 **`array`** is an ordered, mutable, heterogeneous sequence.
 
 **`map`** is an insertion-ordered mutable mapping. Keys may be `nil`, `bool`,
-`number` or `string`; a composite key is `BAA311`.
+`number` or `string`; a composite key is `BAA311`. Keys are not coerced, so
+`1` and `"1"` are two distinct keys and a map holding both has size 2. An
+implementation backed by a structure that stringifies keys must keep the type
+alongside the key to preserve this.
 
 **`range`** is an immutable `start`, `end`, `inclusive` triple. `a..b` excludes
 `b`; `a..=b` includes it. When `start > end` the range counts downwards.
@@ -468,6 +471,41 @@ without one produces `nil`.
 `break` and `continue` are valid only inside a loop in the same function
 (`BAA105`); a function boundary resets the loop context.
 
+#### What `for` binds
+
+`for` takes one or two names. One name binds the value; two bind the position
+and the value. `map` is the case worth stating plainly, because a single name
+binds the value, not the key:
+
+| Iterating | `for v in x` | `for a, b in x` |
+| --- | --- | --- |
+| `array` | each element | index, element |
+| `map` | each value | key, value |
+| `string` | each code point | index, code point |
+| `range` | each number | position, number |
+
+Anything else is `BAA309`. Use `keys()` to walk a map's keys with a single
+name.
+
+#### Iterating a collection that changes
+
+`for` over an array does not take a snapshot. It holds an index and re-reads
+the array's length before each step, so items appended during the body are
+visited, and items removed may end the loop early:
+
+```
+let a = [1, 2, 3]
+for x in a {
+    if a.length() < 5 { a.push(99) }
+}
+// visits 1, 2, 3, 99, 99
+```
+
+Appending unconditionally is therefore a loop that ends only at the size limit
+(§9.1), not a loop that ends after three steps. A `map` behaves the same way:
+entries added during the body are visited. A `string` and a `range` are
+immutable, so the question does not arise for them.
+
 ### 5.4 `try`
 
 `try` must have a `catch` block, a `finally` block, or both.
@@ -481,6 +519,28 @@ error. Its binding is optional; when present it receives:
 
 `finally` runs after the `try` block and any `catch`, whether the block
 completed, raised, or returned.
+
+#### How `finally` finishes
+
+Entering `finally` there may already be a pending outcome: a value being
+returned, a value being thrown, or a `break` or `continue` waiting to take
+effect. `finally` may itself finish in one of those ways, and when it does, its
+outcome replaces the pending one entirely:
+
+| Pending on entry | `finally` finishes with | Result |
+| --- | --- | --- |
+| `return a` | falling off the end | `return a` |
+| `return a` | `return b` | `return b` |
+| `throw a` | falling off the end | `throw a` |
+| `throw a` | `return b` | `return b`, and `a` is discarded |
+| `throw a` | `throw b` | `throw b`, and `a` is discarded |
+| `break` or `continue` | falling off the end | the loop signal proceeds |
+| anything | `break` or `continue` | the loop signal replaces it |
+
+A `finally` that discards a pending throw is therefore able to swallow an error
+silently. That is the same rule Java and JavaScript use, and it is stated here
+rather than left to the implementation, because an implementation that returned
+the *original* value instead would pass every other test in this document.
 
 An uncaught throw terminates the program with `BAA308` and exit code 1.
 
@@ -585,7 +645,11 @@ in. Three are specified because programs can observe them:
 
 The last covers anything sized by a value the program supplies: `repeat`,
 `pad_start`, `pad_end`, `wool.center`, `flock.repeat`, `flock.range`, `..`
-materialised with `to_array`, and `"x" * n`.
+materialised with `to_array`, and `"x" * n`. It also covers growth, so
+`push`, `unshift`, `insert` and `concat` report `BAA312` rather than growing
+an array without bound. A `for` loop reads the length of the array it is
+iterating on each step (§5.3), so appending inside the body is otherwise an
+unbounded loop.
 
 ## 10. Deliberate omissions
 

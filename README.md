@@ -282,7 +282,7 @@ and a second implementation is an explicitly open track.
 Everything a port needs already exists and is kept fresh by CI:
 
 - [`SPEC.md`](SPEC.md): the full language definition, with an EBNF grammar
-- [`tests/conformance/suite.json`](tests/conformance/suite.json): 42 programs
+- [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
   all 46 diagnostics, both wordings, ready to embed

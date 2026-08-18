@@ -144,6 +144,54 @@
       "exit": 0
     },
     {
+      "name": "control/for-binds-one-name",
+      "source": "for v in [\"p\", \"q\"] { baa v }\nfor v in { a: 1, b: 2 } { baa v }\nfor c in \"xy\" { baa c }\nfor n in 5..7 { baa n }",
+      "stdout": "p\nq\n1\n2\nx\ny\n5\n6\n",
+      "exit": 0
+    },
+    {
+      "name": "control/for-binds-two-names",
+      "source": "for i, v in [\"p\", \"q\"] { baa i, v }\nfor k, v in { a: 1, b: 2 } { baa k, v }\nfor i, c in \"xy\" { baa i, c }\nfor i, n in 5..7 { baa i, n }",
+      "stdout": "0 p\n1 q\na 1\nb 2\n0 x\n1 y\n0 5\n1 6\n",
+      "exit": 0
+    },
+    {
+      "name": "control/for-sees-appended-items",
+      "source": "let a = [1, 2, 3]\nlet seen = []\nfor x in a {\n  seen.push(x)\n  if a.length() < 5 { a.push(99) }\n}\nbaa seen",
+      "stdout": "[1, 2, 3, 99, 99]\n",
+      "exit": 0
+    },
+    {
+      "name": "try/finally-replaces-return",
+      "source": "fn f() {\n  try { return \"try\" } finally { return \"finally\" }\n}\nbaa f()",
+      "stdout": "finally\n",
+      "exit": 0
+    },
+    {
+      "name": "try/finally-discards-throw",
+      "source": "fn f() {\n  try { throw \"boom\" } finally { return \"finally\" }\n}\nbaa f()",
+      "stdout": "finally\n",
+      "exit": 0
+    },
+    {
+      "name": "try/finally-replaces-throw",
+      "source": "fn f() {\n  try { throw \"first\" } finally { throw \"second\" }\n}\ntry { f() } catch e { baa e }",
+      "stdout": "second\n",
+      "exit": 0
+    },
+    {
+      "name": "try/finally-runs-on-break",
+      "source": "for i in 0..3 {\n  try { break } finally { baa \"finally {i}\" }\n}\nbaa \"after\"",
+      "stdout": "finally 0\nafter\n",
+      "exit": 0
+    },
+    {
+      "name": "maps/keys-are-not-coerced",
+      "source": "let m = {}\nm[1] = \"number\"\nm[\"1\"] = \"string\"\nbaa m.keys().length(), m[1], m[\"1\"]",
+      "stdout": "2 number string\n",
+      "exit": 0
+    },
+    {
       "name": "functions/params",
       "source": "fn f(a, b = 10, ..rest) { return [a, b, rest] }\nbaa f(1), f(1, 2), f(1, 2, 3, 4)",
       "stdout": "[1, 10, []] [1, 2, []] [1, 2, [3, 4]]\n",

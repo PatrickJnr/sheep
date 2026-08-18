@@ -112,6 +112,44 @@ const CORE_PROGRAMS: Array<[string, string]> = [
     "for i in 0..5 {\n  if i == 1 { continue }\n  if i == 3 { break }\n  baa i\n}",
   ],
   ["control/while", "let n = 3\nwhile n > 0 {\n  baa n\n  n -= 1\n}"],
+  // One name binds the value, two bind position and value. `map` is the one an
+  // implementation is most likely to get wrong, because a single name binds
+  // the value rather than the key (SPEC 5.3).
+  [
+    "control/for-binds-one-name",
+    'for v in ["p", "q"] { baa v }\nfor v in { a: 1, b: 2 } { baa v }\nfor c in "xy" { baa c }\nfor n in 5..7 { baa n }',
+  ],
+  [
+    "control/for-binds-two-names",
+    'for i, v in ["p", "q"] { baa i, v }\nfor k, v in { a: 1, b: 2 } { baa k, v }\nfor i, c in "xy" { baa i, c }\nfor i, n in 5..7 { baa i, n }',
+  ],
+  // `for` re-reads the length each step rather than taking a snapshot, so
+  // items appended during the body are visited (SPEC 5.3).
+  [
+    "control/for-sees-appended-items",
+    "let a = [1, 2, 3]\nlet seen = []\nfor x in a {\n  seen.push(x)\n  if a.length() < 5 { a.push(99) }\n}\nbaa seen",
+  ],
+  // Whatever `finally` finishes with replaces the pending outcome, including
+  // discarding a throw that was on its way out (SPEC 5.4).
+  [
+    "try/finally-replaces-return",
+    'fn f() {\n  try { return "try" } finally { return "finally" }\n}\nbaa f()',
+  ],
+  [
+    "try/finally-discards-throw",
+    'fn f() {\n  try { throw "boom" } finally { return "finally" }\n}\nbaa f()',
+  ],
+  [
+    "try/finally-replaces-throw",
+    'fn f() {\n  try { throw "first" } finally { throw "second" }\n}\ntry { f() } catch e { baa e }',
+  ],
+  [
+    "try/finally-runs-on-break",
+    'for i in 0..3 {\n  try { break } finally { baa "finally {i}" }\n}\nbaa "after"',
+  ],
+  // Keys are not coerced, so these are two entries, not one. An implementation
+  // backed by JavaScript object keys would collapse them (SPEC 3.1).
+  ["maps/keys-are-not-coerced", 'let m = {}\nm[1] = "number"\nm["1"] = "string"\nbaa m.keys().length(), m[1], m["1"]'],
   [
     "functions/params",
     "fn f(a, b = 10, ..rest) { return [a, b, rest] }\nbaa f(1), f(1, 2), f(1, 2, 3, 4)",
