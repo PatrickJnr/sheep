@@ -10,6 +10,7 @@
 import type { Interpreter } from "../runtime/interpreter.ts";
 import type { BaaModule } from "../runtime/values.ts";
 import { createFlock } from "./flock.ts";
+import { createGate } from "./gate.ts";
 import { createLamb } from "./lamb.ts";
 import { createMeadow } from "./meadow.ts";
 import { createPasture } from "./pasture.ts";
@@ -26,6 +27,7 @@ export const STDLIB_MODULES: readonly string[] = [
   "pasture",
   "shepherd",
   "lamb",
+  "gate",
 ];
 
 export const STDLIB_SUMMARY: Readonly<Record<string, string>> = {
@@ -36,6 +38,7 @@ export const STDLIB_SUMMARY: Readonly<Record<string, string>> = {
   pasture: "Files and paths: reading, writing, listing, joining.",
   shepherd: "The outside world: arguments, environment, stdin, subprocesses.",
   lamb: "Data: JSON encoding and decoding.",
+  gate: "The web: reading a request and writing a reply, over CGI.",
 };
 
 export function loadBuiltinModule(name: string, interpreter: Interpreter): BaaModule | null {
@@ -54,6 +57,8 @@ export function loadBuiltinModule(name: string, interpreter: Interpreter): BaaMo
       return createShepherd(interpreter.host);
     case "lamb":
       return createLamb();
+    case "gate":
+      return createGate(interpreter.host);
     default:
       return null;
   }

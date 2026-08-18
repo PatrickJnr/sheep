@@ -77,6 +77,11 @@ function keyText(key: MapKey): string {
   return formatNumber(key);
 }
 
+/** Shared with `gate.json`, so both encode a value by the same rules. */
+export function encodeJson(value: Value, span: Span, indent = 0): string {
+  return encode(value, indent, 0, span, new Set());
+}
+
 function encode(
   value: Value,
   indent: number,
