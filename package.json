@@ -1,0 +1,70 @@
+{
+  "name": "baa-lang",
+  "version": "0.1.0",
+  "description": "Baa — a programming language with a little more Baa. Readable syntax, fast tooling, beautiful diagnostics, extremely questionable sheep-related naming decisions.",
+  "keywords": [
+    "baa",
+    "programming-language",
+    "interpreter",
+    "lexer",
+    "parser",
+    "repl",
+    "sheep"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "baa": "src/cli/index.ts"
+  },
+  "exports": {
+    ".": "./src/api.ts"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "files": [
+    "src",
+    "examples",
+    "docs",
+    "tests/conformance",
+    "LANGUAGE.md",
+    "SPEC.md",
+    "ARCHITECTURE.md",
+    "ROADMAP.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "baa": "node src/cli/index.ts",
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "test:watch": "node --test --watch \"tests/**/*.test.ts\"",
+    "test:baa": "node src/cli/index.ts test tests/programs",
+    "typecheck": "tsc --noEmit",
+    "lint": "node src/cli/index.ts lint examples tests/programs",
+    "fmt": "node src/cli/index.ts fmt examples tests/programs",
+    "fmt:check": "node src/cli/index.ts fmt --check examples tests/programs",
+    "bench": "node tools/bench.ts",
+    "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
+    "gen:docs": "node tools/gen-docs.ts",
+    "gen:conformance": "node tools/gen-conformance.ts",
+    "gen:playground": "node tools/build-playground.ts",
+    "gen:site": "node tools/build-site.ts && node tools/check-site.ts",
+    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:assets && npm run gen:playground && npm run gen:site",
+    "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/render-assets.ts --check",
+    "check:playground": "node tools/check-playground.ts",
+    "serve": "node tools/serve.ts",
+    "gen:assets": "node tools/render-assets.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "puppeteer-core": "^25.8.0",
+    "typescript": "^5.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PatrickJnr/sheep.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PatrickJnr/sheep/issues"
+  },
+  "homepage": "https://sheep.grimtech.co.uk"
+}

@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+Thumbs.db
+baa.lock
+.baa-cache/
+# The website is built and deployed separately, and is not published here.
+# Everything under it, sources and build output alike, stays out of the repo.
+website/
