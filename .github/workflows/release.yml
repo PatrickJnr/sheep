@@ -72,6 +72,21 @@ jobs:
           path: editors/vscode/baa-lang.vsix
           if-no-files-found: error
 
+      - name: Publish to the marketplace
+        # Only when a token exists. Without one the release still carries the
+        # VSIX, which is how the extension is installed today; adding the
+        # secret is what turns that into a marketplace listing, and nothing
+        # here needs changing when it does.
+        working-directory: editors/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "::notice::No VSCE_PAT secret, so the extension is not published to the marketplace. The VSIX is attached to the release."
+            exit 0
+          fi
+          npx vsce publish --packagePath baa-lang.vsix --pat "$VSCE_PAT"
+
   runtimes:
     name: native runtime (${{ matrix.target }})
     needs: verify

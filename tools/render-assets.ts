@@ -55,6 +55,10 @@ const TARGETS = [
   { svg: "logo.svg", png: "logo.png", width: 208, height: 64 },
   { svg: "logo-dark.svg", png: "logo-dark.png", width: 208, height: 64 },
   { svg: "icon.svg", png: "icon.png", width: 64, height: 64 },
+  // The VS Code marketplace shows the extension's icon at 128 and will not
+  // take an SVG, so this is a second size of the same drawing rather than a
+  // second drawing.
+  { svg: "icon.svg", png: "icon-128.png", width: 128, height: 128 },
 ] as const;
 
 const SCALE = 2;
