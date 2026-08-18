@@ -402,7 +402,7 @@ ok   Baa               0.3.2
 ok   Project           hill_farm 0.1.0 ()
 ok   Wool              1 resolved
 ok   Entry             main.baa
-ok   Standard library  8 modules
+ok   Standard library  9 modules
 ok   Colour            enabled
 
 The flock is healthy.

@@ -1,0 +1,63 @@
+import "../document.baa"
+
+test "a new document is empty and unmodified" {
+    const doc = document.empty()
+    assert_eq(doc.text, "")
+    assert_eq(doc.path, nil)
+    assert_eq(document.is_modified(doc), false)
+}
+
+test "typing makes a document modified" {
+    const doc = document.edited(document.empty(), "Baa")
+    assert_eq(document.is_modified(doc), true)
+}
+
+test "typing the text back makes it unmodified again" {
+    // The state is derived from the two strings rather than from a flag, so
+    // undoing an edit by hand really does clear the marker.
+    let doc = document.opened("sheep.txt", "Dolly")
+    doc = document.edited(doc, "Dolly and Shaun")
+    assert_eq(document.is_modified(doc), true)
+    doc = document.edited(doc, "Dolly")
+    assert_eq(document.is_modified(doc), false)
+}
+
+test "saving clears the marker and remembers the path" {
+    let doc = document.edited(document.empty(), "Baa")
+    doc = document.stored(doc, "flock.txt")
+    assert_eq(document.is_modified(doc), false)
+    assert_eq(doc.path, "flock.txt")
+}
+
+test "the title says which file and whether it is dirty" {
+    assert_eq(document.title(document.empty()), "Untitled — Notepad")
+    const saved = document.opened("C:/pens/sheep.txt", "one")
+    assert_eq(document.title(saved), "sheep.txt — Notepad")
+    assert_eq(document.title(document.edited(saved, "two")), "• sheep.txt — Notepad")
+}
+
+test "an empty document is one line, not zero" {
+    const counts = document.stats(document.empty())
+    assert_eq(counts.lines, 1)
+    assert_eq(counts.characters, 0)
+    assert_eq(counts.words, 0)
+}
+
+test "a trailing newline does not open a new line" {
+    // `wc -l` counts this file as two lines and so does every editor.
+    const counts = document.stats(document.opened(nil, "one\ntwo\n"))
+    assert_eq(counts.lines, 2)
+}
+
+test "counts lines, words and characters" {
+    const counts = document.stats(document.opened(nil, "one two\nthree"))
+    assert_eq(counts.lines, 2)
+    assert_eq(counts.words, 3)
+    assert_eq(counts.characters, 13)
+}
+
+test "reading a file that is not there fails without throwing" {
+    const result = document.read("no/such/file/anywhere.txt")
+    assert_eq(result.ok, false)
+    assert(result.message.length() > 0)
+}

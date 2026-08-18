@@ -138,6 +138,41 @@ const DOC_PAGES: readonly DocPage[] = [
     group: "Start here",
   },
   {
+    slug: "native-applications",
+    source: "docs/native-applications.md",
+    title: "Native applications",
+    description: "Baa as a desktop application: one Windows executable, a real window, and the same .baa files.",
+    group: "Native applications",
+  },
+  {
+    slug: "gui",
+    source: "docs/gui.md",
+    title: "Windows and controls",
+    description: "The barn module: widgets, layout, events, menus, dialogs and the clipboard.",
+    group: "Native applications",
+  },
+  {
+    slug: "application-projects",
+    source: "docs/application-projects.md",
+    title: "Application projects",
+    description: "The manifest, the project layout, and where to put the code that is not the window.",
+    group: "Native applications",
+  },
+  {
+    slug: "building-windows-apps",
+    source: "docs/building-windows-apps.md",
+    title: "Building for Windows",
+    description: "What to install, what to run, what you get, and what to check before shipping it.",
+    group: "Native applications",
+  },
+  {
+    slug: "native-runtime",
+    source: "docs/native-runtime.md",
+    title: "The native runtime",
+    description: "The .fleece image format, the Rust tree-walker, the window model and how it is tested.",
+    group: "Native applications",
+  },
+  {
     slug: "editors",
     source: "docs/editors.md",
     title: "Editor support",
@@ -155,7 +190,7 @@ const DOC_PAGES: readonly DocPage[] = [
     slug: "stdlib",
     source: "docs/stdlib.md",
     title: "Standard library",
-    description: "Every function Baa ships with: the prelude, the methods on values, and all eight modules.",
+    description: "Every function Baa ships with: the prelude, the methods on values, and all nine modules.",
     group: "Reference",
   },
   {
@@ -243,6 +278,16 @@ const MARKDOWN_TO_SLUG: Record<string, string> = {
   "errors.md": "errors",
   "faq.md": "faq",
   "rust/README.md": "rust",
+  "docs/native-applications.md": "native-applications",
+  "native-applications.md": "native-applications",
+  "docs/gui.md": "gui",
+  "gui.md": "gui",
+  "docs/application-projects.md": "application-projects",
+  "application-projects.md": "application-projects",
+  "docs/building-windows-apps.md": "building-windows-apps",
+  "building-windows-apps.md": "building-windows-apps",
+  "docs/native-runtime.md": "native-runtime",
+  "native-runtime.md": "native-runtime",
 };
 
 /** Rewrite a link from a Markdown source into a link that works on the site. */

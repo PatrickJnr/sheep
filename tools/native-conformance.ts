@@ -56,7 +56,7 @@ export function hostPath(): string | null {
  * `barn`, `ram` and the prelude offer must produce identical output, and if it
  * does not, that is a bug rather than an exception.
  */
-const UNSUPPORTED = /^\s*import\s+(gate|pasture|shepherd|meadow|wool|flock|lamb)\b/m;
+const UNSUPPORTED = /^\s*import\s+(gate|shepherd|meadow)\b/m;
 
 export function runSuite(options: { verbose?: boolean } = {}): Summary {
   const host = hostPath();

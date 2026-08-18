@@ -36,6 +36,13 @@ pub enum Kind {
     Checkbox,
     /// Empty space that takes a share of the layout.
     Spacer,
+    /// A menu on the window's menu bar. Not laid out: the operating system
+    /// draws the bar itself, which is why a menu is a widget with no rectangle.
+    Menu,
+    /// An entry in a menu. Fires the same `click` event a button does.
+    MenuItem,
+    /// A dividing line in a menu.
+    Separator,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -134,7 +141,7 @@ impl Widget {
             Kind::Edit => 26.0,
             Kind::Checkbox => 22.0,
             Kind::TextArea | Kind::List => 120.0,
-            Kind::Spacer => 0.0,
+            Kind::Spacer | Kind::Menu | Kind::MenuItem | Kind::Separator => 0.0,
             _ => 0.0,
         }
     }
@@ -152,7 +159,7 @@ impl Widget {
             }
             Kind::Edit => 160.0,
             Kind::TextArea | Kind::List => 200.0,
-            Kind::Spacer => 0.0,
+            Kind::Spacer | Kind::Menu | Kind::MenuItem | Kind::Separator => 0.0,
             _ => 0.0,
         }
     }
@@ -235,6 +242,17 @@ impl Ui {
         if children.is_empty() {
             return;
         }
+        // Menus live on the window's bar, not in the layout, so they are not
+        // counted when the space is shared out.
+        let children: Vec<usize> = children
+            .iter()
+            .copied()
+            .filter(|id| !matches!(self.widgets[*id].kind, Kind::Menu | Kind::MenuItem | Kind::Separator))
+            .collect();
+        if children.is_empty() {
+            return;
+        }
+        let children = &children[..];
         let gaps = spacing * (children.len().saturating_sub(1)) as f64;
         let available = if vertical { area.height } else { area.width } - gaps;
 

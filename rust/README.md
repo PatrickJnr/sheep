@@ -82,7 +82,7 @@ rust/
 │   ├── baa-parser/             # recursive descent, precedence table, recovery
 │   ├── baa-sema/               # scopes, mutability, arity
 │   ├── baa-runtime/            # values, environments, the interpreter, the host trait
-│   ├── baa-stdlib/             # the eight modules
+│   ├── baa-stdlib/             # the standard modules
 │   ├── baa-fmt/                # the formatter
 │   ├── baa-lint/               # lint rules
 │   └── baa-cli/                # the `baa` binary
@@ -141,7 +141,7 @@ whole pipeline before running anything.
 5. **`baa-runtime`.** A tree-walker first, matching the reference semantics
    exactly. Now the `programs` half of the suite should pass. **This is the
    milestone that matters**: a conformant `baa run`.
-6. **`baa-stdlib`.** Eight modules, documented in
+6. **`baa-stdlib`.** The standard modules, documented in
    [`../docs/stdlib.md`](../docs/stdlib.md), which is itself generated from the
    implementation and lists every signature.
 7. **`baa-fmt` and `baa-lint`.** The formatter must stay a fixed point and must

@@ -1,14 +1,24 @@
 //! The standard library available to a native application.
 //!
 //! Not all of it. `gate` serves web pages over CGI and has no meaning in a
-//! window; `pasture`, `shepherd` and `meadow` are not here yet. The list below
-//! is the promise, `src/native/bundle.ts` refuses an import that is not on it
-//! at build time, and `tests/native.test.ts` asserts the two lists match. A
-//! module that is half-present would be worse than one that is absent, because
-//! the failure would arrive in front of a user rather than a developer.
+//! window, and `shepherd` and `meadow` are not here yet. The list below is the
+//! promise: `src/native/bundle.ts` refuses an import that is not on it at
+//! build time, and `tests/native.test.ts` asserts the two lists match, so a
+//! module added to one and forgotten in the other fails a test rather than a
+//! user.
+//!
+//! One module is not whole. `wool`'s five pattern functions need a
+//! regular-expression engine and report that they are missing when called;
+//! everything else in `wool` works. That is recorded here, in the module's own
+//! documentation, in docs/native-applications.md and in ROADMAP.md, because a
+//! gap nobody wrote down is indistinguishable from a bug.
 
 pub mod barn;
+pub mod flock;
+pub mod lamb;
+pub mod pasture;
 pub mod ram;
+pub mod wool;
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -18,11 +28,15 @@ use crate::interp::{Environment, Flow, Interpreter, Res};
 use crate::value::{deep_clone, display, equal, inspect, BaaMap, MapKey, Module, Native, Value};
 
 /// Every standard module a native application can import.
-pub const MODULES: &[&str] = &["barn", "ram"];
+pub const MODULES: &[&str] = &["barn", "flock", "lamb", "pasture", "ram", "wool"];
 
 pub fn load(name: &str) -> Option<Rc<Module>> {
     match name {
         "ram" => Some(ram::module()),
+        "wool" => Some(wool::module()),
+        "flock" => Some(flock::module()),
+        "lamb" => Some(lamb::module()),
+        "pasture" => Some(pasture::module()),
         "barn" => Some(barn::module()),
         _ => None,
     }

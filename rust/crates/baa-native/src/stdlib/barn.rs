@@ -45,6 +45,9 @@ const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("list", 1, 2),
     ("checkbox", 1, 2),
     ("spacer", 1, 2),
+    ("menu", 2, 2),
+    ("item", 2, 3),
+    ("separator", 1, 1),
     ("on", 3, 3),
     ("text", 1, 1),
     ("set_text", 2, 2),
@@ -182,6 +185,9 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
         "list" => Some(Kind::List),
         "checkbox" => Some(Kind::Checkbox),
         "spacer" => Some(Kind::Spacer),
+        "menu" => Some(Kind::Menu),
+        "item" => Some(Kind::MenuItem),
+        "separator" => Some(Kind::Separator),
         _ => None,
     };
     if let Some(kind) = kind {
@@ -189,6 +195,16 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             (None, args.first())
         } else {
             (Some(widget_of(interp, name, &args, 0, span)?), args.get(1))
+        };
+        // A menu or an item takes its label directly, because a label is all
+        // it has: `barn.item(file, "Open…")` rather than a map holding one key.
+        let label = if matches!(kind, Kind::Menu | Kind::MenuItem) {
+            match args.get(1) {
+                Some(Value::Str(text)) => Some(text.clone()),
+                _ => None,
+            }
+        } else {
+            None
         };
         if let Some(parent) = parent {
             if interp.ui.widgets[parent].handle != 0 {
@@ -202,7 +218,11 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
         }
         let id = interp.ui.add(kind, parent);
         let options = options.cloned();
-        configure(interp, id, options.as_ref());
+        if let Some(label) = label {
+            interp.ui.widgets[id].text = label.to_string();
+        } else {
+            configure(interp, id, options.as_ref());
+        }
         if kind == Kind::Window {
             let widget = interp.ui.get_mut(id).expect("just created");
             if widget.text.is_empty() {

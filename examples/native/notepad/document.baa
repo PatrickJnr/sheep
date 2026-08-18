@@ -1,0 +1,101 @@
+/// The part of a text editor that is not a window.
+///
+/// A document is a map: the text, where it came from, and what the text was
+/// when it was last saved. "Are there unsaved changes?" is then a comparison
+/// rather than a flag somebody has to remember to set, which is the bug every
+/// editor has had at least once.
+///
+/// Nothing here imports `barn`, so all of it is tested by `baa test` with no
+/// window involved.
+
+import pasture
+
+/// A document with nothing in it.
+export fn empty() {
+    return { path: nil, text: "", saved: "" }
+}
+
+/// A document read from disk. The caller has already decided the path exists.
+export fn opened(path, text) {
+    return { path: path, text: text, saved: text }
+}
+
+/// The document with different text. The saved copy does not move, which is
+/// what makes `is_modified` mean something.
+export fn edited(document, text) {
+    return { path: document.path, text: text, saved: document.saved }
+}
+
+/// The document as it is after a successful save to `path`.
+export fn stored(document, path) {
+    return { path: path, text: document.text, saved: document.text }
+}
+
+export fn is_modified(document) {
+    return document.text != document.saved
+}
+
+/// What the title bar says: the file's name, a dot when there are unsaved
+/// changes, and the application's name.
+///
+/// The dot is where every editor puts it and means what everyone expects, so
+/// it needs no explaining in the interface.
+export fn title(document) {
+    let name = "Untitled"
+    if document.path != nil {
+        name = pasture.base_name(document.path)
+    }
+    if is_modified(document) {
+        return "• " + name + " — Notepad"
+    }
+    return name + " — Notepad"
+}
+
+/// Line and character counts for the status line.
+///
+/// A trailing newline does not open a new line: a file ending in one has as
+/// many lines as it has newlines, which is what every other editor counts and
+/// what `wc -l` counts.
+export fn stats(document) {
+    const text = document.text
+    if text == "" {
+        return { lines: 1, characters: 0, words: 0 }
+    }
+    let lines = text.split("\n").length()
+    if text.ends_with("\n") {
+        lines -= 1
+    }
+    // Split on lines first: a word at the end of one line and a word at the
+    // start of the next are two words, and splitting on spaces alone counts
+    // them as one.
+    let words = 0
+    for line in text.split("\n") {
+        for part in line.split(" ") {
+            if part.trim() != "" {
+                words += 1
+            }
+        }
+    }
+    return { lines: lines, characters: text.length(), words: words }
+}
+
+/// Reads a file, returning a document or a message. Never throws: an editor
+/// that cannot open a file should say so, not stop.
+export fn read(path) {
+    try {
+        const text = pasture.read(path)
+        return { ok: true, document: opened(path, text) }
+    } catch problem {
+        return { ok: false, message: problem.message }
+    }
+}
+
+/// Writes the document. Same contract.
+export fn write(document, path) {
+    try {
+        pasture.write(path, document.text)
+        return { ok: true, document: stored(document, path) }
+    } catch problem {
+        return { ok: false, message: problem.message }
+    }
+}

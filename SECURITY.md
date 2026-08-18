@@ -70,7 +70,7 @@ Every filesystem, clock, randomness, environment and process operation goes
 through `RuntimeHost` (`src/runtime/host.ts`). Capabilities live in one file
 rather than being scattered through the standard library, so an audit is a
 single read, and a future `baa run --deny-fs` is a matter of swapping the
-implementation rather than patching eight modules.
+implementation rather than patching nine modules.
 
 ### Path inputs are validated
 

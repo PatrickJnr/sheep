@@ -56,7 +56,7 @@ interpreter.
 | `src/ast/` | Node types and generic walkers |
 | `src/semantic/` | Name resolution, scope and arity checking |
 | `src/runtime/` | Values, environments, the interpreter, the host interface |
-| `src/stdlib/` | The prelude and the eight modules |
+| `src/stdlib/` | The prelude and the nine modules |
 | `src/formatter/` | The AST printer behind `baa fmt` |
 | `src/linter/` | Warning rules |
 | `src/project/` | `baa.toml` and `baa.lock` |
@@ -254,6 +254,105 @@ What deliberately has *not* been built yet: none of the above. A bytecode VM
 for a language with no users is a way of avoiding writing the standard library.
 The architecture leaves the door open; the roadmap says when to walk through
 it.
+
+## Native applications
+
+Baa runs in two places: as a web page executed per request, and as a desktop
+application held open by a runtime that draws a window. The second one is
+newer, and the decisions behind it are set out here because several plausible
+alternatives were rejected.
+
+### The shape
+
+```
+  main.baa ──┐   the reference frontend            the native runtime
+  logic.baa ─┤   lex → parse → resolve  ──►  .fleece image  ──►  tree-walker
+  barn ──────┘   (src/, TypeScript)                              (rust/, Rust)
+```
+
+`baa app build` runs exactly the analysis `baa check` runs, serialises the
+resolved tree into a binary image, and appends that image to a copy of the
+native runtime. The result is one executable.
+
+### Why the frontend is not duplicated
+
+The obvious way to write a native runtime is to write a whole implementation:
+lexer, parser, resolver, interpreter. It was rejected because **two frontends
+drift**. Every precedence rule, every newline decision and every diagnostic
+would be maintained twice, and the second copy would be the one nobody runs
+`baa check` through. Keeping one frontend means a program that compiles
+compiles identically for both targets, by construction.
+
+The cost is that a shipped application cannot compile Baa source at runtime.
+Nothing wanted to.
+
+### Why a tree and not bytecode
+
+A bytecode image would be smaller and would start marginally faster. It also
+means writing a compiler, and a compiler is the part most likely to disagree
+with the tree-walker about a corner of the semantics — which is exactly the
+class of bug that a second implementation exists to avoid.
+
+The measurement that would justify it now exists (`node tools/bench-native.ts`):
+the native tree-walker is 1.2x faster than Node on a tight loop and 9.6x faster
+to start. Almost all of the win is process start, and none of it comes from the
+interpreter being cleverer, because it is not. That is the honest case for a
+bytecode VM *later*, on the route in
+[Path to a bytecode VM](#path-to-a-bytecode-vm), and the honest case against
+building it first.
+
+### Why Rust
+
+The reference implementation is TypeScript for the reasons in
+[Why TypeScript on Node](#why-typescript-on-node), and none of them changed.
+What changed is the target: a desktop application must be one file that starts
+immediately and needs nothing installed, and Node cannot be that. It also has
+no FFI in core, so a window would need a native module, which reintroduces the
+build step and the extra file that the single-executable story exists to
+remove.
+
+Rust was already the documented direction for a second implementation
+([rust/README.md](rust/README.md)), the conformance suite was already built for
+it, and it keeps the project's zero-dependency rule: the Win32 calls are thirty
+lines of `extern "system"` rather than a bindings crate.
+
+C was considered and rejected: it would have been a third language in the
+repository, and an interpreter written in it handles untrusted text with no
+help from the compiler.
+
+### Why appending rather than linking
+
+A built application is the runtime followed by the image and a footer. Windows
+ignores trailing bytes in a PE file, and the runtime reads its own path to find
+them.
+
+This means **building an application needs no compiler and no linker** — it
+copies a file and adds bytes — so a person who has never installed Rust can
+build one. The cost is that the icon and version metadata belong to the runtime
+rather than to the application, which needs a PE resource rewrite to fix and is
+on the roadmap.
+
+### What keeps the two honest
+
+- The **conformance suite** runs on both. 49 of its 50 programs execute on the
+  native runtime and are compared byte for byte; the one that does not imports
+  a module the native runtime lacks, and the harness reports it as skipped
+  rather than passed.
+- The **diagnostic catalogue** is generated into Rust from
+  `src/diagnostics/codes.ts`, so both print the same sentence for `BAA302`.
+- **Drift guards** in `tests/native.test.ts` compare every list that exists in
+  both languages: which modules there are, what `barn` provides, each
+  function's arity, the image format's version.
+
+### The boundary
+
+`gate` is the web target's module and `barn` is the native target's. A program
+imports one or the other; importing `gate` into an application is a build error
+naming it. `.baa` did not change meaning, no second extension was invented, and
+a module that imports neither belongs to both — which is why the native
+calculator's arithmetic is the web calculator's file, unchanged.
+
+Full detail is in [docs/native-runtime.md](docs/native-runtime.md).
 
 ## Testing strategy
 

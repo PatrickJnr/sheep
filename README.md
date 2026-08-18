@@ -253,7 +253,7 @@ Full reference, including exit codes and the manifest format:
 
 ## Standard library
 
-Eight modules, sheep-branded on the outside and completely boring on the
+Nine modules, sheep-branded on the outside and completely boring on the
 inside. An API you have to remember at 2am is no place for a joke.
 
 | Module | Contents |
@@ -266,6 +266,7 @@ inside. An API you have to remember at 2am is no place for a joke.
 | `shepherd` | Arguments, environment, stdin, subprocesses |
 | `lamb` | JSON |
 | `gate` | Web requests and replies, over CGI |
+| `barn` | Native windows: controls, layout and events |
 
 Plus a ten-name prelude that needs no import. Full reference:
 [docs/stdlib.md](docs/stdlib.md).

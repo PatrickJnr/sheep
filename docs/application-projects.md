@@ -1,0 +1,136 @@
+# Application projects
+
+A native application is an ordinary Baa project. There is no second manifest
+format and no application-specific directory layout to learn: `baa.toml` gains
+one optional table, and that is the whole difference.
+
+```bash
+baa app new pen_counter
+```
+
+```
+pen_counter/
+├── baa.toml          the project, plus an [app] table
+├── main.baa          the window
+├── counter.baa       the logic, with no window in it
+└── tests/
+    └── counter_test.baa
+```
+
+That shape is the recommendation, not a requirement. `baa app build` follows
+the manifest's `entry` and whatever it imports; nothing looks for a directory
+by name.
+
+---
+
+## The manifest
+
+```toml
+[flock]
+name = "pen_counter"
+version = "0.1.0"
+description = "Counts sheep."
+entry = "main.baa"
+
+# Everything under [app] describes the executable rather than the program.
+[app]
+title = "Pen Counter"
+width = "420"
+height = "260"
+```
+
+`[flock]` is unchanged and is documented in [cli.md](cli.md#the-project-manifest).
+
+| `[app]` key | Effect | Default |
+| --- | --- | --- |
+| `name` | The executable's filename | the project's `name` |
+| `title` | Fallback window title | the project's `name` |
+| `version` | Recorded in the image | the project's `version` |
+| `width`, `height` | Fallback window size, in layout units | 480 × 360 |
+
+Values are strings, because the manifest parser accepts a deliberately small
+TOML subset and quoting a number costs nothing.
+
+The `[app]` values are fallbacks. A `barn.window({ title: ..., width: ... })`
+call wins, because the program is more specific than its manifest. Keeping them
+in the manifest as well means the executable's identity does not depend on
+reading the source.
+
+---
+
+## Where the split goes
+
+The single most useful thing about this project layout is the file that is not
+the window.
+
+```baa
+// counter.baa — imports nothing that draws
+export fn up(state) {
+    return { sheep: state.sheep + 1 }
+}
+```
+
+```baa
+// main.baa — imports barn, and is as small as it can be
+import barn
+import "./counter.baa" as counter
+
+let state = counter.start()
+```
+
+A module that imports neither `gate` nor `barn` belongs to neither target. It
+can be tested with `baa test` in milliseconds, it can be reused by a web page,
+and it is where the logic that can actually be wrong should live.
+
+[`examples/native/calculator/`](https://github.com/PatrickJnr/sheep/tree/HEAD/examples/native/calculator)
+takes this to its conclusion: its arithmetic module is the web calculator's,
+imported unchanged across directories, with one set of tests covering both
+applications.
+
+## Dependencies
+
+Relative imports are bundled:
+
+```baa
+import "./counter.baa" as counter
+import "../shared/flock_rules.baa" as rules
+```
+
+`[wool]` dependencies from the manifest are **not** bundled yet, and
+`baa app build` says so rather than half-working. Import the file directly by
+path in the meantime; the module graph is followed wherever it leads, including
+outside the project directory.
+
+Standard modules are available as listed in
+[native-applications.md](native-applications.md#what-works-today). Importing
+one that is not is a build error naming it.
+
+## Building
+
+```bash
+baa app run                 # build to a temporary image and run, with a console
+baa app build               # build/<name>.exe
+baa app build --out dist    # somewhere else
+baa app build --console     # a console application rather than a windowed one
+baa app test                # run the project's `test` blocks on the native runtime
+```
+
+`baa app run` writes nothing into the project: it builds to a temporary file
+and runs it with the console runtime, so `baa` output lands on your terminal.
+`baa app build` writes an executable and nothing else — no intermediate
+directory, no cache, no lockfile of its own.
+
+Both need the native runtime to have been compiled once:
+
+```bash
+cargo build --release --manifest-path rust/Cargo.toml
+```
+
+The runtime is Rust. The language is not, your application is not, and building
+an application after the runtime exists needs no Rust at all.
+
+## What to commit
+
+Commit the manifest, the source and the tests. `build/` and `*.fleece` are in
+the default `.gitignore`: an executable is a build artefact, and a 650 KB
+binary in a repository is 650 KB in every clone forever.

@@ -45,7 +45,7 @@ preceding a `fn` declaration are additionally recorded on that declaration.
 A newline is significant: it terminates a statement. A newline is *suppressed*,
 and behaves as whitespace, when any of the following holds:
 
-1. The lexer is inside an unclosed `(` or `[`.
+1. The **innermost** unclosed bracket is `(` or `[`.
 2. The previous token cannot end an expression. That is the set
    `+ - * / % ** == != < <= > >= && || ! ?? = += -= *= /= %= .. ..= , : . ( [ { =>`
    and the keywords `else in as from import let const fn`.
@@ -54,6 +54,22 @@ and behaves as whitespace, when any of the following holds:
 Rule 3 is what allows a method chain to be written one call per line. There is
 no line-continuation character; `;` is accepted as an explicit statement
 terminator but is never required and is never emitted by the formatter.
+
+Rule 1 says *innermost* because a `{` restores significance. A bracketed
+expression that spans lines is still one expression, but a block that spans
+lines is several statements, and a block can appear inside a call:
+
+```baa
+on(button, fn() {
+    total = total + 1      // a statement ends here, despite the open `(`
+    refresh()
+})
+```
+
+Counting open brackets instead of tracking which one is innermost swallows
+that newline and joins the two statements, which is a syntax error reported
+against the second one. Map literals are unaffected: their entries end in `,`,
+which rule 2 covers.
 
 ### 2.3 Identifiers and keywords
 
@@ -583,11 +599,17 @@ does not produce partially-initialised modules.
 
 ## 7. Standard library
 
-Eight modules: `wool` (text), `flock` (collections), `ram` (arithmetic),
+Nine modules: `wool` (text), `flock` (collections), `ram` (arithmetic),
 `meadow` (time and randomness), `pasture` (files and paths), `shepherd`
-(process and environment), `lamb` (JSON), `gate` (web requests and replies).
-Every function is documented in
+(process and environment), `lamb` (JSON), `gate` (web requests and replies),
+`barn` (native windows). Every function is documented in
 [docs/stdlib.md](docs/stdlib.md).
+
+`gate` and `barn` are the two an implementation may reasonably lack: one needs
+a web server and the other needs a window system. An implementation that does
+not provide a module must report `BAA401` for it, or, where the module exists
+but cannot act, a `BAA301` naming what is missing. Silently doing nothing is
+not conforming behaviour.
 
 The prelude, available without an import, is `len`, `type_of`, `to_string`,
 `to_number`, `inspect`, `clone`, `assert`, `assert_eq`, `panic` and `exit`.

@@ -14,6 +14,7 @@ Every function Baa ships with. Module names are sheep-themed; the functions insi
 - [`shepherd`](#shepherd): The outside world: arguments, environment, stdin, subprocesses.
 - [`lamb`](#lamb): Data: JSON encoding and decoding.
 - [`gate`](#gate): The web: reading a request and writing a reply, over CGI.
+- [`barn`](#barn): Native windows: controls, layout and events. Needs the native runtime.
 
 ---
 
@@ -383,6 +384,52 @@ import gate
 | `gate.escape` | 1 | Escape a value for HTML. Same as `wool.escape_html`. |
 | `gate.safe_url` | 1–2 | A URL if its scheme is safe to link to, else a fallback (default "#"). |
 | `gate.format` | 1+ | Build HTML, escaping each value put into a `%s`, without sending it. |
+
+## `barn`
+
+Native windows: controls, layout and events. Needs the native runtime.
+
+```baa
+import barn
+```
+
+| Function | Arguments | Description |
+| --- | --- | --- |
+| `barn.window` | 0–1 | Create a window. Options: title, width, height, padding, spacing. |
+| `barn.row` | 1–2 | A container that lays its children out left to right. |
+| `barn.column` | 1–2 | A container that lays its children out top to bottom. |
+| `barn.label` | 1–2 | Text that cannot be edited. |
+| `barn.button` | 1–2 | A push button. |
+| `barn.input` | 1–2 | A single-line text field. |
+| `barn.text_area` | 1–2 | A multi-line text editor with scrollbars. |
+| `barn.list` | 1–2 | A list of selectable rows. |
+| `barn.checkbox` | 1–2 | A checkbox. |
+| `barn.spacer` | 1–2 | Empty space that takes a share of the layout. |
+| `barn.menu` | 2 | A menu on the window's menu bar. |
+| `barn.item` | 2–3 | An entry in a menu. Fires `click`. |
+| `barn.separator` | 1 | A dividing line in a menu. |
+| `barn.on` | 3 | Register a handler: "click", "change", "select", "toggle" or "close". |
+| `barn.text` | 1 | The widget's current text. |
+| `barn.set_text` | 2 | Replace the widget's text. |
+| `barn.items` | 1 | A list's rows, as an array of strings. |
+| `barn.set_items` | 2 | Replace a list's rows. |
+| `barn.selected` | 1 | The selected row's index, or -1. |
+| `barn.select` | 2 | Select a row by index. |
+| `barn.checked` | 1 | Whether a checkbox is ticked. |
+| `barn.set_checked` | 2 | Tick or untick a checkbox. |
+| `barn.enable` | 2 | Enable or disable a widget. |
+| `barn.focus` | 1 | Give a widget keyboard focus. |
+| `barn.title` | 2 | Set a window's title. |
+| `barn.show` | 1 | Put a window on screen. |
+| `barn.run` | 0 | Run the event loop until every window has closed. |
+| `barn.close` | 1 | Close a window. |
+| `barn.quit` | 0 | Close every window, ending the event loop. |
+| `barn.alert` | 2–3 | Show a message box. |
+| `barn.confirm` | 2–3 | Ask a yes/no question. Returns true for yes. |
+| `barn.open_file` | 0–2 | Ask for a file to open. Returns a path, or nil if cancelled. |
+| `barn.save_file` | 0–2 | Ask where to save. Returns a path, or nil if cancelled. |
+| `barn.clipboard` | 0 | The clipboard's text, or nil. |
+| `barn.set_clipboard` | 1 | Put text on the clipboard. |
 
 ---
 

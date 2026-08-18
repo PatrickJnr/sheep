@@ -1,0 +1,149 @@
+/// Notepad: a text editor with a real menu bar and real file dialogs.
+///
+/// The window is thin on purpose. Everything that could be got wrong lives in
+/// document.baa, which knows nothing about windows and is covered by
+/// tests/document_test.baa: whether there are unsaved changes, what the title
+/// should say, how many lines a file has.
+///
+///     baa test          # the document model
+///     baa app run       # the editor
+///     baa app build     # build/Notepad.exe
+import barn
+import "./document.baa"
+
+const FILTER = "Text files|*.txt;*.md;*.baa|All files|*.*"
+
+let doc = document.empty()
+
+const window = barn.window({ title: "Notepad", width: 720, height: 520 })
+
+const file_menu = barn.menu(window, "File")
+const new_item = barn.item(file_menu, "New")
+const open_item = barn.item(file_menu, "Open…")
+const save_item = barn.item(file_menu, "Save")
+const save_as_item = barn.item(file_menu, "Save As…")
+barn.separator(file_menu)
+const quit_item = barn.item(file_menu, "Exit")
+
+const edit_menu = barn.menu(window, "Edit")
+const copy_item = barn.item(edit_menu, "Copy all")
+const paste_item = barn.item(edit_menu, "Paste")
+
+const layout = barn.column(window, { weight: 1, spacing: 6 })
+const editor = barn.text_area(layout, { weight: 1 })
+const status = barn.label(layout, { text: "1 line, 0 characters", height: 20 })
+
+/// Push the document's state to the window: title, status line, and the text
+/// itself only when it differs from what is on screen.
+///
+/// The comparison matters. Writing the text back on every keystroke would
+/// move the caret to the start on every keystroke, which is the classic way
+/// to make an editor unusable while every individual function looks right.
+fn refresh() {
+    barn.title(window, document.title(doc))
+    const counts = document.stats(doc)
+    barn.set_text(status, "{counts.lines} lines, {counts.words} words, {counts.characters} characters")
+    if barn.text(editor) != doc.text {
+        barn.set_text(editor, doc.text)
+    }
+}
+
+/// Ask before throwing away unsaved work. Returns true when it is safe to go
+/// on. Called by New, Open and Exit, which are the three ways to lose it.
+fn may_discard() {
+    if !document.is_modified(doc) {
+        return true
+    }
+    return barn.confirm(window, "Notepad", "There are unsaved changes. Continue anyway?")
+}
+
+fn on_typed() {
+    doc = document.edited(doc, barn.text(editor))
+    refresh()
+}
+
+fn on_new() {
+    if may_discard() {
+        doc = document.empty()
+        refresh()
+    }
+}
+
+fn on_open() {
+    if !may_discard() {
+        return
+    }
+    const path = barn.open_file(window, FILTER)
+    if path == nil {
+        return
+    }
+    const result = document.read(path)
+    if result.ok {
+        doc = result.document
+        refresh()
+    } else {
+        barn.alert(window, "Could not open", result.message)
+    }
+}
+
+/// Save to the path we already have, or ask for one. Save As always asks.
+fn save_to(path) {
+    const result = document.write(doc, path)
+    if result.ok {
+        doc = result.document
+        refresh()
+        return true
+    }
+    barn.alert(window, "Could not save", result.message)
+    return false
+}
+
+fn on_save_as() {
+    const path = barn.save_file(window, FILTER)
+    if path != nil {
+        save_to(path)
+    }
+}
+
+fn on_save() {
+    if doc.path == nil {
+        on_save_as()
+        return
+    }
+    save_to(doc.path)
+}
+
+fn on_quit() {
+    if may_discard() {
+        barn.close(window)
+    }
+}
+
+fn on_copy() {
+    barn.set_clipboard(doc.text)
+}
+
+fn on_paste() {
+    const text = barn.clipboard()
+    if text != nil {
+        doc = document.edited(doc, doc.text + text)
+        refresh()
+    }
+}
+
+barn.on(editor, "change", on_typed)
+barn.on(new_item, "click", on_new)
+barn.on(open_item, "click", on_open)
+barn.on(save_item, "click", on_save)
+barn.on(save_as_item, "click", on_save_as)
+barn.on(quit_item, "click", on_quit)
+barn.on(copy_item, "click", on_copy)
+barn.on(paste_item, "click", on_paste)
+// Closing the window is the fourth way to lose unsaved work, so it goes
+// through the same question rather than around it.
+barn.on(window, "close", on_quit)
+
+barn.show(window)
+refresh()
+barn.focus(editor)
+barn.run()

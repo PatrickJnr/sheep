@@ -157,6 +157,11 @@ extern "system" {
     fn SetClipboardData(format: u32, handle: isize) -> isize;
     fn GetDpiForWindow(hwnd: HWND) -> u32;
     fn SetProcessDpiAwarenessContext(context: isize) -> i32;
+    fn CreateMenu() -> HMENU;
+    fn CreatePopupMenu() -> HMENU;
+    fn AppendMenuW(menu: HMENU, flags: u32, id: usize, text: *const u16) -> i32;
+    fn SetMenu(hwnd: HWND, menu: HMENU) -> i32;
+    fn DrawMenuBar(hwnd: HWND) -> i32;
 }
 
 #[link(name = "gdi32")]
@@ -245,6 +250,10 @@ const OFN_FILEMUSTEXIST: u32 = 0x0000_1000;
 const OFN_OVERWRITEPROMPT: u32 = 0x0000_0002;
 const OFN_EXPLORER: u32 = 0x0008_0000;
 const DPI_AWARENESS_PER_MONITOR_V2: isize = -4;
+const MF_STRING: u32 = 0x0000;
+const MF_POPUP: u32 = 0x0010;
+const MF_SEPARATOR: u32 = 0x0800;
+const MF_GRAYED: u32 = 0x0001;
 
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
@@ -284,6 +293,10 @@ unsafe extern "system" fn window_proc(hwnd: HWND, message: u32, wParam: WPARAM, 
                 if let Some(target) = ui.get(widget) {
                     let kind = match (target.kind, notification) {
                         (Kind::Button, BN_CLICKED) => Some(EventKind::Click),
+                        // A menu selection arrives as WM_COMMAND with a zero
+                        // notification code and a null lParam, which is the
+                        // same shape a button click has.
+                        (Kind::MenuItem, 0) => Some(EventKind::Click),
                         (Kind::Checkbox, BN_CLICKED) => Some(EventKind::Toggle),
                         (Kind::Edit, EN_CHANGE) | (Kind::TextArea, EN_CHANGE) => Some(EventKind::Changed),
                         (Kind::List, LBN_SELCHANGE) => Some(EventKind::Select),
@@ -493,6 +506,8 @@ impl Win32 {
                 0,
             ),
             Kind::List => ("LISTBOX", WS_TABSTOP | WS_BORDER | WS_VSCROLL | LBS_NOTIFY, 0),
+            // Menus are built separately, onto the window's own menu bar.
+            Kind::Menu | Kind::MenuItem | Kind::Separator => return,
             // Rows, columns and spacers are layout, not controls: they have no
             // window of their own, which is also why they cannot have a colour.
             _ => {
@@ -613,6 +628,7 @@ impl Backend for Win32 {
             for child in children {
                 self.create_control(ui, child, hwnd, scale);
             }
+            build_menu(ui, window, hwnd);
             ShowWindow(hwnd, SW_SHOWNORMAL);
             UpdateWindow(hwnd);
         }
@@ -804,6 +820,45 @@ impl Drop for Win32 {
             unsafe { DeleteObject(*font) };
         }
     }
+}
+
+/// Builds the window's menu bar from the `Menu` widgets under it.
+///
+/// A menu item's command id is its widget index plus one, exactly as a
+/// control's is, so `WM_COMMAND` needs no second lookup table and a menu item
+/// and a button reach the same handler code.
+unsafe fn build_menu(ui: &Ui, window: usize, hwnd: HWND) {
+    let menus: Vec<usize> = ui.widgets[window]
+        .children
+        .iter()
+        .copied()
+        .filter(|id| ui.widgets[*id].kind == Kind::Menu)
+        .collect();
+    if menus.is_empty() {
+        return;
+    }
+    let bar = CreateMenu();
+    for menu in menus {
+        let popup = CreatePopupMenu();
+        for item in ui.widgets[menu].children.iter().copied() {
+            let widget = &ui.widgets[item];
+            match widget.kind {
+                Kind::Separator => {
+                    AppendMenuW(popup, MF_SEPARATOR, 0, std::ptr::null());
+                }
+                Kind::MenuItem => {
+                    let text = wide(&widget.text);
+                    let flags = MF_STRING | if widget.enabled { 0 } else { MF_GRAYED };
+                    AppendMenuW(popup, flags, item + 1, text.as_ptr());
+                }
+                _ => {}
+            }
+        }
+        let title = wide(&ui.widgets[menu].text);
+        AppendMenuW(bar, MF_POPUP, popup as usize, title.as_ptr());
+    }
+    SetMenu(hwnd, bar);
+    DrawMenuBar(hwnd);
 }
 
 /// Puts keyboard focus on a widget, used by `barn.focus`.

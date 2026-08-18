@@ -1,0 +1,11 @@
+# A text editor, as a native application.
+[flock]
+name = "Notepad"
+version = "0.4.0"
+description = "A text editor: menus, file dialogs and unsaved-change tracking."
+entry = "main.baa"
+
+[app]
+title = "Notepad"
+width = "720"
+height = "520"
