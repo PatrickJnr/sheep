@@ -263,6 +263,118 @@ describe("website build", needsSite, () => {
   });
 });
 
+describe("website: social cards", needsSite, () => {
+  /** Every built page, so a tag cannot be right on the homepage alone. */
+  function pages(): string[] {
+    const files = readdirSync(SITE).filter((name) => name.endsWith(".html"));
+    const docs = readdirSync(join(SITE, "docs"))
+      .filter((name) => name.endsWith(".html"))
+      .map((name) => join("docs", name));
+    return [...files, ...docs];
+  }
+
+  function metaOf(html: string, key: string): string | null {
+    const pattern = new RegExp(
+      `<meta (?:property|name)="${key}" content="([^"]*)"`,
+    );
+    return pattern.exec(html)?.[1] ?? null;
+  }
+
+  // Social scrapers do not render SVG: several show no image at all rather
+  // than falling back, so the card has to be a PNG.
+  it("points every page at a PNG card on an absolute URL", () => {
+    for (const page of pages()) {
+      const html = readFileSync(join(SITE, page), "utf8");
+      for (const key of ["og:image", "twitter:image"]) {
+        const value = metaOf(html, key);
+        assert.ok(value !== null, `${page} has no ${key}`);
+        assert.match(value, /^https:\/\/[^/]+\/assets\/[\w-]+\.png$/, `${page} ${key}`);
+      }
+    }
+  });
+
+  it("declares the card's real dimensions", () => {
+    const html = readFileSync(join(SITE, "index.html"), "utf8");
+    const source = metaOf(html, "og:image");
+    assert.ok(source !== null);
+    const png = readFileSync(join(SITE, "assets", source.split("/").pop()!));
+    assert.equal(metaOf(html, "og:image:width"), String(png.readUInt32BE(16)));
+    assert.equal(metaOf(html, "og:image:height"), String(png.readUInt32BE(20)));
+  });
+
+  it("gives the card alt text and a type", () => {
+    const html = readFileSync(join(SITE, "index.html"), "utf8");
+    assert.equal(metaOf(html, "og:image:type"), "image/png");
+    assert.ok((metaOf(html, "og:image:alt") ?? "").length > 0);
+  });
+
+  it("uses a PNG for the touch icon, which iOS will not take as SVG", () => {
+    const html = readFileSync(join(SITE, "index.html"), "utf8");
+    assert.match(html, /<link rel="apple-touch-icon" href="[^"]*\.png">/);
+  });
+});
+
+describe("website: content security", needsSite, () => {
+  const htaccess = (): string => readFileSync(join(SITE, ".htaccess"), "utf8");
+
+  // An inline <script> anywhere would force 'unsafe-inline' back into
+  // script-src, which is the one directive worth being strict about.
+  it("has no inline script in any page", () => {
+    for (const name of readdirSync(SITE).filter((file) => file.endsWith(".html"))) {
+      const html = readFileSync(join(SITE, name), "utf8");
+      assert.doesNotMatch(html, /<script(?![^>]*\ssrc=)[^>]*>[\s\S]*?<\/script>/, name);
+    }
+  });
+
+  it("serves a policy that refuses inline scripts", () => {
+    const policy = /Content-Security-Policy "([^"]+)"/.exec(htaccess())?.[1] ?? "";
+    assert.ok(policy.length > 0, "no Content-Security-Policy in .htaccess");
+    const scriptSrc = /script-src ([^;]+)/.exec(policy)?.[1] ?? "";
+    assert.equal(scriptSrc.trim(), "'self'");
+    assert.match(policy, /object-src 'none'/);
+  });
+
+  it("sets the headers a scanner looks for", () => {
+    const config = htaccess();
+    for (const header of [
+      "Strict-Transport-Security",
+      "Permissions-Policy",
+      "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "Cross-Origin-Embedder-Policy",
+      "X-Content-Type-Options",
+      "Referrer-Policy",
+    ]) {
+      assert.match(config, new RegExp(`Header (?:always )?set ${header} `), header);
+    }
+  });
+
+  // HSTS on a plain HTTP response is meaningless, and `<If>` is a syntax error
+  // on Apache 2.2 that takes the whole site down with it.
+  it("sends HSTS only over HTTPS, without Apache 2.4-only syntax", () => {
+    const config = htaccess();
+    assert.match(config, /Strict-Transport-Security "[^"]*" env=HTTPS/);
+    assert.doesNotMatch(config, /^\s*<If /m);
+  });
+
+  // A policy only applied in production is a policy nobody tests.
+  it("previews under the same headers it deploys with", () => {
+    const server = readFileSync(join(ROOT, "tools", "serve.ts"), "utf8");
+    for (const header of [
+      "cross-origin-embedder-policy",
+      "cross-origin-opener-policy",
+      "cross-origin-resource-policy",
+      "content-security-policy",
+      "permissions-policy",
+    ]) {
+      assert.match(server, new RegExp(`"${header}"`), header);
+    }
+    // Not merely unmentioned: not sent. Pinning localhost to HTTPS for a year
+    // in the developer's own browser is a hard mistake to undo.
+    assert.doesNotMatch(server, /"strict-transport-security":/i);
+  });
+});
+
 describe("playground bundle", needsSite, () => {
   const api = join(SITE, "assets", "baa", "api.js");
 

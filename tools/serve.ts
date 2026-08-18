@@ -34,6 +34,32 @@ const TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
+/**
+ * The security headers `website/.htaccess` sets in production.
+ *
+ * Duplicated here on purpose: a policy that is only applied on the live server
+ * is a policy nobody tests. `Cross-Origin-Embedder-Policy: require-corp` in
+ * particular will refuse any subresource that does not opt in, so the
+ * playground check has to run under it to be worth anything. Keep this in step
+ * with the `mod_headers` block in `.htaccess`.
+ *
+ * Strict-Transport-Security is deliberately absent: this server is plain HTTP,
+ * and sending it here would pin `localhost` to HTTPS in the developer's
+ * browser for a year.
+ */
+const SECURITY_HEADERS: Record<string, string> = {
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "x-frame-options": "SAMEORIGIN",
+  "permissions-policy":
+    "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), xr-spatial-tracking=()",
+  "cross-origin-opener-policy": "same-origin",
+  "cross-origin-resource-policy": "same-origin",
+  "cross-origin-embedder-policy": "require-corp",
+  "content-security-policy":
+    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'",
+};
+
 /** Resolve a request path inside ROOT, refusing anything that escapes it. */
 function resolveRequest(urlPath: string): string | null {
   const decoded = decodeURIComponent(urlPath.split("?")[0] ?? "/");
@@ -60,13 +86,17 @@ const server = createServer((request, response) => {
 
   if (file === null) {
     const notFound = join(ROOT, "404.html");
-    response.writeHead(404, { "content-type": "text/html; charset=utf-8" });
+    response.writeHead(404, {
+      ...SECURITY_HEADERS,
+      "content-type": "text/html; charset=utf-8",
+    });
     if (existsSync(notFound)) createReadStream(notFound).pipe(response);
     else response.end("404");
     return;
   }
 
   response.writeHead(200, {
+    ...SECURITY_HEADERS,
     "content-type": TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
     "cache-control": "no-cache",
   });
