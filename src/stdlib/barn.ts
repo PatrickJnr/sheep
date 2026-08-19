@@ -56,6 +56,9 @@ const FUNCTIONS: ReadonlyArray<readonly [string, number, number, string]> = [
   ["confirm", 2, 3, "Ask a yes/no question. Returns true for yes."],
   ["open_file", 0, 2, "Ask for a file to open. Returns a path, or nil if cancelled."],
   ["save_file", 0, 2, "Ask where to save. Returns a path, or nil if cancelled."],
+  ["every", 2, 2, "Call a function every n milliseconds. Returns a timer id."],
+  ["after", 2, 2, "Call a function once, n milliseconds from now. Returns a timer id."],
+  ["cancel", 1, 1, "Stop a timer, by the id `every` or `after` returned."],
   ["clipboard", 0, 0, "The clipboard's text, or nil."],
   ["set_clipboard", 1, 1, "Put text on the clipboard."],
 ];

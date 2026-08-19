@@ -18,7 +18,7 @@
  * thin part on top.
  */
 
-import { existsSync, statSync, watch } from "node:fs";
+import { existsSync, realpathSync, statSync, watch } from "node:fs";
 import type { FSWatcher } from "node:fs";
 import { basename, resolve } from "node:path";
 import process from "node:process";
@@ -161,7 +161,13 @@ export function watchRoots(options: WatcherOptions): { close: () => void } {
   };
 
   for (const root of options.roots) {
-    const at = resolve(root);
+    // The *real* path, not the one we were given. On Windows a path can arrive
+    // in its short 8.3 form (`RUNNER~1` instead of `runneradmin`), and libuv's
+    // recursive watcher compares the long name the operating system reports
+    // against the name it was handed: when they differ it fails an assertion
+    // and takes the whole process down with it. Expanding it here is the fix,
+    // and it costs one stat.
+    const at = realPath(resolve(root));
     if (!existsSync(at)) continue;
     const directory = statSync(at).isDirectory();
     const watcher = watch(
@@ -192,6 +198,15 @@ export function watchRoots(options: WatcherOptions): { close: () => void } {
       watchers.length = 0;
     },
   };
+}
+
+/** The long form of a path, or the path itself when it cannot be resolved. */
+function realPath(path: string): string {
+  try {
+    return realpathSync.native(path);
+  } catch {
+    return path;
+  }
 }
 
 /** True when a batch of changed paths includes the project manifest. */

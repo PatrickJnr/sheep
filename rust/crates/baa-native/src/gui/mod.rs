@@ -63,6 +63,8 @@ pub enum EventKind {
     Toggle,
     /// The window was asked to close. A handler can decide what that means.
     Close,
+    /// A timer came due. `Event::widget` carries the timer's id, not a widget's.
+    Tick,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -165,12 +167,30 @@ impl Widget {
     }
 }
 
+/// A timer the application asked for.
+///
+/// Timers are not widgets: they have no place in the layout and nothing on
+/// screen. They are ids with an interval, and an `Event` with kind `Tick`
+/// carries the id in the field a widget's events use, so the handler table
+/// works for both without a second one.
+#[derive(Clone, Copy, Debug)]
+pub struct Timer {
+    pub id: usize,
+    pub interval: u32,
+    /// `false` for `barn.after`, which fires once and then cancels itself.
+    pub repeating: bool,
+}
+
 pub struct Ui {
     pub widgets: Vec<Widget>,
     pub events: VecDeque<Event>,
     /// Windows in creation order. Closing the last one ends the program.
     pub windows: Vec<usize>,
     pub open: usize,
+    pub timers: Vec<Timer>,
+    /// Ids are never reused, so a cancelled timer's id cannot come back and
+    /// deliver a tick to whatever took its place.
+    next_timer: usize,
 }
 
 impl Default for Ui {
@@ -181,7 +201,14 @@ impl Default for Ui {
 
 impl Ui {
     pub fn new() -> Ui {
-        Ui { widgets: Vec::new(), events: VecDeque::new(), windows: Vec::new(), open: 0 }
+        Ui {
+            widgets: Vec::new(),
+            events: VecDeque::new(),
+            windows: Vec::new(),
+            open: 0,
+            timers: Vec::new(),
+            next_timer: 1,
+        }
     }
 
     pub fn add(&mut self, kind: Kind, parent: Option<usize>) -> usize {
@@ -214,6 +241,25 @@ impl Ui {
             }
             id = widget.parent?;
         }
+    }
+
+    /// Register a timer and return its id.
+    pub fn add_timer(&mut self, interval: u32, repeating: bool) -> usize {
+        let id = self.next_timer;
+        self.next_timer += 1;
+        self.timers.push(Timer { id, interval, repeating });
+        id
+    }
+
+    /// Forget a timer. True when there was one to forget.
+    pub fn remove_timer(&mut self, id: usize) -> bool {
+        let before = self.timers.len();
+        self.timers.retain(|timer| timer.id != id);
+        self.timers.len() != before
+    }
+
+    pub fn timer(&self, id: usize) -> Option<Timer> {
+        self.timers.iter().find(|timer| timer.id == id).copied()
     }
 
     pub fn push_event(&mut self, widget: usize, kind: EventKind) {
@@ -357,6 +403,10 @@ pub trait Backend {
     fn message(&mut self, ui: &Ui, window: usize, title: &str, text: &str, kind: &str) -> bool;
     /// A file dialog. `save` picks the save variant. Returns the chosen path.
     fn file_dialog(&mut self, ui: &Ui, window: usize, save: bool, filter: &str) -> Option<String>;
+    /// Ask the platform to deliver `Tick` events for a timer. False when it
+    /// could not, which is reported rather than silently never firing.
+    fn start_timer(&mut self, ui: &mut Ui, id: usize, interval: u32) -> bool;
+    fn stop_timer(&mut self, ui: &mut Ui, id: usize);
     fn clipboard_get(&mut self) -> Option<String>;
     fn clipboard_set(&mut self, text: &str) -> bool;
 }
