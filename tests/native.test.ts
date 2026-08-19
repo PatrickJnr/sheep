@@ -20,7 +20,7 @@
  */
 
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -38,6 +38,7 @@ import { loadBuiltinModule, STDLIB_MODULES } from "../src/stdlib/index.ts";
 import { hostPath, runSuite } from "../tools/native-conformance.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const NEWLINE = String.fromCharCode(10);
 const RUST = join(ROOT, "rust", "crates", "baa-native", "src");
 
 function rust(file: string): string {
@@ -585,4 +586,110 @@ describe("native: an application, built and driven", { skip: canDriveWindows ? f
     assert.ok(bytes.length > 9 + 8, "the appended image is empty");
     rmSync(out, { recursive: true, force: true });
   });
+
+  it("carries the version its manifest states, where Windows shows it", () => {
+    const project = join(ROOT, "examples", "native", "calculator");
+    const out = mkdtempSync(join(tmpdir(), "baa-app-version-"));
+    execFileSync(process.execPath, [join(ROOT, "src", "cli", "index.ts"), "app", "build", "--out", out], {
+      cwd: project,
+      encoding: "utf8",
+    });
+    const executable = join(out, "Calculator.exe");
+
+    // Read back through Windows itself rather than through the writer that
+    // produced it: the question is whether the operating system agrees, and
+    // only the operating system can answer that.
+    const shown = execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        `[System.Diagnostics.FileVersionInfo]::GetVersionInfo('${executable.replace(/'/g, "''")}') | ` +
+          "ForEach-Object { $_.FileVersion + '|' + $_.ProductName + '|' + $_.OriginalFilename }",
+      ],
+      { encoding: "utf8" },
+    ).trim();
+    const [version, product, filename] = shown.split("|");
+    const manifest = readFileSync(join(project, "baa.toml"), "utf8");
+    const stated = /version\s*=\s*"([^"]+)"/.exec(manifest)![1]!;
+    assert.equal(version, `${stated}.0`, "the executable states a different version from the manifest");
+    assert.equal(product, "Calculator");
+    assert.equal(filename, "Calculator.exe");
+    rmSync(out, { recursive: true, force: true });
+  });
+
+  it("gives the executable an icon when the manifest names one", () => {
+    const project = mkdtempSync(join(tmpdir(), "baa-app-icon-"));
+    writeFileSync(
+      join(project, "baa.toml"),
+      ['[flock]', 'name = "Iconic"', 'version = "2.3.4"', 'entry = "main.baa"', '', '[app]', 'title = "Iconic"', 'icon = "app.ico"'].join(NEWLINE) + NEWLINE,
+    );
+    writeFileSync(join(project, "main.baa"), ['import barn', 'barn.window({ title: "Iconic" })', ''].join(NEWLINE));
+    writeFileSync(join(project, "app.ico"), Buffer.from(oneImageIcon()));
+    const out = join(project, "build");
+    execFileSync(process.execPath, [join(ROOT, "src", "cli", "index.ts"), "app", "build", "--out", out], {
+      cwd: project,
+      encoding: "utf8",
+    });
+
+    // `ExtractIconEx` counts the icons Windows can actually make from the
+    // file, which is the question: a malformed group is stored happily and
+    // yields nothing.
+    const executable = join(out, "Iconic.exe");
+    const count = execFileSync(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-Command",
+        "Add-Type -TypeDefinition 'using System;using System.Runtime.InteropServices;" +
+          'public class Ico { [DllImport("shell32.dll", CharSet=CharSet.Unicode, EntryPoint="ExtractIconExW")]' +
+          " public static extern uint Ex(string f, int i, IntPtr[] l, IntPtr[] s, uint n); }';" +
+          `[Ico]::Ex('${executable.replace(/'/g, "''")}', 0, (New-Object IntPtr[] 1), (New-Object IntPtr[] 1), 1)`,
+      ],
+      { encoding: "utf8" },
+    ).trim();
+    assert.notEqual(count, "0", "Windows found no icon in the executable");
+    rmSync(project, { recursive: true, force: true });
+  });
+
+  it("refuses to build when the icon it was pointed at is not there", () => {
+    const project = mkdtempSync(join(tmpdir(), "baa-app-noicon-"));
+    writeFileSync(
+      join(project, "baa.toml"),
+      ['[flock]', 'name = "Missing"', 'version = "1.0.0"', 'entry = "main.baa"', '', '[app]', 'icon = "nope.ico"'].join(NEWLINE) + NEWLINE,
+    );
+    writeFileSync(join(project, "main.baa"), ['import barn', 'barn.window({ title: "Missing" })', ''].join(NEWLINE));
+    const result = spawnSync(
+      process.execPath,
+      [join(ROOT, "src", "cli", "index.ts"), "app", "build", "--out", join(project, "build")],
+      { cwd: project, encoding: "utf8" },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /No icon at nope\.ico/);
+    rmSync(project, { recursive: true, force: true });
+  });
 });
+
+/** A minimal but real `.ico`: one 2x2 32-bit image, in the BMP form. */
+function oneImageIcon(): Uint8Array {
+  const dib = new Uint8Array(40 + 2 * 2 * 4 + 8);
+  const view = new DataView(dib.buffer);
+  view.setUint32(0, 40, true);
+  view.setInt32(4, 2, true);
+  view.setInt32(8, 4, true);
+  view.setUint16(12, 1, true);
+  view.setUint16(14, 32, true);
+
+  const out = new Uint8Array(6 + 16 + dib.length);
+  const head = new DataView(out.buffer);
+  head.setUint16(2, 1, true);
+  head.setUint16(4, 1, true);
+  out[6] = 2;
+  out[7] = 2;
+  head.setUint16(10, 1, true);
+  head.setUint16(12, 32, true);
+  head.setUint32(14, dib.length, true);
+  head.setUint32(18, 22, true);
+  out.set(dib, 22);
+  return out;
+}

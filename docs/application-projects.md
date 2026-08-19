@@ -44,12 +44,36 @@ height = "260"
 | `[app]` key | Effect | Default |
 | --- | --- | --- |
 | `name` | The executable's filename | the project's `name` |
-| `title` | Fallback window title | the project's `name` |
-| `version` | Recorded in the image | the project's `version` |
+| `title` | Fallback window title, and the product name Windows shows | the project's `name` |
+| `version` | Recorded in the image, and in the executable's Properties | the project's `version` |
 | `width`, `height` | Fallback window size, in layout units | 480 × 360 |
+| `icon` | Path to an `.ico` file, relative to the project | no icon |
+| `company` | Shown in the executable's Properties | empty |
+| `copyright` | Shown in the executable's Properties | empty |
 
 Values are strings, because the manifest parser accepts a deliberately small
 TOML subset and quoting a number costs nothing.
+
+### What Windows sees
+
+On Windows, `baa app build` writes a resource section into the executable
+before appending the image, so the file has an icon in Explorer and a filled-in
+Details tab in its Properties: file and product version from `version`, product
+name and description from `title`, and `company` and `copyright` if the
+manifest sets them.
+
+```toml
+[app]
+title = "Pen Counter"
+icon = "assets/pen.ico"
+company = "A Farm"
+copyright = "Copyright 2026 A Farm"
+```
+
+There is no linker involved, and none is wanted: the build copies a prebuilt
+runtime, and the resources are written into the copy by hand. A missing icon
+file stops the build rather than producing an executable that quietly lacks
+one. On other platforms this does nothing, because resources are a PE idea.
 
 The `[app]` values are fallbacks. A `barn.window({ title: ..., width: ... })`
 call wins, because the program is more specific than its manifest. Keeping them

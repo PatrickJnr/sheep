@@ -24,12 +24,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { spawnSync } from "node:child_process";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { bundle, BundleError, NATIVE_MODULES } from "../native/bundle.ts";
+import { addResources, parseVersion } from "../native/resources.ts";
 import { findManifest, parseToml, readManifest } from "../project/manifest.ts";
 import type { CommandContext } from "./commands.ts";
 import { printDiagnostics, writeError, writeLine } from "./output.ts";
@@ -294,6 +295,10 @@ function appBuild(
 
   try {
     copyFileSync(host, executable);
+    // Resources go on before the image: everything after the last section is
+    // an overlay, and the image is exactly that.
+    const described = describeExecutable(executable, app, context);
+    if (described !== null) return described;
     appendImage(executable, built.bytes);
   } catch (error) {
     // Windows locks a running executable, so the second build of an
@@ -409,6 +414,61 @@ function appendImage(executable: string, image: Uint8Array): void {
   const length = Buffer.alloc(8);
   length.writeBigUInt64LE(BigInt(image.length));
   writeFileSync(executable, Buffer.concat([host, Buffer.from(image), length, Buffer.from(FOOTER, "ascii")]));
+}
+
+/**
+ * Give the executable an icon and the version its Properties dialog shows.
+ *
+ * Windows only, because resources are a PE idea: on any other platform this
+ * does nothing rather than pretending. Returns an exit code when it fails and
+ * `null` when it did what it could, which is what the caller wants: a build
+ * that cannot read the icon it was pointed at should stop, but a runtime with
+ * nowhere to put resources should not fail a Linux build.
+ */
+function describeExecutable(
+  executable: string,
+  app: Record<string, string>,
+  context: CommandContext,
+): number | null {
+  if (process.platform !== "win32") return null;
+
+  let icon: Uint8Array | undefined;
+  const iconPath = app.icon;
+  if (iconPath !== undefined) {
+    const full = isAbsolute(iconPath) ? iconPath : resolve(dirname(executable), "..", iconPath);
+    const candidate = existsSync(full) ? full : resolve(process.cwd(), iconPath);
+    if (!existsSync(candidate)) {
+      writeError(`No icon at ${iconPath}. \`[app] icon\` is a path to an .ico file, relative to the project.`);
+      return 1;
+    }
+    icon = new Uint8Array(readFileSync(candidate));
+  }
+
+  const version = parseVersion(app.version ?? "0.0.0");
+  const title = app.title ?? app.name ?? basename(executable);
+  try {
+    const patched = addResources(new Uint8Array(readFileSync(executable)), {
+      version: {
+        version,
+        productName: title,
+        fileDescription: title,
+        companyName: app.company ?? "",
+        copyright: app.copyright ?? "",
+        originalFilename: basename(executable),
+      },
+      ...(icon === undefined ? {} : { icon }),
+    });
+    writeFileSync(executable, patched);
+    return null;
+  } catch (error) {
+    writeError(
+      `Could not describe ${basename(executable)}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    if (!context.flags.quiet) {
+      writeError("The executable would have run, but with no icon and no version information.");
+    }
+    return 1;
+  }
 }
 
 function appSection(manifestPath: string): Record<string, string> {
