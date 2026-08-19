@@ -32,7 +32,7 @@ runtime is Rust with no dependencies either.
 
 | | |
 | --- | --- |
-| Automated tests | 750+, across Windows, Linux and macOS on every commit |
+| Automated tests | 700+, across Windows, Linux and macOS on every commit |
 | Diagnostics | 47 `BAAnnn` codes, each with a default and a professional wording |
 | Standard library | 9 modules |
 | Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
