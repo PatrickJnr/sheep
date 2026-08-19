@@ -14,6 +14,7 @@
 
 pub mod barn;
 pub mod flock;
+pub mod glob;
 pub mod lamb;
 pub mod meadow;
 pub mod pasture;

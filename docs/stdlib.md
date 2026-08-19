@@ -207,6 +207,10 @@ import flock
 | `flock.invert` | 1 | Swap a map's keys and values. |
 | `flock.range` | 1–3 | An array of numbers: range(end), range(start, end[, step]). |
 | `flock.to_array` | 1 | Turn a range, string or map into an array. |
+| `flock.union` | 2 | Everything in either array, first-seen order, no repeats. |
+| `flock.intersect` | 2 | Everything in both arrays, in the first array's order. |
+| `flock.difference` | 2 | Everything in the first array and not the second. |
+| `flock.is_subset` | 2 | True when every item of the first array is in the second. |
 
 ## `ram`
 
@@ -272,15 +276,33 @@ import meadow
 | --- | --- | --- |
 | `meadow.now` | 0 | Milliseconds since 1970-01-01 UTC. |
 | `meadow.clock` | 0 | High-resolution milliseconds, for measuring durations. |
-| `meadow.parts` | 0–1 | Break a timestamp into a map of calendar parts (UTC). |
+| `meadow.parts` | 0–2 | Break a timestamp into calendar parts (UTC, or at an offset). |
 | `meadow.format` | 1–2 | Format a timestamp as YYYY-MM-DD or with a pattern. |
-| `meadow.iso` | 0–1 | ISO-8601 text for a timestamp (default: now). |
+| `meadow.iso` | 0–2 | ISO-8601 text for a timestamp (default: now, UTC). |
+| `meadow.duration` | 1 | Break a length of time in milliseconds into parts. |
+| `meadow.format_duration` | 1 | A length of time as `1d 2h 3m 4s`. |
 | `meadow.parse_iso` | 1 | Parse ISO-8601 text into a timestamp, or nil. |
 | `meadow.random` | 0 | A random number in [0, 1). |
 | `meadow.random_int` | 2 | A random whole number between low and high, inclusive. |
 | `meadow.pick` | 1 | A random item from an array or range, or nil when empty. |
 | `meadow.shuffle` | 1 | A shuffled copy of an array. |
 | `meadow.sample` | 2 | n random items from an array, without repeats. |
+
+**Time zones.** Baa carries no zone database, so there is nothing to name a
+zone with. What it has instead is fixed offsets: `meadow.parts(millis, 60)`
+and `meadow.iso(millis, 60)` read an instant as a clock one hour ahead of
+UTC would, and the ISO text ends in `+01:00` rather than `Z`. Offsets are
+whole minutes between `-720` and `+840`, which is the range zones actually
+use; anything else is `BAA311`.
+
+This is deliberately not `Europe/London`: an offset is a fact about an
+instant, while a zone name is a rule that changes twice a year and needs a
+database that ships updates. Guessing would be worse than not offering it.
+
+**Durations.** `meadow.duration(millis)` breaks a length of time into days,
+hours, minutes, seconds and milliseconds, with `negative` saying which way
+it runs. `meadow.format_duration(millis)` writes the same thing as
+`1d 2h 3m 4s`, leaving out the units above the largest one that applies.
 
 ## `pasture`
 
@@ -314,6 +336,31 @@ import pasture
 | `pasture.relative_to` | 2 | The path from one location to another. |
 | `pasture.is_absolute` | 1 | True when a path is absolute. |
 | `pasture.cwd` | 0 | The current working directory. |
+| `pasture.walk` | 1–2 | Every file under a directory, recursively, sorted. |
+| `pasture.glob` | 2 | Files under a directory whose path matches a glob pattern. |
+| `pasture.matches` | 2 | True when a path matches a glob pattern. |
+
+**Glob patterns.** `pasture.glob` and `pasture.matches` understand three things:
+
+| Pattern | Matches |
+| --- | --- |
+| `?` | one character, never a separator |
+| `*` | any run of characters, never crossing a separator |
+| `**` | any run of characters, separators included |
+
+Nothing else is special: `[`, `{` and the rest match themselves. A pattern
+that means one thing in bash and another in zsh is worse than one that means
+itself, and the small set covers what a build script asks for.
+
+Matching is over whole paths, not suffixes, and `pasture.glob` matches
+against paths relative to the directory it was given: `*.baa` matches
+`main.baa` and not `src/main.baa`, and `**/*.baa` matches both. Either
+separator works in a pattern, so one pattern reads the same on Windows and
+elsewhere.
+
+**Walking.** `pasture.walk` returns files and not directories, depth-first
+through names sorted at each level, and stops at 64 levels deep so that a
+link pointing back up its own tree cannot run forever.
 
 ## `shepherd`
 

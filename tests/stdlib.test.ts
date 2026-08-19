@@ -161,6 +161,68 @@ baa flock.max_by(words, fn(w) { return w.length() })`),
   });
 });
 
+describe("stdlib: flock as sets", () => {
+  it("treats arrays as sets, keeping first-seen order", () => {
+    assert.equal(
+      output(`import flock
+baa flock.union([1, 2, 2], [3, 1])
+baa flock.intersect([1, 2, 3], [3, 1, 1])
+baa flock.difference([1, 2, 3], [2])
+baa flock.is_subset([1, 3], [1, 2, 3]), flock.is_subset([4], [1])`),
+      "[1, 2, 3]\n[1, 3]\n[1, 3]\ntrue false",
+    );
+  });
+
+  it("compares members by value, not by identity", () => {
+    // Two arrays holding the same numbers are one item. A `Set` would keep
+    // both, and the result would be impossible to reason about.
+    assert.equal(
+      output("import flock\nbaa flock.union([[1, 2]], [[1, 2]]), flock.intersect([{ a: 1 }], [{ a: 1 }])"),
+      "[[1, 2]] [{ a: 1 }]",
+    );
+  });
+
+  it("keeps the empty cases sensible", () => {
+    assert.equal(
+      output(`import flock
+baa flock.union([], []), flock.intersect([1], []), flock.difference([], [1])
+baa flock.is_subset([], [1])`),
+      "[] [] []\ntrue",
+    );
+  });
+});
+
+describe("stdlib: pasture globs", () => {
+  it("matches paths against the documented subset", () => {
+    assert.equal(
+      output(`import pasture
+baa pasture.matches("main.baa", "*.baa"), pasture.matches("src/main.baa", "*.baa")
+baa pasture.matches("src/main.baa", "**/*.baa"), pasture.matches("src/a/b/m.baa", "**/*.baa")
+baa pasture.matches("src/main.baa", "src/*.baa"), pasture.matches("a.baa", "?.baa")
+baa pasture.matches("ab.baa", "?.baa"), pasture.matches("anything/at/all", "**")`),
+      "true false\ntrue true\ntrue true\nfalse true",
+    );
+  });
+
+  it("reads a Windows path with the same pattern as a POSIX one", () => {
+    assert.equal(output(String.raw`import pasture
+baa pasture.matches("src\\main.baa", "src/*.baa")`), "true");
+  });
+
+  it("treats characters other shells make special as ordinary", () => {
+    // No classes, no negation, no braces: a pattern that means one thing in
+    // bash and another in zsh is worse than one that means itself. (Braces are
+    // not written here because `{` opens an interpolation in a Baa string,
+    // which is a fact about the language rather than about globs.)
+    assert.equal(
+      output(`import pasture
+baa pasture.matches("a[b].baa", "a[b].baa"), pasture.matches("ab.baa", "a[bc].baa")
+baa pasture.matches("a!b.baa", "a!b.baa")`),
+      "true false\ntrue",
+    );
+  });
+});
+
 describe("stdlib: lamb", () => {
   it("round-trips values through JSON", () => {
     assert.equal(
@@ -208,6 +270,45 @@ describe("stdlib: meadow", () => {
   it("is reproducible with a seed", () => {
     const program = "import meadow\nbaa meadow.random_int(1, 100), meadow.shuffle([1, 2, 3, 4])";
     assert.equal(output(program, 42), output(program, 42));
+  });
+
+  it("reads a timestamp at a fixed offset, and says so in the text", () => {
+    assert.equal(
+      output(`import meadow
+baa meadow.iso(0, 60), meadow.iso(0, -330)
+baa meadow.parts(0, 60)["hour"], meadow.parts(0, 60)["offset"]
+baa meadow.parts(0)["offset"]`),
+      "1970-01-01T01:00:00.000+01:00 1969-12-31T18:30:00.000-05:30\n1 60\n0",
+    );
+  });
+
+  it("refuses an offset no time zone has", () => {
+    // Zones run from -12:00 to +14:00 and are whole minutes. Anything else is
+    // a mistake worth naming rather than an instant shifted somewhere
+    // impossible.
+    assert.equal(failureCode("import meadow\nbaa meadow.iso(0, 900)"), "BAA311");
+    assert.equal(failureCode("import meadow\nbaa meadow.parts(0, 30.5)"), "BAA311");
+  });
+
+  it("breaks a length of time into parts", () => {
+    assert.equal(
+      output(`import meadow
+const d = meadow.duration(90061500)
+baa d["days"], d["hours"], d["minutes"], d["seconds"], d["milliseconds"]
+baa d["negative"], meadow.duration(-1000)["negative"]`),
+      "1 1 1 1 500\nfalse true",
+    );
+  });
+
+  it("formats a duration from the largest unit that applies", () => {
+    assert.equal(
+      output(`import meadow
+baa meadow.format_duration(90061000)
+baa meadow.format_duration(61000), meadow.format_duration(1000)
+baa meadow.format_duration(0), meadow.format_duration(250)
+baa meadow.format_duration(-3600000)`),
+      "1d 1h 1m 1s\n1m 1s 1s\n0s 250ms\n-1h 0m 0s",
+    );
   });
 
   it("keeps random_int inside its bounds", () => {

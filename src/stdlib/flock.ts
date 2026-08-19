@@ -18,6 +18,7 @@ import {
   isMapKey,
   isTruthy,
   typeOf,
+  valuesEqual,
 } from "../runtime/values.ts";
 import type { MapKey, NativeContext, Value } from "../runtime/values.ts";
 import { argAny, argArray, argInt, argMap, defineModule, fn } from "./define.ts";
@@ -208,7 +209,55 @@ export function createFlock() {
         span: ctx.span,
       });
     }),
+
+    union: fn(2, 2, "Everything in either array, first-seen order, no repeats.", (args, ctx) =>
+      distinct([
+        ...argArray("flock.union", args, 0, ctx.span).items,
+        ...argArray("flock.union", args, 1, ctx.span).items,
+      ]),
+    ),
+
+    intersect: fn(2, 2, "Everything in both arrays, in the first array's order.", (args, ctx) => {
+      const second = argArray("flock.intersect", args, 1, ctx.span).items;
+      return distinct(
+        argArray("flock.intersect", args, 0, ctx.span).items.filter((item) =>
+          second.some((other) => valuesEqual(item, other)),
+        ),
+      );
+    }),
+
+    difference: fn(2, 2, "Everything in the first array and not the second.", (args, ctx) => {
+      const second = argArray("flock.difference", args, 1, ctx.span).items;
+      return distinct(
+        argArray("flock.difference", args, 0, ctx.span).items.filter(
+          (item) => !second.some((other) => valuesEqual(item, other)),
+        ),
+      );
+    }),
+
+    is_subset: fn(2, 2, "True when every item of the first array is in the second.", (args, ctx) => {
+      const second = argArray("flock.is_subset", args, 1, ctx.span).items;
+      return argArray("flock.is_subset", args, 0, ctx.span).items.every((item) =>
+        second.some((other) => valuesEqual(item, other)),
+      );
+    }),
   });
+}
+
+/**
+ * Drop repeats, keeping the first of each.
+ *
+ * Comparison is Baa's own equality, so `[1, 2]` and `[1, 2]` are one item and
+ * not two. That means a linear scan rather than a `Set`: a set would compare
+ * arrays and maps by identity, and `flock.union([[1]], [[1]])` returning two
+ * identical-looking items is the kind of answer nobody can debug.
+ */
+function distinct(items: readonly Value[]): BaaArray {
+  const out: Value[] = [];
+  for (const item of items) {
+    if (!out.some((other) => valuesEqual(item, other))) out.push(item);
+  }
+  return new BaaArray(out);
 }
 
 function pickBy(args: Value[], ctx: NativeContext, direction: 1 | -1): Value {

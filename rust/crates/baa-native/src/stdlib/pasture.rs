@@ -27,7 +27,7 @@ use crate::ast::Span;
 use crate::interp::{Flow, Interpreter, Res};
 use crate::value::{BaaMap, Module, Native, Value};
 
-use super::{module_of, need_array, need_string};
+use super::{glob, module_of, need_array, need_int, need_string};
 
 const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("read", 1, 1),
@@ -48,7 +48,15 @@ const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("relative_to", 2, 2),
     ("is_absolute", 1, 1),
     ("cwd", 0, 0),
+    ("walk", 1, 2),
+    ("glob", 2, 2),
+    ("matches", 2, 2),
 ];
+
+/// How deep `walk` goes before it stops. A directory can contain a link to one
+/// of its own parents, and a walk with no limit then runs until it exhausts
+/// something. Sixty-four is far past any real source tree.
+const DEFAULT_WALK_DEPTH: usize = 64;
 
 pub fn module() -> Rc<Module> {
     let exports = FUNCTIONS
@@ -234,6 +242,43 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             Value::Bool(std::path::Path::new(&*path).is_absolute())
         }
         "cwd" => Value::str(std::env::current_dir().unwrap_or_default().to_string_lossy()),
+        "walk" => {
+            let root = need_string(interp, &name, &args, 0, span)?;
+            let limit = match args.get(1) {
+                None => DEFAULT_WALK_DEPTH,
+                Some(_) => need_int(interp, &name, &args, 1, span)?.max(0.0) as usize,
+            };
+            let mut found = Vec::new();
+            walk_files(interp, &root, limit, span, &mut found)?;
+            Value::array(found.into_iter().map(Value::str).collect())
+        }
+        "glob" => {
+            let root = need_string(interp, &name, &args, 0, span)?;
+            let pattern = need_string(interp, &name, &args, 1, span)?;
+            let mut found = Vec::new();
+            walk_files(interp, &root, DEFAULT_WALK_DEPTH, span, &mut found)?;
+            // Patterns are written against paths relative to the root, so a
+            // pattern says the same thing wherever the project lives.
+            let base = std::path::Path::new(&*root);
+            Value::array(
+                found
+                    .into_iter()
+                    .filter(|path| {
+                        let relative = std::path::Path::new(path)
+                            .strip_prefix(base)
+                            .map(|rest| rest.to_string_lossy().into_owned())
+                            .unwrap_or_else(|_| path.clone());
+                        glob::matches(&relative, &pattern)
+                    })
+                    .map(Value::str)
+                    .collect(),
+            )
+        }
+        "matches" => {
+            let path = need_string(interp, &name, &args, 0, span)?;
+            let pattern = need_string(interp, &name, &args, 1, span)?;
+            Value::Bool(glob::matches(&path, &pattern))
+        }
         _ => Value::Nil,
     })
 }
@@ -322,6 +367,84 @@ fn relative_to(from: &str, to: &str) -> String {
     } else {
         parts.join(&sep)
     }
+}
+
+
+/// Every file under `root`: depth-first, through names sorted at each level,
+/// directories not included.
+///
+/// `walk` answers "what is there to read", following the reference; a caller
+/// that wants the directories has `list`.
+fn walk_files(
+    interp: &Interpreter,
+    root: &str,
+    limit: usize,
+    span: Span,
+    found: &mut Vec<String>,
+) -> Res<()> {
+    fn visit(
+        interp: &Interpreter,
+        at: &std::path::Path,
+        depth: usize,
+        limit: usize,
+        span: Span,
+        seen: &mut Vec<std::path::PathBuf>,
+        found: &mut Vec<String>,
+    ) -> Res<()> {
+        if depth > limit {
+            return Ok(());
+        }
+        // A link that points back up its own tree would otherwise be walked
+        // until the depth limit, once for every path that reaches it.
+        let resolved = std::fs::canonicalize(at).unwrap_or_else(|_| at.to_path_buf());
+        if seen.contains(&resolved) {
+            return Ok(());
+        }
+        seen.push(resolved);
+
+        let entries = std::fs::read_dir(at).map_err(|error| {
+            file_error(
+                interp,
+                &at.to_string_lossy(),
+                error,
+                "could not walk this directory",
+                span,
+            )
+        })?;
+        let mut names: Vec<std::path::PathBuf> = Vec::new();
+        for entry in entries {
+            let entry = entry.map_err(|error| {
+                file_error(
+                    interp,
+                    &at.to_string_lossy(),
+                    error,
+                    "could not walk this directory",
+                    span,
+                )
+            })?;
+            names.push(entry.path());
+        }
+        names.sort();
+        for path in names {
+            if path.is_dir() {
+                visit(interp, &path, depth + 1, limit, span, seen, found)?;
+            } else {
+                found.push(path.to_string_lossy().into_owned());
+            }
+        }
+        Ok(())
+    }
+
+    let mut seen = Vec::new();
+    visit(
+        interp,
+        std::path::Path::new(root),
+        0,
+        limit,
+        span,
+        &mut seen,
+        found,
+    )
 }
 
 #[cfg(test)]

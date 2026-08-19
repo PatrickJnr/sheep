@@ -393,6 +393,8 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
         "import wool",
         "import ram",
         "import lamb",
+        "import meadow",
+        "import pasture",
         "",
         "baa flock.sort_by([{ n: 3 }, { n: 1 }], fn(x) { return x.n }).map(fn(x) { return x.n })",
         'baa wool.snake_case("parseHTMLNow")',
@@ -403,11 +405,28 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
         // means escaping it as `\\{`, which is worth avoiding in a test that
         // is about something else.
         'baa lamb.decode("[1, 2, 1e3]")[2]',
+        "baa flock.union([1, 2], [2, 3]), flock.intersect([1, 2, 3], [3, 1])",
+        "baa flock.difference([1, 2, 3], [2]), flock.is_subset([1], [1, 2])",
+        "baa meadow.format_duration(90061000), meadow.format_duration(0)",
+        'baa meadow.iso(0, 60), meadow.parts(0, -300)["hour"]',
+        'baa pasture.matches("src/main.baa", "**/*.baa"), pasture.matches("main.baa", "src/*.baa")',
       ].join("\n") + "\n",
     );
     assert.equal(
       stdout.replace(/\r\n/g, "\n"),
-      ["[1, 3]", "parse_htmlnow", "3 -2 2", '{"b":1,"a":[true,null]}', "1000", ""].join("\n"),
+      [
+        "[1, 3]",
+        "parse_htmlnow",
+        "3 -2 2",
+        '{"b":1,"a":[true,null]}',
+        "1000",
+        "[1, 2, 3] [1, 3]",
+        "[1, 3] true",
+        "1d 1h 1m 1s 0s",
+        "1970-01-01T01:00:00.000+01:00 19",
+        "true false",
+        "",
+      ].join("\n"),
     );
   });
 
@@ -556,10 +575,14 @@ describe("native: an application, built and driven", { skip: canDriveWindows ? f
     const executable = join(out, "Calculator.exe");
     assert.ok(existsSync(executable), "no executable was written");
 
-    // The image is appended to the runtime, so the built file is strictly
-    // larger than the runtime it was built from and still starts.
-    const runtime = readFileSync(host!).length;
-    assert.ok(readFileSync(executable).length > runtime, "nothing was appended");
+    // An image was appended, which the footer at the end of the file says
+    // directly. Comparing sizes against the checkout's runtime looked like the
+    // same assertion and was not: `baa app build` prefers a downloaded runtime
+    // in `~/.baa/runtime`, so on a machine that has one the comparison is
+    // against a binary the build never touched.
+    const bytes = readFileSync(executable);
+    assert.equal(bytes.subarray(-9).toString("ascii"), "BAAFLEECE", "nothing was appended");
+    assert.ok(bytes.length > 9 + 8, "the appended image is empty");
     rmSync(out, { recursive: true, force: true });
   });
 });

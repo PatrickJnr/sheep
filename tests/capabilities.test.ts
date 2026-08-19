@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -220,5 +220,53 @@ describe("capabilities: the boundary is the host", () => {
   it("still never uses a shell", () => {
     const source = readFileSync(join(ROOT, "src", "runtime", "host.ts"), "utf8");
     assert.match(source, /shell: false/);
+  });
+});
+
+describe("pasture: walking a real directory", () => {
+  it("finds files at every depth, in a stated order, without the directories", () => {
+    const dir = workspace({ "b.baa": "baa 1\n", "a.baa": "baa 2\n" });
+    mkdirSync(join(dir, "sub", "deeper"), { recursive: true });
+    writeFileSync(join(dir, "sub", "c.baa"), "baa 3\n");
+    writeFileSync(join(dir, "sub", "deeper", "d.txt"), "notes");
+
+    writeFileSync(
+      join(dir, "walk.baa"),
+      `import pasture
+for path in pasture.walk(".") {
+    baa pasture.base_name(path)
+}
+baa "---"
+for path in pasture.glob(".", "**/*.baa") {
+    baa pasture.base_name(path)
+}
+`,
+    );
+    const run = baa(["run", "walk.baa"], dir);
+    assert.equal(run.code, 0, run.err);
+    const lines = run.out.trim().split(/\r?\n/);
+    const cut = lines.indexOf("---");
+    const walked = lines.slice(0, cut);
+    const globbed = lines.slice(cut + 1);
+
+    // Depth-first through names sorted at each level: `sub` sorts before
+    // `walk.baa`, so everything under it comes first.
+    assert.deepEqual(walked, ["a.baa", "b.baa", "c.baa", "d.txt", "walk.baa"]);
+    assert.deepEqual(globbed, ["a.baa", "b.baa", "c.baa", "walk.baa"]);
+  });
+
+  it("refuses to walk under --deny-fs", () => {
+    const dir = workspace({ "walk.baa": 'import pasture\nbaa pasture.walk(".").length()\n' });
+    const denied = baa(["run", "--deny-fs", "walk.baa"], dir);
+    assert.equal(denied.code, 1);
+    assert.match(denied.err, /BAA313/);
+  });
+
+  it("says which directory it could not walk", () => {
+    const dir = workspace({ "walk.baa": 'import pasture\nbaa pasture.walk("nope")\n' });
+    const missing = baa(["run", "walk.baa"], dir);
+    assert.equal(missing.code, 1);
+    assert.match(missing.err, /BAA404/);
+    assert.match(missing.err, /nope/);
   });
 });

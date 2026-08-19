@@ -34,9 +34,11 @@ use super::{map_value, module_of, need_array, need_int, need_number, need_string
 const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("now", 0, 0),
     ("clock", 0, 0),
-    ("parts", 0, 1),
+    ("parts", 0, 2),
     ("format", 1, 2),
-    ("iso", 0, 1),
+    ("iso", 0, 2),
+    ("duration", 1, 1),
+    ("format_duration", 1, 1),
     ("parse_iso", 1, 1),
     ("random", 0, 0),
     ("random_int", 2, 2),
@@ -108,7 +110,12 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             } else {
                 need_number(interp, &name, &args, 0, span)?
             };
-            let civil = civil(interp, &name, millis, span)?;
+            let offset = if args.len() > 1 {
+                offset_minutes(interp, &name, &args, 1, span)?
+            } else {
+                0.0
+            };
+            let civil = civil(interp, &name, millis + offset * 60_000.0, span)?;
             map_value(vec![
                 ("year", Value::Number(civil.year as f64)),
                 ("month", Value::Number(civil.month as f64)),
@@ -119,6 +126,7 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
                 ("millisecond", Value::Number(civil.millisecond as f64)),
                 ("weekday", Value::str(DAYS[civil.weekday])),
                 ("month_name", Value::str(MONTHS[(civil.month - 1) as usize])),
+                ("offset", Value::Number(offset)),
             ])
         }
 
@@ -149,7 +157,53 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             } else {
                 need_number(interp, &name, &args, 0, span)?
             };
-            Value::str(civil(interp, &name, millis, span)?.iso())
+            let offset = if args.len() > 1 {
+                offset_minutes(interp, &name, &args, 1, span)?
+            } else {
+                0.0
+            };
+            let text = civil(interp, &name, millis + offset * 60_000.0, span)?.iso();
+            // `iso()` always writes `Z`, which would be a lie once an offset
+            // has been applied: the same instant, written as the local clock
+            // reads it, ends in `+01:00`.
+            Value::str(if offset == 0.0 {
+                text
+            } else {
+                format!("{}{}", &text[..text.len() - 1], offset_suffix(offset))
+            })
+        }
+
+        "duration" => {
+            let millis = need_number(interp, &name, &args, 0, span)?;
+            if !millis.is_finite() {
+                return interp.fail(
+                    "BAA301",
+                    vec!["meadow.duration needs a finite number of milliseconds".into()],
+                    span,
+                );
+            }
+            let total = millis.abs().trunc();
+            map_value(vec![
+                ("negative", Value::Bool(millis < 0.0)),
+                ("days", Value::Number((total / 86_400_000.0).floor())),
+                ("hours", Value::Number((total / 3_600_000.0).floor() % 24.0)),
+                ("minutes", Value::Number((total / 60_000.0).floor() % 60.0)),
+                ("seconds", Value::Number((total / 1000.0).floor() % 60.0)),
+                ("milliseconds", Value::Number(total % 1000.0)),
+                ("total_seconds", Value::Number(total / 1000.0)),
+            ])
+        }
+
+        "format_duration" => {
+            let millis = need_number(interp, &name, &args, 0, span)?;
+            if !millis.is_finite() {
+                return interp.fail(
+                    "BAA301",
+                    vec!["meadow.format_duration needs a finite number of milliseconds".into()],
+                    span,
+                );
+            }
+            Value::str(format_duration(millis))
         }
 
         "parse_iso" => {
@@ -544,6 +598,69 @@ impl Rng {
     pub fn next_f64(&mut self) -> f64 {
         (self.next_u64() >> 11) as f64 * (1.0 / (1u64 << 53) as f64)
     }
+}
+
+
+/// A UTC offset in minutes, checked the way the reference checks it.
+fn offset_minutes(
+    interp: &Interpreter,
+    name: &str,
+    args: &[Value],
+    index: usize,
+    span: Span,
+) -> Res<f64> {
+    let value = need_number(interp, name, args, index, span)?;
+    if value.fract() != 0.0 || !(-720.0..=840.0).contains(&value) {
+        return Err(Flow::Err(
+            interp
+                .error(
+                    "BAA311",
+                    vec![
+                        name.to_string(),
+                        "a whole-minute UTC offset between -720 and 840".into(),
+                        (index + 1).to_string(),
+                        crate::number::format(value),
+                    ],
+                    span,
+                )
+                .with_note("no time zone is that far from UTC"),
+        ));
+    }
+    Ok(value)
+}
+
+/// `+01:00`, `-05:30`, the way ISO-8601 writes an offset.
+fn offset_suffix(minutes: f64) -> String {
+    let sign = if minutes < 0.0 { '-' } else { '+' };
+    let total = minutes.abs() as i64;
+    format!("{}{}:{}", sign, pad2(total / 60), pad2(total % 60))
+}
+
+/// `1d 2h 3m 4s`, leaving out the units above the largest one that applies.
+fn format_duration(millis: f64) -> String {
+    let total = millis.abs().trunc();
+    let days = (total / 86_400_000.0).floor() as i64;
+    let hours = ((total / 3_600_000.0).floor() % 24.0) as i64;
+    let minutes = ((total / 60_000.0).floor() % 60.0) as i64;
+    let seconds = ((total / 1000.0).floor() % 60.0) as i64;
+    let rest = (total % 1000.0) as i64;
+    let mut parts: Vec<String> = Vec::new();
+    if days > 0 {
+        parts.push(format!("{days}d"));
+    }
+    if hours > 0 || !parts.is_empty() {
+        parts.push(format!("{hours}h"));
+    }
+    if minutes > 0 || !parts.is_empty() {
+        parts.push(format!("{minutes}m"));
+    }
+    if seconds > 0 || !parts.is_empty() || rest == 0 {
+        parts.push(format!("{seconds}s"));
+    }
+    if parts.is_empty() {
+        parts.push(format!("{rest}ms"));
+    }
+    format!("{}{}", if millis < 0.0 { "-" } else { "" }, parts.join(" "))
 }
 
 #[cfg(test)]

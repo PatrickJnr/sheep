@@ -10,6 +10,7 @@ use std::rc::Rc;
 use crate::ast::Span;
 use crate::interp::{Flow, Interpreter, Res, MAX_SIZE};
 use crate::number;
+use crate::value;
 use crate::value::{BaaMap, MapKey, Module, Native, Value};
 
 use super::{module_of, need_array, need_int};
@@ -29,6 +30,10 @@ const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("invert", 1, 1),
     ("range", 1, 3),
     ("to_array", 1, 1),
+    ("union", 2, 2),
+    ("intersect", 2, 2),
+    ("difference", 2, 2),
+    ("is_subset", 2, 2),
 ];
 
 pub fn module() -> Rc<Module> {
@@ -323,6 +328,53 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
                 )
             }
         },
+        "union" => {
+            let mut items = need_array(interp, &name, &args, 0, span)?;
+            items.extend(need_array(interp, &name, &args, 1, span)?);
+            Value::array(distinct(&items))
+        }
+        "intersect" => {
+            let first = need_array(interp, &name, &args, 0, span)?;
+            let second = need_array(interp, &name, &args, 1, span)?;
+            let kept: Vec<Value> = first
+                .into_iter()
+                .filter(|item| second.iter().any(|value| value::equal(item, value)))
+                .collect();
+            Value::array(distinct(&kept))
+        }
+        "difference" => {
+            let first = need_array(interp, &name, &args, 0, span)?;
+            let second = need_array(interp, &name, &args, 1, span)?;
+            let kept: Vec<Value> = first
+                .into_iter()
+                .filter(|item| !second.iter().any(|value| value::equal(item, value)))
+                .collect();
+            Value::array(distinct(&kept))
+        }
+        "is_subset" => {
+            let first = need_array(interp, &name, &args, 0, span)?;
+            let second = need_array(interp, &name, &args, 1, span)?;
+            Value::Bool(
+                first
+                    .iter()
+                    .all(|item| second.iter().any(|value| value::equal(item, value))),
+            )
+        }
         _ => Value::Nil,
     })
+}
+
+/// Drop repeats, keeping the first of each.
+///
+/// A linear scan rather than a hash set, because comparison is Baa's own
+/// equality: two arrays holding the same values are one item, and a set keyed
+/// on identity would keep both.
+fn distinct(items: &[Value]) -> Vec<Value> {
+    let mut out: Vec<Value> = Vec::new();
+    for item in items {
+        if !out.iter().any(|other| value::equal(item, other)) {
+            out.push(item.clone());
+        }
+    }
+    out
 }

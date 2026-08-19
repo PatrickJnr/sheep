@@ -14,7 +14,8 @@ import { BaaError } from "../diagnostics/diagnostic.ts";
 import { describeFileError, rethrowIfDenied } from "../runtime/host.ts";
 import type { RuntimeHost } from "../runtime/host.ts";
 import { BaaArray } from "../runtime/values.ts";
-import { argArray, argString, checkPath, defineModule, fn, mapOf } from "./define.ts";
+import { argArray, argString, argInt, checkPath, defineModule, fn, mapOf } from "./define.ts";
+import { matchesGlob } from "./glob.ts";
 
 export function createPasture(host: RuntimeHost) {
   const readPath = (name: string, args: unknown[], span: import("../diagnostics/source.ts").Span): string =>
@@ -168,5 +169,87 @@ export function createPasture(host: RuntimeHost) {
     ),
 
     cwd: fn(0, 0, "The current working directory.", () => host.cwd()),
+
+    walk: fn(1, 2, "Every file under a directory, recursively, sorted.", (args, ctx) => {
+      const root = readPath("pasture.walk", args, ctx.span);
+      const limit =
+        args.length > 1 ? argInt("pasture.walk", args, 1, ctx.span) : DEFAULT_WALK_DEPTH;
+      return new BaaArray(walkFiles(host, root, limit, ctx.span));
+    }),
+
+    glob: fn(2, 2, "Files under a directory whose path matches a glob pattern.", (args, ctx) => {
+      const root = readPath("pasture.glob", args, ctx.span);
+      const pattern = argString("pasture.glob", args, 1, ctx.span);
+      const files = walkFiles(host, root, DEFAULT_WALK_DEPTH, ctx.span);
+      // Patterns are written against paths relative to the root, so
+      // `pasture.glob("src", "**/*.baa")` says what it looks like it says
+      // wherever the project happens to live. `relative` rather than trimming
+      // a prefix: `join(".", "a.baa")` is `a.baa`, and trimming two characters
+      // from that leaves `aa`.
+      return new BaaArray(files.filter((path) => matchesGlob(relative(root, path), pattern)));
+    }),
+
+    matches: fn(2, 2, "True when a path matches a glob pattern.", (args, ctx) =>
+      matchesGlob(
+        argString("pasture.matches", args, 0, ctx.span),
+        argString("pasture.matches", args, 1, ctx.span),
+      ),
+    ),
   });
+}
+
+/**
+ * How deep `walk` goes before it stops.
+ *
+ * There is a limit at all because a directory can contain a link to one of its
+ * own parents, and a walk with no limit then runs until it exhausts something.
+ * Sixty-four is far past any real source tree.
+ */
+const DEFAULT_WALK_DEPTH = 64;
+
+/**
+ * Every file under `root`: depth-first, through names sorted at each level.
+ *
+ * Directories are not returned: `walk` answers "what is there to read", and a
+ * caller that wants the directories has `list`. Everything goes through the
+ * host, so a run without the filesystem capability is refused here exactly as
+ * it would be in `read`.
+ */
+function walkFiles(
+  host: RuntimeHost,
+  root: string,
+  limit: number,
+  span: import("../diagnostics/source.ts").Span,
+): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  const visit = (at: string, depth: number): void => {
+    if (depth > limit) return;
+    const resolved = host.resolvePath(at);
+    // A link that points back up its own tree would otherwise be walked until
+    // the depth limit, once for every path that reaches it.
+    if (seen.has(resolved)) return;
+    seen.add(resolved);
+
+    let names: string[];
+    try {
+      names = host.listDir(at).sort();
+    } catch (error) {
+      rethrowIfDenied(error, span);
+      throw BaaError.of("BAA404", [`${at}: ${describeFileError(error)}`], {
+        span,
+        note: "could not walk this directory",
+        help: "`pasture.walk` needs a directory that exists and can be listed.",
+      });
+    }
+    for (const name of names) {
+      const full = join(at, name);
+      const info = host.stat(full);
+      if (info === null) continue;
+      if (info.isDirectory) visit(full, depth + 1);
+      else found.push(full);
+    }
+  };
+  visit(root, 0);
+  return found;
 }

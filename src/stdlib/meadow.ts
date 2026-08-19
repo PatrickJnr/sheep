@@ -8,6 +8,7 @@
  */
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
+import type { Span } from "../diagnostics/source.ts";
 import type { RuntimeHost } from "../runtime/host.ts";
 import { BaaArray, BaaRange } from "../runtime/values.ts";
 import type { Value } from "../runtime/values.ts";
@@ -46,9 +47,10 @@ export function createMeadow(host: RuntimeHost) {
       performance.now(),
     ),
 
-    parts: fn(0, 1, "Break a timestamp into a map of calendar parts (UTC).", (args, ctx) => {
+    parts: fn(0, 2, "Break a timestamp into calendar parts (UTC, or at an offset).", (args, ctx) => {
       const millis = args.length > 0 ? argNumber("meadow.parts", args, 0, ctx.span) : host.now();
-      const date = new Date(millis);
+      const offset = args.length > 1 ? offsetMinutes("meadow.parts", args, 1, ctx.span) : 0;
+      const date = new Date(millis + offset * 60_000);
       if (Number.isNaN(date.getTime())) {
         throw BaaError.of("BAA301", ["meadow.parts got a timestamp that is not a real date"], {
           span: ctx.span,
@@ -64,6 +66,7 @@ export function createMeadow(host: RuntimeHost) {
         millisecond: date.getUTCMilliseconds(),
         weekday: DAYS[date.getUTCDay()]!,
         month_name: MONTHS[date.getUTCMonth()]!,
+        offset,
       });
     }),
 
@@ -87,16 +90,45 @@ export function createMeadow(host: RuntimeHost) {
         .replace(/ss/g, pad(date.getUTCSeconds()));
     }),
 
-    iso: fn(0, 1, "ISO-8601 text for a timestamp (default: now).", (args, ctx) => {
+    iso: fn(0, 2, "ISO-8601 text for a timestamp (default: now, UTC).", (args, ctx) => {
       const millis = args.length > 0 ? argNumber("meadow.iso", args, 0, ctx.span) : host.now();
-      const date = new Date(millis);
+      const offset = args.length > 1 ? offsetMinutes("meadow.iso", args, 1, ctx.span) : 0;
+      const date = new Date(millis + offset * 60_000);
       if (Number.isNaN(date.getTime())) {
         throw BaaError.of("BAA301", ["meadow.iso got a timestamp that is not a real date"], {
           span: ctx.span,
         });
       }
-      return date.toISOString();
+      // `toISOString` always writes `Z`, which would be a lie once an offset
+      // has been applied: the same instant, written as the local clock reads
+      // it, ends in `+01:00`.
+      return offset === 0
+        ? date.toISOString()
+        : `${date.toISOString().slice(0, -1)}${offsetSuffix(offset)}`;
     }),
+
+    duration: fn(1, 1, "Break a length of time in milliseconds into parts.", (args, ctx) => {
+      const millis = argNumber("meadow.duration", args, 0, ctx.span);
+      if (!Number.isFinite(millis)) {
+        throw BaaError.of("BAA301", ["meadow.duration needs a finite number of milliseconds"], {
+          span: ctx.span,
+        });
+      }
+      const total = Math.trunc(Math.abs(millis));
+      return mapOf({
+        negative: millis < 0,
+        days: Math.floor(total / 86_400_000),
+        hours: Math.floor(total / 3_600_000) % 24,
+        minutes: Math.floor(total / 60_000) % 60,
+        seconds: Math.floor(total / 1000) % 60,
+        milliseconds: total % 1000,
+        total_seconds: total / 1000,
+      });
+    }),
+
+    format_duration: fn(1, 1, "A length of time as `1d 2h 3m 4s`.", (args, ctx) =>
+      formatDuration(argNumber("meadow.format_duration", args, 0, ctx.span), ctx.span),
+    ),
 
     parse_iso: fn(1, 1, "Parse ISO-8601 text into a timestamp, or nil.", (args, ctx) => {
       const value = Date.parse(argString("meadow.parse_iso", args, 0, ctx.span));
@@ -152,4 +184,64 @@ export function createMeadow(host: RuntimeHost) {
       return new BaaArray(out);
     }),
   });
+}
+
+/**
+ * A UTC offset in minutes, checked.
+ *
+ * Real zones run from -12:00 to +14:00, and the offsets that exist are whole
+ * minutes. Anything outside that is a mistake worth naming rather than a
+ * timestamp shifted somewhere impossible.
+ */
+function offsetMinutes(
+  name: string,
+  args: readonly Value[],
+  index: number,
+  span: Span,
+): number {
+  const value = argNumber(name, args, index, span);
+  if (!Number.isInteger(value) || value < -12 * 60 || value > 14 * 60) {
+    throw BaaError.of(
+      "BAA311",
+      [name, "a whole-minute UTC offset between -720 and 840", String(index + 1), String(value)],
+      { span, note: "no time zone is that far from UTC" },
+    );
+  }
+  return value;
+}
+
+/** `+01:00`, `-05:30`, the way ISO-8601 writes an offset. */
+function offsetSuffix(minutes: number): string {
+  const sign = minutes < 0 ? "-" : "+";
+  const total = Math.abs(minutes);
+  const pad = (value: number): string => String(value).padStart(2, "0");
+  return `${sign}${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}
+
+/**
+ * `1d 2h 3m 4s`, leaving out the units above the largest one that applies.
+ *
+ * Zero is `0s` rather than an empty string, and a negative length keeps its
+ * sign: a duration of nothing and a duration measured backwards are both
+ * things a program can end up with, and neither should print as nothing.
+ */
+function formatDuration(millis: number, span: Span): string {
+  if (!Number.isFinite(millis)) {
+    throw BaaError.of("BAA301", ["meadow.format_duration needs a finite number of milliseconds"], {
+      span,
+    });
+  }
+  const total = Math.trunc(Math.abs(millis));
+  const parts: string[] = [];
+  const days = Math.floor(total / 86_400_000);
+  const hours = Math.floor(total / 3_600_000) % 24;
+  const minutes = Math.floor(total / 60_000) % 60;
+  const seconds = Math.floor(total / 1000) % 60;
+  const rest = total % 1000;
+  if (days > 0) parts.push(`${days}d`);
+  if (hours > 0 || parts.length > 0) parts.push(`${hours}h`);
+  if (minutes > 0 || parts.length > 0) parts.push(`${minutes}m`);
+  if (seconds > 0 || parts.length > 0 || rest === 0) parts.push(`${seconds}s`);
+  if (parts.length === 0) parts.push(`${rest}ms`);
+  return `${millis < 0 ? "-" : ""}${parts.join(" ")}`;
 }
