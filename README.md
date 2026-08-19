@@ -104,9 +104,11 @@ The joke is the name. Everything underneath is built to be used.
 | **Small core** | Fourteen statement forms, one numeric type, no inheritance, no hidden coercions. You can hold the whole language in your head. |
 | **Diagnostics that help** | Every error has a stable `BAAnnn` code, a source span, an underlined excerpt and, where possible, a suggestion. |
 | **Fast enough to be practical** | Around 1.2 million function calls and 4.5 million loop iterations per second on a laptop. `baa run` starts in about a tenth of a second. |
-| **Tooling in the box** | `fmt`, `lint`, `check`, `test`, `repl`, `init`, `build`, `doctor`. No plugin hunt on day one. |
+| **Tooling in the box** | `fmt`, `lint`, `check --watch`, `test`, `doc`, `lsp`, `repl`, `init`, `build`, `doctor`. No plugin hunt on day one. |
 | **Serious when it needs to be** | `--no-baa`, or `CI=true`, swaps every sheep joke for neutral wording and keeps the codes identical. |
 | **Nothing to trust** | No third-party packages. Nothing is downloaded, nothing runs implicitly, and no subprocess ever sees a shell. |
+| **Less than you have** | `--deny-fs`, `--deny-env`, `--deny-process` and `--allow-fs <dir>` run a program with fewer capabilities than the shell that started it. |
+| **Readable by a program** | `--format json` on `check`, `lint` and `fmt`: the same diagnostics the terminal shows, as one JSON object a CI job can annotate from. |
 | **Two places to run** | The same files serve [web pages](docs/web.md) and build [native Windows applications](docs/native-applications.md). One language, one set of tests, two targets. |
 
 Verified on every commit, across Windows, Linux and macOS: **700+ tests**, a
@@ -347,7 +349,9 @@ Built build/Hello.exe
 
 One executable. No Node.js on the machine that runs it, no browser inside it,
 no unpacking: a real Win32 window with the system's own controls, its own menu
-bar and its own file dialogs.
+bar and its own file dialogs. It carries its own icon and version metadata,
+written into the executable without a linker, so Explorer and the Properties
+dialog show what the manifest says.
 
 `baa app build` analyses the program with exactly the code `baa check` uses,
 writes the resolved tree into an image, and appends that image to a runtime
