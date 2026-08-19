@@ -75,6 +75,14 @@ export type BundleOptions = {
   readonly root: string;
   /** `[app]` metadata from `baa.toml`. */
   readonly app?: Readonly<Record<string, string>>;
+  /**
+   * `[wool]` dependencies, as name → the file `import <name>` means.
+   *
+   * Given these, `import my_lib` is bundled like any other file. Without them
+   * it is refused, which is what happens when this function is called by
+   * something that has no manifest to resolve them from.
+   */
+  readonly dependencies?: ReadonlyMap<string, string>;
 };
 
 export type BundleResult = {
@@ -88,6 +96,15 @@ export function bundle(options: BundleOptions): BundleResult {
   const collected: Collected[] = [];
   const indexByPath = new Map<string, number>();
   const stdlib: string[] = [];
+  const dependencies = options.dependencies ?? new Map<string, string>();
+
+  // There is deliberately no check that a bundled file lies under the project.
+  // A relative import is a path the author wrote in their own source, and the
+  // native calculator imports `../../apps/calculator/expression.baa` on purpose:
+  // one arithmetic module, two front ends. Refusing that would break the
+  // arrangement the native platform exists to demonstrate, and it would buy
+  // nothing — every path here comes from the program being built, never from
+  // input it was given.
 
   const collect = (absolute: string, importedFrom: string | null): number => {
     const existing = indexByPath.get(absolute);
@@ -103,7 +120,9 @@ export function bundle(options: BundleOptions): BundleResult {
 
     const file = new SourceFile(absolute, text);
     const { program, diagnostics } = parse(file);
-    const analysis = resolveProgram(program, file);
+    // The dependency names go in, or the resolver reports `BAA401` for an
+    // import this bundler is about to satisfy.
+    const analysis = resolveProgram(program, file, { modules: [...dependencies.keys()] });
     const errors = [...diagnostics, ...analysis.diagnostics].filter((d) => d.severity === "error");
     if (errors.length > 0) {
       throw new BundleError(`${display(options.root, absolute)} does not compile`, errors);
@@ -129,15 +148,19 @@ export function bundle(options: BundleOptions): BundleResult {
     for (const statement of program.body) {
       if (statement.kind !== "ImportDeclaration") continue;
       if (!statement.relative) {
+        const dependency = dependencies.get(statement.source);
+        if (dependency !== undefined) {
+          // A `[wool]` dependency, bundled like any other file. Its own
+          // relative imports are followed by the same code, so a dependency
+          // made of several files works without saying anything more.
+          entry.imports.set(statement.source, collect(resolve(dependency), absolute));
+          continue;
+        }
         if (!STDLIB_MODULES.includes(statement.source)) {
-          // A project dependency from `baa.toml`. Bundling those needs the
-          // manifest's resolved paths, which `baa app build` has and this
-          // function deliberately does not: it would mean two ways to find a
-          // module. Said plainly rather than half-supported.
           throw new BundleError(
-            `\`import ${statement.source}\` in ${display(options.root, absolute)} is not a standard module.\n` +
-              "Native applications bundle standard modules and relative imports. " +
-              'Import the file directly: `import "./path/to/it.baa"`.',
+            `\`import ${statement.source}\` in ${display(options.root, absolute)} is neither a standard module nor a dependency.\n` +
+              "Add it to `[wool]` in baa.toml with `baa add`, or import the file " +
+              'directly: `import "./path/to/it.baa"`.',
           );
         }
         if (!NATIVE_MODULES.includes(statement.source)) {
@@ -168,6 +191,7 @@ export function bundle(options: BundleOptions): BundleResult {
     modules: collected.map((item) => item.module),
     entry: entryIndex,
     app: options.app ?? {},
+    hasImport: (fromModule, source) => collected[fromModule]?.imports.has(source) === true,
     resolveImport: (fromModule, source) => {
       const found = collected[fromModule]?.imports.get(source);
       if (found === undefined) {

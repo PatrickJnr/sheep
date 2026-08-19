@@ -53,6 +53,8 @@ export type Image = {
   readonly app: Readonly<Record<string, string>>;
   /** Resolves a relative import to an index in `modules`. */
   readonly resolveImport: (fromModule: number, source: string) => number;
+  /** True when this import was bundled: a relative path, or a dependency. */
+  readonly hasImport: (fromModule: number, source: string) => boolean;
 };
 
 // Statement tags. The numbers are part of the format: append, never renumber.
@@ -411,7 +413,11 @@ export function encodeImage(image: Image): Uint8Array {
         // Resolved here, not at runtime: the native runtime never consults the
         // filesystem to find a module, so a shipped application cannot be
         // redirected by a file dropped next to it.
-        if (statement.relative) {
+        // A `[wool]` dependency is bundled like any other module, so it is
+        // written as an index too: `import my_lib` and `import "./lib.baa"`
+        // differ only in how they were spelled.
+        const bundled = statement.relative ? true : image.hasImport(currentModule, statement.source);
+        if (bundled) {
           w.u8(1);
           w.u32(image.resolveImport(currentModule, statement.source));
         } else {

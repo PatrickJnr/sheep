@@ -54,6 +54,30 @@ height = "260"
 Values are strings, because the manifest parser accepts a deliberately small
 TOML subset and quoting a number costs nothing.
 
+### Dependencies
+
+`[wool]` dependencies are bundled into the application like the project's own
+files, and so are the files they import in turn:
+
+```toml
+[wool]
+greet = { path = "../shared/greet.baa" }
+```
+
+```baa
+import greet
+baa greet.hello("Dolly")
+```
+
+Nothing is fetched and nothing is executed at build time: a dependency is a
+local path, the bundler reads it, and the whole tree ends up in the image. A
+bare import that is neither a standard module nor a declared dependency stops
+the build.
+
+Relative imports may point outside the project — the native calculator imports
+the *web* calculator's arithmetic module that way, which is the whole point of
+the arrangement.
+
 ### What Windows sees
 
 On Windows, `baa app build` writes a resource section into the executable

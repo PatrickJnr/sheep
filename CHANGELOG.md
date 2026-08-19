@@ -63,6 +63,12 @@ less than the shell that started it.
   bytes at the end of the file, three numbers corrected. It refuses rather than
   guessing on anything it does not recognise.
 
+- **`[wool]` dependencies inside a native application.** `import my_lib` is
+  bundled like any other file, along with whatever it imports in turn. Nothing
+  is fetched and nothing runs at build time: a dependency is a local path. A
+  bare import that is neither a standard module nor a declared dependency stops
+  the build.
+
 - **Regular expressions in the native runtime.** The five `wool` functions that
   take a pattern used to report that the native runtime had no engine. It has
   one now: a parser, a backtracking virtual machine, and a subset written into

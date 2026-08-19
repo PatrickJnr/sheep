@@ -276,6 +276,16 @@ suite, so both runtimes are held to byte-identical output on greedy and lazy
 quantifiers, named groups, empty matches, `$&` and `$1` replacements, flags,
 boundaries and classes. 63 of 63 programs pass natively.
 
+### `[wool]` dependencies inside a bundle — **COMPLETED** in 0.8.0
+
+**Delivered.** `import my_lib` in a native application is bundled like any
+other module, along with the files it imports in turn. The manifest is the only
+place a dependency's path lives, so the bundler is given the resolved map
+rather than looking for one itself.
+
+Nothing is fetched and nothing is executed at build time, and a build produces
+the same bytes twice, which a test asserts.
+
 ### Standard-library growth — **COMPLETED** in 0.8.0
 
 **Delivered.** Nine functions, in both runtimes. `pasture.walk`, `glob` and
@@ -361,7 +371,6 @@ up before the first line is written.
 
 | Milestone | Status | Definition of done |
 | --- | --- | --- |
-| **`[wool]` dependencies inside a bundle.** Manifest dependencies are refused today rather than bundled. | PLANNED | A manifest dependency is bundled deterministically, or refused with a reason. |
 | **Calendar arithmetic in `meadow`.** Adding and subtracting amounts, not only formatting them. | PLANNED | Each function exists in both runtimes, with tests. |
 
 ---
@@ -374,13 +383,6 @@ Rows, columns, headers, selection and scrolling. It waits for an application
 that needs one, so the API is shaped by a real use rather than guessed: a small
 useful table beats an enormous data grid nobody asked for. (Timers, which used
 to share this entry, are now an Immediate Next.)
-
-### `[wool]` dependencies inside a bundle — **PLANNED**
-
-Relative imports are bundled into an application image. Manifest dependencies
-are refused with a message rather than half-supported.
-
----
 
 ## Long Term
 

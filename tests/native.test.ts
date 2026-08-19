@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import process from "node:process";
 import { after, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -245,6 +245,64 @@ describe("native: what a build refuses", () => {
     assert.equal(built.modules.length, 2);
     assert.deepEqual(built.stdlib, []);
     assert.ok(built.bytes.length > 0);
+  });
+
+  it("bundles a `[wool]` dependency, and the files it imports in turn", () => {
+    const shared = mkdtempSync(join(tmpdir(), "baa-wool-"));
+    writeFileSync(
+      join(shared, "greet.baa"),
+      'import "./words.baa" as words\nexport fn hello(name) {\n    return words.prefix() + name\n}\n',
+      "utf8",
+    );
+    writeFileSync(join(shared, "words.baa"), 'export fn prefix() {\n    return "Baa, "\n}\n', "utf8");
+    const entry = write("app.baa", "import greet\nbaa greet.hello(\"Dolly\")\n");
+
+    const built = bundle({
+      entry,
+      root: work,
+      dependencies: new Map([["greet", join(shared, "greet.baa")]]),
+    });
+    // The entry, the dependency, and the file the dependency imports.
+    assert.equal(built.modules.length, 3);
+    rmSync(shared, { recursive: true, force: true });
+  });
+
+  it("refuses a bare import that is neither a standard module nor a dependency", () => {
+    const entry = write("unknown.baa", "import my_lib\nbaa my_lib\n");
+    assert.throws(
+      () => bundle({ entry, root: work }),
+      (error: unknown) => {
+        assert.ok(error instanceof BundleError);
+        // The resolver gets there first, because a module nobody declared is
+        // not a name it knows. Either way the build stops with the module
+        // named, which is what matters.
+        assert.equal(error.diagnostics[0]?.code, "BAA401");
+        return true;
+      },
+    );
+  });
+
+  it("packs a relative import that points outside the project, on purpose", () => {
+    // The native calculator imports the *web* calculator's arithmetic module by
+    // relative path: one module, two front ends. A rule that refused paths
+    // outside the project would break the arrangement the native platform
+    // exists to demonstrate, and would buy nothing — every path here comes from
+    // the program being built, never from input it was given.
+    const outside = mkdtempSync(join(tmpdir(), "baa-outside-"));
+    writeFileSync(join(outside, "shared.baa"), "export fn two() {\n    return 2\n}\n", "utf8");
+    const target = join(outside, "shared.baa").split(sep).join("/");
+    const entry = write("reaches.baa", `import "${target}" as shared\nbaa shared.two()\n`);
+    const built = bundle({ entry, root: work });
+    assert.equal(built.modules.length, 2);
+    rmSync(outside, { recursive: true, force: true });
+  });
+
+  it("packs the same bytes every time, so a build is reproducible", () => {
+    write("stable_lib.baa", "export fn two() {\n    return 2\n}\n");
+    const entry = write("stable.baa", 'import "./stable_lib.baa" as lib\nbaa lib.two()\n');
+    const first = bundle({ entry, root: work });
+    const second = bundle({ entry, root: work });
+    assert.deepEqual([...first.bytes], [...second.bytes]);
   });
 
   it("writes an image that starts with the magic and the version", () => {

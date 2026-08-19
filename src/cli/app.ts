@@ -31,7 +31,7 @@ import { fileURLToPath } from "node:url";
 
 import { bundle, BundleError, NATIVE_MODULES } from "../native/bundle.ts";
 import { addResources, parseVersion } from "../native/resources.ts";
-import { findManifest, parseToml, readManifest } from "../project/manifest.ts";
+import { findManifest, parseToml, readManifest, resolveDependencies } from "../project/manifest.ts";
 import type { CommandContext } from "./commands.ts";
 import { printDiagnostics, writeError, writeLine } from "./output.ts";
 
@@ -222,12 +222,17 @@ function appBuild(
   let root = cwd;
   let name = basename(cwd);
   let app: Record<string, string> = {};
+  let dependencies: ReadonlyMap<string, string> = new Map();
 
   if (manifestPath !== null) {
     const manifest = readManifest(manifestPath);
     root = manifest.root;
     name = manifest.name;
     entry = entry ?? join(manifest.root, manifest.entry);
+    // `[wool]` dependencies are bundled like the project's own files. The
+    // manifest is the only place their paths live, which is why the bundler
+    // takes them rather than looking for them itself.
+    dependencies = resolveDependencies(manifest);
     app = appSection(manifestPath);
     app.name = app.name ?? manifest.name;
     app.version = app.version ?? manifest.version;
@@ -254,12 +259,12 @@ function appBuild(
       );
       return 1;
     }
-    return runTests(suite, root, app);
+    return runTests(suite, root, app, dependencies);
   }
 
   let built;
   try {
-    built = bundle({ entry, root, app });
+    built = bundle({ entry, root, app, dependencies });
   } catch (error) {
     if (error instanceof BundleError) {
       writeError(error.message);
@@ -368,7 +373,12 @@ function collectTests(root: string): string[] {
  * complete program, and bundling several together would give them a shared
  * global scope they do not have under `baa test`.
  */
-function runTests(files: readonly string[], root: string, app: Record<string, string>): number {
+function runTests(
+  files: readonly string[],
+  root: string,
+  app: Record<string, string>,
+  dependencies: ReadonlyMap<string, string>,
+): number {
   const host = findHost({ windowed: false });
   if (host === null) return 1;
 
@@ -377,7 +387,7 @@ function runTests(files: readonly string[], root: string, app: Record<string, st
     writeLine(relative(root, file).split(sep).join("/"));
     let bytes: Uint8Array;
     try {
-      bytes = bundle({ entry: file, root, app }).bytes;
+      bytes = bundle({ entry: file, root, app, dependencies }).bytes;
     } catch (error) {
       if (error instanceof BundleError) {
         writeError(error.message);
