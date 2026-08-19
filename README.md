@@ -265,6 +265,7 @@ All 47 of them are listed in [docs/errors.md](docs/errors.md).
 | `baa init [dir]` | Create a new project |
 | `baa build` | Validate the project and write `baa.lock`, `--locked` to verify it |
 | `baa add` / `baa remove` | Manage local dependencies |
+| `baa doc [paths]` | Write a reference from `///` comments |
 | `baa doctor` | Diagnose the installation |
 | `baa modules` | List the standard library |
 | `baa serve [dir]` | Serve a directory of `.baa` pages over HTTP |

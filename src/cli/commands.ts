@@ -11,7 +11,7 @@
  */
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
@@ -20,6 +20,8 @@ import type { Diagnostic } from "../diagnostics/diagnostic.ts";
 import { BaaError, createDiagnostic } from "../diagnostics/diagnostic.ts";
 import { buildReport, renderReport } from "../diagnostics/json.ts";
 import { SourceFile } from "../diagnostics/source.ts";
+import { collectDocs, documentedPath, renderDocs } from "./doc.ts";
+import type { DocModule } from "./doc.ts";
 import { unifiedDiff } from "../formatter/diff.ts";
 import { formatProgram } from "../formatter/formatter.ts";
 import { lintProgram } from "../linter/linter.ts";
@@ -911,5 +913,82 @@ export function commandModules(context: CommandContext): number {
   }
   writeLine("");
   writeLine(dim("Import one with `import wool`, or a few names with `import { trim } from wool`.", context.colour));
+  return 0;
+}
+
+// --------------------------------------------------------------------------
+// baa doc
+// --------------------------------------------------------------------------
+
+export type DocArgs = {
+  readonly paths: readonly string[];
+  /** Where to write. Stdout when absent. */
+  readonly out: string | null;
+  /** Compare with what is already there and fail on a difference. */
+  readonly check: boolean;
+  readonly title: string | null;
+};
+
+export function commandDoc(args: DocArgs, context: CommandContext): number {
+  const manifest = loadProject();
+  const root = manifest?.root ?? process.cwd();
+  const targets = collectFiles(args.paths.length > 0 ? args.paths : [defaultTarget(manifest)]);
+  const modules: DocModule[] = [];
+  const problems: Diagnostic[] = [];
+
+  for (const path of targets) {
+    const file = readSource(path);
+    const { program, diagnostics } = parse(file);
+    const fatal = diagnostics.find((diagnostic) => diagnostic.severity === "error");
+    if (fatal !== undefined) {
+      // A file that will not parse has no exports to report, and guessing at
+      // them would put something in the reference that is not in the code.
+      problems.push(fatal);
+      continue;
+    }
+    modules.push(collectDocs(program, documentedPath(path, root)));
+  }
+
+  if (problems.length > 0) {
+    printDiagnostics(problems, context.colour);
+    return 1;
+  }
+
+  const rendered = renderDocs(modules, {
+    title: args.title ?? `${manifest?.name ?? basename(root)} reference`,
+    ...(manifest?.description === undefined ? {} : { intro: manifest.description }),
+  });
+
+  if (args.out === null) {
+    process.stdout.write(rendered);
+    return 0;
+  }
+
+  const out = resolve(args.out);
+  if (args.check) {
+    const existing = existsSync(out) ? readFileSync(out, "utf8") : null;
+    if (existing === rendered) {
+      if (!context.flags.quiet) writeLine(success(`${shortPath(out)} is up to date`, context.colour));
+      return 0;
+    }
+    writeLine(
+      failure(
+        existing === null
+          ? `${shortPath(out)} does not exist. Run \`baa doc --out ${args.out}\`.`
+          : `${shortPath(out)} is out of date. Run \`baa doc --out ${args.out}\`.`,
+        context.colour,
+      ),
+    );
+    return 1;
+  }
+
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, rendered, "utf8");
+  if (!context.flags.quiet) {
+    const documented = modules.reduce((total, module) => total + module.entries.length, 0);
+    writeLine(
+      `${success("wrote", context.colour)} ${shortPath(out)}: ${documented} export${documented === 1 ? "" : "s"} from ${modules.length} file${modules.length === 1 ? "" : "s"}`,
+    );
+  }
   return 0;
 }

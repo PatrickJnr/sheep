@@ -311,6 +311,7 @@ export class Parser {
       value,
       mutable,
       exported,
+      doc: docCommentOf(start.leading),
       trailing,
       ...this.#trivia(start),
     };

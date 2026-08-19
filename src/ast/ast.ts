@@ -135,6 +135,8 @@ export type LetStatement = StatementBase & {
   /** `false` for `const`. */
   readonly mutable: boolean;
   readonly exported: boolean;
+  /** Doc comment text, if the declaration is preceded by `///` style comments. */
+  readonly doc: string | null;
 };
 
 export type FunctionDeclaration = StatementBase & {

@@ -18,6 +18,7 @@ import {
   commandAdd,
   commandBuild,
   commandCheck,
+  commandDoc,
   commandDoctor,
   commandFormat,
   commandInit,
@@ -81,6 +82,7 @@ COMMANDS
   app <action>          Native applications: new, build, run, test
   add <name> --path P   Add a local dependency
   remove <name>         Remove a dependency
+  doc [paths...]        Write a reference from /// comments
   doctor                Check the installation and project
   modules               List the standard library
   version               Print the version
@@ -193,6 +195,17 @@ const COMMAND_HELP: Record<string, string> = {
   repl: `baa repl [--no-banner]
 
   Start an interactive session. Bindings persist between lines.`,
+  doc: `baa doc [paths...] [options]
+
+  Write a Markdown reference for everything the given files export, from the
+  /// comments above each declaration. With no paths, documents the project.
+
+  --out <file>      Write to a file instead of stdout
+  --check           Do not write; exit non-zero if the file is out of date
+  --title <text>    Heading for the document (default: the project's name)
+
+  Only exported declarations appear: a module's API is what it exports, and a
+  reference listing the rest teaches a reader to depend on what will move.`,
   doctor: `baa doctor
 
   Report the Node version, platform, project state and dependency resolution.`,
@@ -225,6 +238,7 @@ const VALUE_FLAGS = new Set([
   "line-width",
   "name",
   "path",
+  "title",
   "disable",
   "entry",
   "out",
@@ -430,6 +444,16 @@ export async function main(argv: readonly string[]): Promise<number> {
             toStdout: parsed.booleans.has("stdout"),
             indent: numberOption(parsed, "indent"),
             lineWidth: numberOption(parsed, "line-width"),
+          },
+          context,
+        );
+      case "doc":
+        return commandDoc(
+          {
+            paths: parsed.positionals,
+            out: stringOption(parsed, "out"),
+            check: parsed.booleans.has("check"),
+            title: stringOption(parsed, "title"),
           },
           context,
         );
