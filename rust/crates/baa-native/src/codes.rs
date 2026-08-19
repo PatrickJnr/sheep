@@ -42,6 +42,7 @@ pub const CATALOGUE: &[(&str, &str, &str)] = &[
     ("BAA310", "This key isn't in the map: {0}", "Missing map key: {0}"),
     ("BAA311", "`{0}` expected {1} for argument {2}, but got {3}.", "`{0}`: argument {2} must be {1}, received {3}."),
     ("BAA312", "`{0}` was asked to build {1} items. The pen only holds {2}.", "`{0}`: requested size {1} exceeds the limit of {2}."),
+    ("BAA313", "That gate is bolted: this run may not {0}.", "Capability denied: this run may not {0}."),
     ("BAA401", "No module named `{0}` is grazing anywhere the shepherd can see.", "Module `{0}` could not be resolved."),
     ("BAA402", "This flock has wandered in a circle: {0}", "Circular import detected: {0}"),
     ("BAA403", "`{0}` doesn't export anything called `{1}`.", "Module `{0}` has no export named `{1}`."),

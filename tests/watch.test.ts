@@ -24,7 +24,16 @@ const CLI = join(ROOT, "src", "cli", "index.ts");
 const workspaces: string[] = [];
 
 after(() => {
-  for (const dir of workspaces) rmSync(dir, { recursive: true, force: true });
+  for (const dir of workspaces) {
+    try {
+      // Windows refuses to remove a directory a watcher or a just-killed child
+      // still holds open, and losing a temporary directory is not a test
+      // failure worth reporting.
+      rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    } catch {
+      // Left for the operating system to sweep up.
+    }
+  }
 });
 
 function workspace(files: Record<string, string> = {}): string {

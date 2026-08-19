@@ -1,0 +1,224 @@
+/**
+ * `baa run --deny-fs` and friends.
+ *
+ * Two things are being tested. That a denied capability actually refuses —
+ * every route to it, not only the obvious one — and that an allowed capability
+ * is untouched, because a sandbox that changes behaviour when it is not
+ * sandboxing anything is a sandbox nobody will turn on.
+ */
+
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import process from "node:process";
+import { after, describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import {
+  ALL_CAPABILITIES,
+  createCapturingHost,
+  DeniedError,
+  isUnrestricted,
+  restrictHost,
+} from "../src/runtime/host.ts";
+
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const CLI = join(ROOT, "src", "cli", "index.ts");
+
+const workspaces: string[] = [];
+
+after(() => {
+  for (const dir of workspaces) rmSync(dir, { recursive: true, force: true });
+});
+
+function workspace(files: Record<string, string>): string {
+  const dir = mkdtempSync(join(tmpdir(), "baa-cap-"));
+  workspaces.push(dir);
+  for (const [name, text] of Object.entries(files)) writeFileSync(join(dir, name), text);
+  return dir;
+}
+
+function baa(args: string[], cwd: string): { code: number; out: string; err: string } {
+  const result = spawnSync(process.execPath, [CLI, ...args], {
+    cwd,
+    encoding: "utf8",
+    env: { ...process.env, NO_COLOR: "1", CI: "" },
+  });
+  return { code: result.status ?? -1, out: result.stdout ?? "", err: result.stderr ?? "" };
+}
+
+describe("capabilities: the host wrapper", () => {
+  it("returns the host itself when nothing was taken away", () => {
+    const host = createCapturingHost();
+    assert.equal(restrictHost(host, ALL_CAPABILITIES), host);
+    assert.equal(isUnrestricted(ALL_CAPABILITIES), true);
+  });
+
+  it("refuses every route to the filesystem, not only reading", () => {
+    const host = restrictHost(createCapturingHost({ files: { "/baa/a.txt": "hi" } }), {
+      ...ALL_CAPABILITIES,
+      readFiles: false,
+      writeFiles: false,
+    });
+    for (const attempt of [
+      () => host.readFile("/baa/a.txt"),
+      () => host.fileExists("/baa/a.txt"),
+      () => host.listDir("/baa"),
+      () => host.stat("/baa/a.txt"),
+      () => host.writeFile("/baa/b.txt", "x"),
+      () => host.appendFile("/baa/a.txt", "x"),
+      () => host.makeDir("/baa/sub"),
+    ]) {
+      assert.throws(attempt, DeniedError);
+    }
+  });
+
+  it("can allow reading while refusing writing", () => {
+    const host = restrictHost(createCapturingHost({ files: { "/baa/a.txt": "hi" } }), {
+      ...ALL_CAPABILITIES,
+      writeFiles: false,
+    });
+    assert.equal(host.readFile("/baa/a.txt"), "hi");
+    assert.throws(() => host.writeFile("/baa/a.txt", "x"), DeniedError);
+  });
+
+  it("leaves output, the clock and randomness alone", () => {
+    // Denying the filesystem must not accidentally deny printing: a program
+    // that cannot say why it failed is worse than one that fails.
+    const host = restrictHost(createCapturingHost(), {
+      readFiles: false,
+      writeFiles: false,
+      env: false,
+      process: false,
+    });
+    host.write("still here\n");
+    assert.equal(typeof host.now(), "number");
+    assert.equal(typeof host.random(), "number");
+  });
+});
+
+describe("capabilities: running a program", () => {
+  it("denies the filesystem, with BAA313 at the call", () => {
+    const dir = workspace({
+      "read.baa": 'import pasture\nbaa pasture.read("data.txt")\n',
+      "data.txt": "secret",
+    });
+    const denied = baa(["run", "--deny-fs", "read.baa"], dir);
+    assert.equal(denied.code, 1);
+    assert.match(denied.err, /BAA313/);
+    assert.match(denied.err, /may not read files/);
+    assert.doesNotMatch(denied.out, /secret/);
+
+    const allowed = baa(["run", "read.baa"], dir);
+    assert.equal(allowed.code, 0, allowed.err);
+    assert.match(allowed.out, /secret/);
+  });
+
+  it("denies writing while still allowing reading", () => {
+    const dir = workspace({
+      "write.baa": 'import pasture\npasture.write("out.txt", "written")\n',
+      "read.baa": 'import pasture\nbaa pasture.read("in.txt")\n',
+      "in.txt": "readable",
+    });
+    const write = baa(["run", "--deny-fs-write", "write.baa"], dir);
+    assert.equal(write.code, 1);
+    assert.match(write.err, /BAA313/);
+
+    const read = baa(["run", "--deny-fs-write", "read.baa"], dir);
+    assert.equal(read.code, 0, read.err);
+    assert.match(read.out, /readable/);
+  });
+
+  it("denies the environment", () => {
+    const dir = workspace({ "env.baa": 'import shepherd\nbaa shepherd.env("PATH")\n' });
+    const denied = baa(["run", "--deny-env", "env.baa"], dir);
+    assert.equal(denied.code, 1);
+    assert.match(denied.err, /BAA313/);
+    assert.match(denied.err, /may not read the environment/);
+    assert.equal(baa(["run", "env.baa"], dir).code, 0);
+  });
+
+  it("denies starting other programs", () => {
+    const dir = workspace({
+      "spawn.baa": 'import shepherd\nbaa shepherd.run("node", ["-e", "console.log(1)"])["out"]\n',
+    });
+    const denied = baa(["run", "--deny-process", "spawn.baa"], dir);
+    assert.equal(denied.code, 1);
+    assert.match(denied.err, /BAA313/);
+    assert.match(denied.err, /may not start other programs/);
+
+    const allowed = baa(["run", "spawn.baa"], dir);
+    assert.equal(allowed.code, 0, allowed.err);
+    assert.match(allowed.out, /1/);
+  });
+
+  it("lets a program catch a denial and carry on", () => {
+    const dir = workspace({
+      "catch.baa": `import pasture
+try {
+    baa pasture.read("nothing.txt")
+} catch e {
+    baa "denied: " + e["code"]
+}
+baa "still running"
+`,
+    });
+    const result = baa(["run", "--deny-fs", "catch.baa"], dir);
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /denied: BAA313/);
+    assert.match(result.out, /still running/);
+  });
+
+  it("restricts tests the same way", () => {
+    const dir = workspace({
+      "t.baa": `import pasture
+test "reads a file" {
+    assert(pasture.exists("t.baa"))
+}
+`,
+    });
+    assert.equal(baa(["test", "t.baa"], dir).code, 0);
+    const denied = baa(["test", "--deny-fs", "t.baa"], dir);
+    assert.equal(denied.code, 1);
+  });
+
+  it("changes nothing when no flag is given", () => {
+    const dir = workspace({
+      "all.baa": `import pasture
+import shepherd
+pasture.write("out.txt", "written")
+baa pasture.read("out.txt")
+baa shepherd.env("PATH") != nil
+`,
+    });
+    const result = baa(["run", "all.baa"], dir);
+    assert.equal(result.code, 0, result.err);
+    assert.equal(result.out, "written\ntrue\n");
+    assert.equal(readFileSync(join(dir, "out.txt"), "utf8"), "written");
+  });
+
+  it("says what it denies in the help", () => {
+    const help = baa(["run", "--help"], ROOT);
+    for (const flag of ["--deny-fs", "--deny-fs-write", "--deny-env", "--deny-process"]) {
+      assert.match(help.out, new RegExp(flag.replace(/-/g, "\\-")));
+    }
+    assert.match(help.out, /BAA313/);
+  });
+});
+
+describe("capabilities: the boundary is the host", () => {
+  it("spawns through the host rather than around it", () => {
+    // `shepherd.run` used to call child_process directly, which meant the
+    // capability boundary had a hole in it exactly where it mattered most.
+    const source = readFileSync(join(ROOT, "src", "stdlib", "shepherd.ts"), "utf8");
+    assert.doesNotMatch(source, /child_process/);
+    assert.match(source, /host\.runProcess/);
+  });
+
+  it("still never uses a shell", () => {
+    const source = readFileSync(join(ROOT, "src", "runtime", "host.ts"), "utf8");
+    assert.match(source, /shell: false/);
+  });
+});

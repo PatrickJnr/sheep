@@ -33,7 +33,7 @@ runtime is Rust with no dependencies either.
 | | |
 | --- | --- |
 | Automated tests | 600+, across Windows, Linux and macOS on every commit |
-| Diagnostics | 46 `BAAnnn` codes, each with a default and a professional wording |
+| Diagnostics | 47 `BAAnnn` codes, each with a default and a professional wording |
 | Standard library | 9 modules |
 | Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
 | Native runtime conformance | All 50 conformance programs, byte for byte, none skipped |
@@ -199,7 +199,7 @@ The material a second implementation needs is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 46 diagnostics, both wordings, ready to embed
+  all 47 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 

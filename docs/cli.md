@@ -63,6 +63,24 @@ Everything after `--` is passed to the program and read with
 | --- | --- |
 | `--seed <n>` | Seed `meadow`'s randomness. Same seed, same run. |
 | `--max-depth <n>` | Call-depth limit before `BAA307`. Default 512. |
+| `--deny-fs` | The program may not read or write files. |
+| `--deny-fs-write` | The program may read files but not change them. |
+| `--deny-env` | The program may not read environment variables. |
+| `--deny-process` | The program may not start other programs. |
+
+The `--deny-` flags take capabilities away from the program, not from `baa`
+itself, and work on `baa test` as well. A denied operation raises `BAA313`
+where it happens, which the program can catch:
+
+```console
+$ baa run --deny-fs untrusted.baa
+error[BAA313]: That gate is bolted: this run may not read files.
+  ┌─ untrusted.baa:3:19
+```
+
+Nothing is denied by default: a program run from your shell already has
+whatever your shell has. See [SECURITY.md](../SECURITY.md) for what this does
+and does not claim, and for why there is no `--deny-network`.
 
 ```bash
 baa run hello.baa

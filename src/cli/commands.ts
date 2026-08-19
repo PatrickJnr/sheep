@@ -36,7 +36,8 @@ import {
   resolveDependencies,
   writeLockfile,
 } from "../project/manifest.ts";
-import { createNodeHost, describeFileError } from "../runtime/host.ts";
+import { createNodeHost, describeFileError, restrictHost } from "../runtime/host.ts";
+import type { Capabilities } from "../runtime/host.ts";
 import { Interpreter } from "../runtime/interpreter.ts";
 import { ExitSignal } from "../runtime/signals.ts";
 import { resolveProgram } from "../semantic/resolver.ts";
@@ -176,6 +177,8 @@ export type RunArgs = {
   readonly programArgs: readonly string[];
   readonly seed: number | null;
   readonly maxDepth: number | null;
+  /** What the program may reach. Everything, unless a `--deny-` flag says not. */
+  readonly capabilities: Capabilities;
 };
 
 export function commandRun(args: RunArgs, context: CommandContext): number {
@@ -198,10 +201,13 @@ export function commandRun(args: RunArgs, context: CommandContext): number {
   }
   if (checked.diagnostics.length > 0) printDiagnostics(checked.diagnostics, context.colour);
 
-  const host = createNodeHost({
-    argv: [...args.programArgs],
-    ...(args.seed === null ? {} : { seed: args.seed }),
-  });
+  const host = restrictHost(
+    createNodeHost({
+      argv: [...args.programArgs],
+      ...(args.seed === null ? {} : { seed: args.seed }),
+    }),
+    args.capabilities,
+  );
   const interpreter = new Interpreter({
     host,
     dependencies,
@@ -410,6 +416,7 @@ export type TestArgs = {
   readonly paths: readonly string[];
   readonly filter: string | null;
   readonly seed: number | null;
+  readonly capabilities: Capabilities;
 };
 
 export function commandTest(args: TestArgs, context: CommandContext): number {
@@ -431,7 +438,10 @@ export function commandTest(args: TestArgs, context: CommandContext): number {
       continue;
     }
 
-    const host = createNodeHost(args.seed === null ? {} : { seed: args.seed });
+    const host = restrictHost(
+      createNodeHost(args.seed === null ? {} : { seed: args.seed }),
+      args.capabilities,
+    );
     const interpreter = new Interpreter({ host, dependencies });
     try {
       interpreter.run(checked.program, file);

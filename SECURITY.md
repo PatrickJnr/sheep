@@ -103,8 +103,47 @@ starts.
 Every filesystem, clock, randomness, environment and process operation goes
 through `RuntimeHost` (`src/runtime/host.ts`). Capabilities live in one file
 rather than being scattered through the standard library, so an audit is a
-single read, and a future `baa run --deny-fs` is a matter of swapping the
-implementation rather than patching nine modules.
+single read.
+
+`shepherd.run` used to be the exception: it reached for `child_process`
+directly, which put the most dangerous operation in the language outside the
+one boundary that was supposed to hold everything. It now goes through
+`host.runProcess` like everything else, and a test asserts the module does not
+import `child_process` at all.
+
+### Capabilities can be taken away
+
+| Flag | Effect |
+| --- | --- |
+| `--deny-fs` | No reading, writing, listing or stat-ing of files |
+| `--deny-fs-write` | Reading is allowed; writing, appending and `mkdir` are not |
+| `--deny-env` | `shepherd.env` and `shepherd.env_all` refuse |
+| `--deny-process` | `shepherd.run` refuses |
+
+They apply to `baa run` and `baa test`, and work by wrapping the host: an
+allowed operation reaches the real implementation untouched, so a restricted
+run behaves exactly like an unrestricted one until it asks for something it may
+not have. A denial is `BAA313` at the call, which a program can catch.
+
+Nothing is denied by default. A program run from your shell already has
+whatever your shell has, and pretending otherwise would make the flags feel
+like security theatre rather than the thing you reach for when running code you
+have not read.
+
+There is deliberately **no** `--deny-network`: Baa cannot open a socket. `gate`
+reads a CGI request from the environment and writes a reply to stdout, and
+nothing in the standard library connects to anything. A flag denying a
+capability the language does not have would suggest the other flags are the
+same kind of gesture.
+
+There is no `--deny-randomness` either. It is not a boundary, and `--seed`
+already makes a run reproducible, which is what that request usually means.
+
+This is capability *reduction*, not a sandbox. A denied run cannot reach the
+filesystem through the standard library, and that is the claim being made: it
+is not a security boundary against hostile code that has other ways to reach
+the host process, and confining reads to a directory (rather than refusing them
+outright) is still on the roadmap.
 
 ### Path inputs are validated
 
@@ -114,8 +153,8 @@ in the message.
 
 Baa does **not** confine paths to the project directory. `pasture.read("../..")`
 works, deliberately: a scripting language that cannot read a file outside its
-own folder is not much of a scripting language. Confinement is what the sandbox
-mode on the roadmap is for.
+own folder is not much of a scripting language. `--deny-fs` refuses the
+filesystem outright; confining reads to a directory is still on the roadmap.
 
 ### The manifest parser is strict
 

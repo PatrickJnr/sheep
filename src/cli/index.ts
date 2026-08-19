@@ -13,6 +13,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { BaaError, setWoollyMode } from "../diagnostics/diagnostic.ts";
+import type { Capabilities } from "../runtime/host.ts";
 import {
   commandAdd,
   commandBuild,
@@ -109,7 +110,15 @@ const COMMAND_HELP: Record<string, string> = {
   Execute a Baa program. With no file, runs the \`entry\` from baa.toml.
 
   --seed <n>        Seed the random number generator for reproducible runs
-  --max-depth <n>   Maximum nested function calls (default 512)`,
+  --max-depth <n>   Maximum nested function calls (default 512)
+  --deny-fs         The program may not read or write files
+  --deny-fs-write   The program may read files but not change them
+  --deny-env        The program may not read environment variables
+  --deny-process    The program may not start other programs
+
+  A denied capability raises BAA313 where it is used, which a program can
+  catch. Nothing is denied by default: a program run from your shell already
+  has what your shell has, and these are for running one you have not read.`,
   check: `baa check [paths...] [options]
 
   Parse and analyse without executing. Directories are searched for .baa files.
@@ -126,7 +135,9 @@ const COMMAND_HELP: Record<string, string> = {
   Run every \`test "name" { ... }\` block found in the given files.
 
   --filter <text>   Only run tests whose name contains this text
-  --seed <n>        Seed the random number generator`,
+  --seed <n>        Seed the random number generator
+  --deny-fs, --deny-fs-write, --deny-env, --deny-process
+                    Restrict what the tests may reach, as \`baa run\` does`,
   fmt: `baa fmt [paths...] [options]
 
   Format files in place. Formatting is deterministic: running it twice changes
@@ -285,6 +296,26 @@ function numberOption(parsed: Parsed, key: string): number | null {
   return value;
 }
 
+/**
+ * What the program being run may reach.
+ *
+ * Everything, until a flag says otherwise: Baa is a scripting language, and a
+ * program started from a shell already has whatever the shell has. These are
+ * for running something you have not read.
+ *
+ * `--deny-fs` implies `--deny-fs-write`, and both are listed rather than
+ * inferred so that `--deny-fs --deny-env` reads as what it does.
+ */
+function capabilitiesFrom(parsed: Parsed): Capabilities {
+  const deniedAll = parsed.booleans.has("deny-fs");
+  return {
+    readFiles: !deniedAll,
+    writeFiles: !deniedAll && !parsed.booleans.has("deny-fs-write"),
+    env: !parsed.booleans.has("deny-env"),
+    process: !parsed.booleans.has("deny-process"),
+  };
+}
+
 function resolveFormat(parsed: Parsed): OutputFormat {
   const values = parsed.options.get("format");
   const value = values === undefined ? null : values[values.length - 1]!;
@@ -367,6 +398,7 @@ export async function main(argv: readonly string[]): Promise<number> {
             programArgs: parsed.passthrough,
             seed: numberOption(parsed, "seed"),
             maxDepth: numberOption(parsed, "max-depth"),
+            capabilities: capabilitiesFrom(parsed),
           },
           context,
         );
@@ -407,6 +439,7 @@ export async function main(argv: readonly string[]): Promise<number> {
             paths: parsed.positionals,
             filter: stringOption(parsed, "filter"),
             seed: numberOption(parsed, "seed"),
+            capabilities: capabilitiesFrom(parsed),
           },
           context,
         );
@@ -501,6 +534,7 @@ export async function main(argv: readonly string[]): Promise<number> {
               programArgs: [...parsed.positionals, ...parsed.passthrough],
               seed: numberOption(parsed, "seed"),
               maxDepth: numberOption(parsed, "max-depth"),
+              capabilities: capabilitiesFrom(parsed),
             },
             context,
           );

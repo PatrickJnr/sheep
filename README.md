@@ -248,7 +248,7 @@ Three things worth knowing:
   range, so a CI job annotates a pull request without parsing prose:
   [docs/diagnostics-json.md](docs/diagnostics-json.md).
 
-All 46 of them are listed in [docs/errors.md](docs/errors.md).
+All 47 of them are listed in [docs/errors.md](docs/errors.md).
 
 ## Commands
 
@@ -412,7 +412,7 @@ Everything a port needs already exists and is kept fresh by CI:
 - [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 46 diagnostics, both wordings, ready to embed
+  all 47 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 

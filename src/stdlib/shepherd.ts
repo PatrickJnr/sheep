@@ -10,11 +10,11 @@
  * visible in the source and in review. See SECURITY.md.
  */
 
-import { spawnSync } from "node:child_process";
 import { readSync } from "node:fs";
 import process from "node:process";
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
+import { rethrowIfDenied } from "../runtime/host.ts";
 import type { RuntimeHost } from "../runtime/host.ts";
 import { BaaArray, BaaMap, describeType } from "../runtime/values.ts";
 import type { MapKey, Value } from "../runtime/values.ts";
@@ -97,24 +97,25 @@ export function createShepherd(host: RuntimeHost) {
             ? (options.entries.get("input") as string)
             : undefined;
 
-        const result = spawnSync(program, programArgs, {
-          cwd,
-          encoding: "utf8",
-          shell: false,
-          ...(input === undefined ? {} : { input }),
-        });
-        if (result.error !== undefined) {
-          throw BaaError.of("BAA301", [`could not run \`${program}\`: ${result.error.message}`], {
-            span: ctx.span,
-            note: "the program did not start",
-            help: "Check that it is installed and on PATH.",
+        let result;
+        try {
+          result = host.runProcess(program, programArgs, {
+            cwd,
+            ...(input === undefined ? {} : { input }),
           });
+        } catch (error) {
+          rethrowIfDenied(error, ctx.span);
+          throw BaaError.of(
+            "BAA301",
+            [`could not run \`${program}\`: ${error instanceof Error ? error.message : String(error)}`],
+            {
+              span: ctx.span,
+              note: "the program did not start",
+              help: "Check that it is installed and on PATH.",
+            },
+          );
         }
-        return mapOf({
-          code: result.status ?? -1,
-          out: result.stdout ?? "",
-          err: result.stderr ?? "",
-        });
+        return mapOf({ code: result.code, out: result.out, err: result.err });
       },
     ),
 

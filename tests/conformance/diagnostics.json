@@ -208,6 +208,12 @@
       "plain": "`{0}`: requested size {1} exceeds the limit of {2}."
     },
     {
+      "code": "BAA313",
+      "severity": "error",
+      "woolly": "That gate is bolted: this run may not {0}.",
+      "plain": "Capability denied: this run may not {0}."
+    },
+    {
       "code": "BAA401",
       "severity": "error",
       "woolly": "No module named `{0}` is grazing anywhere the shepherd can see.",

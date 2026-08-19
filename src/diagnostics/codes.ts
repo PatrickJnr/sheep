@@ -253,6 +253,12 @@ export const CATALOGUE = {
     "`{0}` was asked to build {1} items. The pen only holds {2}.",
     "`{0}`: requested size {1} exceeds the limit of {2}.",
   ),
+  BAA313: spec(
+    "BAA313",
+    "error",
+    "That gate is bolted: this run may not {0}.",
+    "Capability denied: this run may not {0}.",
+  ),
 
   // ---------------------------------------------------------------- BAA4xx
   BAA401: spec(

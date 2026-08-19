@@ -40,6 +40,7 @@ import { resolveProgram } from "../semantic/resolver.ts";
 import { createPrelude } from "../stdlib/prelude.ts";
 import { loadBuiltinModule, STDLIB_MODULES } from "../stdlib/index.ts";
 import { Environment } from "./environment.ts";
+import { rethrowIfDenied } from "./host.ts";
 import type { RuntimeHost } from "./host.ts";
 import { getMethod, methodNames } from "./methods.ts";
 import {
@@ -958,6 +959,10 @@ export class Interpreter {
       // interpreter entirely and prints a stack trace from a language the
       // program was never written in.
       if (error instanceof BaaError || isSignal(error)) throw error;
+      // A capability this run does not have is not an unanticipated failure of
+      // the function: it is a decision made on the command line, and it says so
+      // with its own code rather than as "`pasture.exists` failed".
+      rethrowIfDenied(error, span);
       if (error instanceof RangeError && /call stack/i.test(error.message)) {
         throw BaaError.of("BAA307", [], { span, note: "call stack limit reached" });
       }
