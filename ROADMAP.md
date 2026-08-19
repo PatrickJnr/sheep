@@ -581,10 +581,16 @@ ships them.
 
 ### Testing
 
-**State: 700+ automated tests** — over 800 in a checkout with the website
-sources, which a clone does not have — plus Baa's own `test` blocks, recorded
-example transcripts, and a conformance suite of 63 programs and 27 diagnostic
-programs that both runtimes are held to byte for byte.
+**State: 750+ automated tests** — 811 once the site has been generated, because
+thirty-seven of them assert against generated pages — plus Baa's own `test`
+blocks, recorded example transcripts, and a conformance suite of 63 programs
+and 27 diagnostic programs that both runtimes are held to byte for byte.
+
+The website's sources are in the repository and its build output is not, so CI
+generates the site, `llms.txt` and the playground bundle, runs their tests, and
+then drives the playground in a real browser: 27 checks covering the worker,
+the diagnostics it renders, the timeout that stops an endless loop, and the
+sandbox that refuses a file read.
 
 On Windows, with the runtime built, the suite also builds a real application
 and asserts the image was appended; runs a timer program through the real event

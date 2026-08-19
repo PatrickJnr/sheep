@@ -20,13 +20,25 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const SITE = join(ROOT, "website");
 
 /**
- * The website is a separate, private component and is not part of the public
- * repository. The Markdown converter it uses lives in `tools/` and is always
- * tested; everything that needs the site itself is skipped when it is absent,
- * so a clone without it still has a green suite.
+ * The website's sources are committed; its built output is not. So these
+ * probes ask whether the site has been *built* here, not whether its sources
+ * exist: a plain clone has `website/src` and no `website/index.html`, and
+ * asserting against pages nobody has generated yet would fail every clone.
+ *
+ * The Markdown converter these pages are built with lives in `tools/` and is
+ * always tested, built site or not.
+ *
+ *     npm run gen:assets && npm run gen:site   # for `needsSite`
+ *     npm run gen:playground                   # for `needsPlayground`
  */
-const HAS_SITE = existsSync(join(SITE, "src"));
-const needsSite = { skip: HAS_SITE ? false : "no website/ in this checkout" };
+const needsSite = {
+  skip: existsSync(join(SITE, "index.html")) ? false : "the site is not built here (npm run gen:site)",
+};
+const needsPlayground = {
+  skip: existsSync(join(SITE, "assets", "baa", "api.js"))
+    ? false
+    : "the playground is not built here (npm run gen:playground)",
+};
 
 function runTool(name: string): { code: number; out: string; err: string } {
   const result = spawnSync(process.execPath, [join(ROOT, "tools", name)], {
@@ -463,7 +475,7 @@ describe("website: content security", needsSite, () => {
   });
 });
 
-describe("playground bundle", needsSite, () => {
+describe("playground bundle", needsPlayground, () => {
   const api = join(SITE, "assets", "baa", "api.js");
 
   it("exists and is the compiled interpreter", () => {

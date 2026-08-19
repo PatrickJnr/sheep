@@ -111,9 +111,10 @@ The joke is the name. Everything underneath is built to be used.
 | **Readable by a program** | `--format json` on `check`, `lint` and `fmt`: the same diagnostics the terminal shows, as one JSON object a CI job can annotate from. |
 | **Two places to run** | The same files serve [web pages](docs/web.md) and build [native Windows applications](docs/native-applications.md). One language, one set of tests, two targets. |
 
-Verified on every commit, across Windows, Linux and macOS: **700+ tests**, a
-formatter that must be a fixed point, a linter that must be clean, and a
-conformance suite that pins the exact output of 63 programs.
+Verified on every commit, across Windows, Linux and macOS: **750+ tests**, a
+formatter that must be a fixed point, a linter that must be clean, a
+conformance suite that pins the exact output of 63 programs, and a browser
+running the playground to prove the interpreter still compiles for the web.
 
 ## Install
 

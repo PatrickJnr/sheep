@@ -12,8 +12,9 @@
  * Two suites skip themselves when what they test is absent, and both are
  * absent in a plain checkout:
  *
- *  - `tests/website.test.ts` needs `website/`, which is generated and
- *    gitignored. Twenty-five tests.
+ *  - `tests/website.test.ts` and `tests/llms.test.ts` need a *built*
+ *    `website/`. The sources are committed; the pages they assert against are
+ *    generated and gitignored. Thirty-seven tests.
  *  - `tests/native.test.ts` needs the native runtime, which is compiled by
  *    cargo. Twelve tests.
  *
@@ -60,25 +61,17 @@ if (hostPath() === null) {
   process.exit(0);
 }
 
-// `website/src` holds the home page and the other hand-written pages. It is
-// gitignored, so a clone does not have it and the site cannot be built there at
-// all: `tools/build-site.ts` prints "No website/src here; skipping" and exits
-// 0, which is why its exit status alone does not tell you a site exists.
+// Thirty-seven tests assert against generated pages: the site, `llms.txt` and
+// the playground bundle. The sources for all three are committed; the output
+// is not, so a plain clone skips them, and the floor has to hold without them
+// because that is what a clone runs.
 //
-// Twenty-five tests need one. Where there is no source they are absent rather
-// than broken, and the floor has to hold without them, because that is what a
-// clone runs.
-const hasSiteSources = existsSync(join(ROOT, "website", "src"));
-if (hasSiteSources && !existsSync(join(ROOT, "website", "index.html"))) {
-  process.stdout.write("building the site first, so its tests are not skipped\n");
-  const built = spawnSync(process.execPath, ["tools/build-site.ts"], {
-    cwd: ROOT,
-    encoding: "utf8",
-  });
-  if (built.status !== 0) {
-    fail(`could not build the site:\n${built.stderr ?? ""}`);
-  }
-}
+// This used to build the site here so those tests would run. It no longer
+// does. The `website` job in CI generates all three and runs their tests
+// directly, which covers them properly rather than as a side effect of
+// counting, and building here made this check fail for reasons that had
+// nothing to do with the count.
+const siteIsBuilt = existsSync(join(ROOT, "website", "index.html"));
 
 const outcome = spawnSync(
   process.execPath,
@@ -109,11 +102,11 @@ if (failed > 0) {
 if (passed < floor) {
   fail(
     `README.md says ${floor}+ tests, but the suite runs ${passed}.\n` +
-      (hasSiteSources
+      (siteIsBuilt
         ? "Lower the figure, or find out which tests stopped running."
-        : "There is no `website/src` here, so 25 site tests did not run. The\n" +
-          "figure still has to hold without them, because a clone does not have\n" +
-          "them either."),
+        : "The site is not built here, so 37 generated-page tests did not run.\n" +
+          "The figure still has to hold without them, because that is what a\n" +
+          "clone runs. `npm run gen` builds them."),
   );
 }
 
@@ -124,5 +117,5 @@ if (passed >= floor + 100) {
 
 process.stdout.write(
   `README.md says ${floor}+ tests; the suite runs ${passed}` +
-    (hasSiteSources ? "\n" : " (no `website/src`, so 25 site tests were skipped)\n"),
+    (siteIsBuilt ? "\n" : " (the site is not built here, so 37 generated-page tests were skipped)\n"),
 );

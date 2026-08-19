@@ -231,8 +231,8 @@ jobs:
           grep -qx 'installed' out.txt
           grep -qx '5' out.txt
 
-  playground:
-    name: browser playground
+  website:
+    name: website and browser playground
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -250,11 +250,26 @@ jobs:
       # import to a shim: a change to the interpreter's imports can break the
       # browser build while every other job stays green.
 
+      # `build-site.ts` reads the social card's PNG to write its real dimensions
+      # into every page, so the images have to exist before the pages do. With
+      # a browser present this renders them; without one it restores the
+      # committed copies from `assets/images`.
+      - name: Render the brand images
+        run: npm run gen:assets
+
       - name: Build the site
         run: npm run gen:site
 
       - name: Compile the interpreter for the browser
         run: npm run gen:playground
+
+      - name: Build llms.txt
+        run: npm run gen:llms
+
+      # These skip on a clone, because they assert against generated pages that
+      # a clone does not have. This is the one job that has just generated them.
+      - name: The site's own tests
+        run: node --test tests/website.test.ts tests/llms.test.ts
 
       # `check-playground.ts` drives a real browser through puppeteer-core and
       # exits 0 when it cannot find one, so this step reports success without

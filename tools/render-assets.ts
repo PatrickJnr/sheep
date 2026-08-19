@@ -36,9 +36,9 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const ASSETS = join(ROOT, "website", "assets");
 
 /**
- * Where the rendered PNGs are committed. The website is built and deployed
- * separately and is not part of the public repository, but the README needs
- * its images to resolve from a plain clone, so the PNGs live here too.
+ * Where the rendered PNGs are committed. The website's build output is not in
+ * the repository, but the README needs its images to resolve from a plain
+ * clone, so the PNGs live here as well as under `website/assets`.
  */
 const PUBLISHED = join(ROOT, "assets", "images");
 
@@ -92,6 +92,24 @@ if (process.argv.includes("--check")) {
     "No website/ directory here, so there are no SVG sources to render from.\n",
   );
 } else {
+  // The rendered PNGs are not committed under `website/`, but byte-identical
+  // copies are, in `assets/images/`. Copying them back first is what lets
+  // `npm run gen:site` work on a fresh clone with no browser installed:
+  // `build-site.ts` reads `social.png` to write the card's real dimensions
+  // into every page, and dies on the missing file rather than guessing.
+  const restored = TARGETS.filter(
+    (target) =>
+      !existsSync(join(ASSETS, target.png)) && existsSync(join(PUBLISHED, target.png)),
+  );
+  for (const target of restored) {
+    copyFileSync(join(PUBLISHED, target.png), join(ASSETS, target.png));
+  }
+  if (restored.length > 0) {
+    process.stdout.write(
+      `restored ${restored.length} PNG(s) from assets/images; they are rendered output, so they are not committed under website/.\n`,
+    );
+  }
+
   const executablePath = CANDIDATES.find((path) => existsSync(path));
   if (executablePath === undefined) {
     process.stdout.write(
