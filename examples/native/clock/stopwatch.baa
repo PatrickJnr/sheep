@@ -1,0 +1,43 @@
+/// The stopwatch itself: a state map and the three things that happen to it.
+///
+/// No window in here. `main.baa` decides what a stopwatch looks like; this
+/// decides what one *is*, which is why it can be tested without a screen.
+import ram
+
+/// A stopped stopwatch showing zero.
+export fn start() {
+    return { elapsed: 0, running: false }
+}
+
+/// Start or stop the watch, whichever it is not doing.
+export fn toggle(watch) {
+    return { elapsed: watch.elapsed, running: !watch.running }
+}
+
+/// Move a running watch forward. A stopped one does not move.
+export fn tick(watch, millis) {
+    if !watch.running {
+        return watch
+    }
+    return { elapsed: watch.elapsed + millis, running: true }
+}
+
+/// Back to zero, still running if it was running.
+export fn reset(watch) {
+    return { elapsed: 0, running: watch.running }
+}
+
+/// `1:07.4`: minutes, seconds and tenths, which is what a stopwatch shows.
+export fn display(watch) {
+    const tenths = ram.floor(watch.elapsed / 100) % 10
+    const seconds = ram.floor(watch.elapsed / 1000) % 60
+    const minutes = ram.floor(watch.elapsed / 60000)
+    return minutes + ":" + pad(seconds) + "." + tenths
+}
+
+fn pad(value) {
+    if value < 10 {
+        return "0" + value
+    }
+    return "" + value
+}

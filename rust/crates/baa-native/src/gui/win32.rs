@@ -167,6 +167,8 @@ extern "system" {
     fn AppendMenuW(menu: HMENU, flags: u32, id: usize, text: *const u16) -> i32;
     fn SetMenu(hwnd: HWND, menu: HMENU) -> i32;
     fn DrawMenuBar(hwnd: HWND) -> i32;
+    fn SetTimer(hwnd: HWND, id: usize, elapse: u32, callback: usize) -> usize;
+    fn KillTimer(hwnd: HWND, id: usize) -> i32;
 }
 
 #[link(name = "gdi32")]
@@ -209,6 +211,7 @@ const WM_CLOSE: u32 = 0x0010;
 const WM_SETFONT: u32 = 0x0030;
 const WM_COMMAND: u32 = 0x0111;
 const WM_DPICHANGED: u32 = 0x02E0;
+const WM_TIMER: u32 = 0x0113;
 
 const BN_CLICKED: u16 = 0;
 const EN_CHANGE: u16 = 0x0300;
@@ -437,6 +440,13 @@ pub struct Win32 {
     class: Vec<u16>,
     registered: bool,
     fonts: HashMap<i64, HFONT>,
+    /// `(our id, owning window, the id Windows actually uses)`.
+    ///
+    /// The third is not always the first. `SetTimer` with a window keeps the
+    /// id it was given; with no window it assigns one and ignores yours, and
+    /// the `WM_TIMER` that arrives then carries *its* number. A timer set
+    /// before `barn.show` has no window yet, so the two have to be mapped.
+    timers: Vec<(usize, HWND, usize)>,
 }
 
 impl Default for Win32 {
@@ -458,6 +468,7 @@ impl Win32 {
             class: wide("BaaWindow"),
             registered: false,
             fonts: HashMap::new(),
+            timers: Vec::new(),
         }
     }
 
@@ -680,15 +691,35 @@ impl Backend for Win32 {
 
     fn pump(&mut self, ui: &mut Ui) -> bool {
         let mut message = MSG::default();
-        with_active(ui, || unsafe {
+        let running = with_active(ui, || unsafe {
             let outcome = GetMessageW(&mut message, 0, 0, 0);
             if outcome <= 0 {
                 return false;
             }
+            // A timer is handled here rather than in the window procedure: it
+            // belongs to the application, not to a window, and a timer set
+            // before any window exists still has to arrive.
+            if message.message == WM_TIMER {
+                return true;
+            }
             TranslateMessage(&message);
             DispatchMessageW(&message);
             true
-        })
+        });
+        if running && message.message == WM_TIMER {
+            let system = message.wParam;
+            let ours = self
+                .timers
+                .iter()
+                .find(|(_, owner, assigned)| *assigned == system && *owner == message.hwnd)
+                .map(|(id, _, _)| *id);
+            if let Some(id) = ours {
+                if ui.timer(id).is_some() {
+                    ui.push_event(id, EventKind::Tick);
+                }
+            }
+        }
+        running
     }
 
     fn close(&mut self, ui: &mut Ui, window: usize) {
@@ -764,6 +795,39 @@ impl Backend for Win32 {
             return None;
         }
         Some(from_wide(&file))
+    }
+
+    fn start_timer(&mut self, ui: &mut Ui, id: usize, interval: u32) -> bool {
+        // Owned by the first window when there is one, so the timer dies with
+        // the application rather than outliving it. With no window yet, a
+        // thread timer still posts to this thread's queue, which `pump` reads.
+        let owner = ui
+            .windows
+            .first()
+            .and_then(|window| ui.widgets.get(*window))
+            .map(|widget| widget.handle as HWND)
+            .unwrap_or(0);
+        // Windows will not go below about 10ms, and clamping here means the
+        // rate a program asks for is the rate it is told about.
+        let elapse = interval.max(10);
+        let assigned = unsafe { SetTimer(owner, id, elapse, 0) };
+        if assigned == 0 {
+            return false;
+        }
+        self.timers.push((id, owner, assigned));
+        true
+    }
+
+    fn stop_timer(&mut self, _ui: &mut Ui, id: usize) {
+        // The window it was set on, not whichever window is first now: killing
+        // a timer means naming the same pair that created it.
+        let Some(at) = self.timers.iter().position(|(ours, _, _)| *ours == id) else {
+            return;
+        };
+        let (_, owner, assigned) = self.timers.remove(at);
+        unsafe {
+            KillTimer(owner, assigned);
+        }
     }
 
     fn clipboard_get(&mut self) -> Option<String> {

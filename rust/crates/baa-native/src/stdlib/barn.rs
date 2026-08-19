@@ -68,6 +68,9 @@ const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("confirm", 2, 3),
     ("open_file", 0, 2),
     ("save_file", 0, 2),
+    ("every", 2, 2),
+    ("after", 2, 2),
+    ("cancel", 1, 1),
     ("clipboard", 0, 0),
     ("set_clipboard", 1, 1),
 ];
@@ -412,6 +415,68 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
             interp.backend = Some(backend);
             Value::Nil
         }
+        "every" | "after" => {
+            let interval = need_number(interp, name, &args, 0, span)?;
+            if !interval.is_finite() || interval < 0.0 {
+                return interp.fail(
+                    "BAA311",
+                    vec![
+                        name.clone(),
+                        "a number of milliseconds that is not negative".into(),
+                        "1".into(),
+                        crate::number::format(interval),
+                    ],
+                    span,
+                );
+            }
+            let handler = args[1].clone();
+            if !matches!(handler, Value::Function(_) | Value::Native(_)) {
+                return interp.fail(
+                    "BAA311",
+                    vec![name.clone(), "a function".into(), "2".into(), handler.describe()],
+                    span,
+                );
+            }
+            let repeating = native.method == "every";
+            let id = interp.ui.add_timer(interval as u32, repeating);
+            let mut backend = match interp.backend.take() {
+                Some(backend) => backend,
+                None => return Err(Flow::Err(no_backend(interp, span))),
+            };
+            let started = backend.start_timer(&mut interp.ui, id, interval as u32);
+            interp.backend = Some(backend);
+            if !started {
+                interp.ui.remove_timer(id);
+                return Err(Flow::Err(
+                    interp
+                        .error("BAA301", vec![format!("`{}` could not start a timer", name)], span)
+                        .with_note("the system refused it")
+                        .with_help("Applications are limited to a few thousand timers at once."),
+                ));
+            }
+            interp.handlers.push((id, EventKind::Tick, handler));
+            Value::Number(id as f64)
+        }
+        "cancel" => {
+            let id = need_number(interp, name, &args, 0, span)?;
+            let id = if id.is_finite() && id >= 0.0 { id as usize } else { 0 };
+            let existed = interp.ui.remove_timer(id);
+            if existed {
+                let mut backend = match interp.backend.take() {
+                    Some(backend) => backend,
+                    None => return Err(Flow::Err(no_backend(interp, span))),
+                };
+                backend.stop_timer(&mut interp.ui, id);
+                interp.backend = Some(backend);
+                interp.handlers.retain(|(widget, kind, _)| {
+                    !(*widget == id && *kind == EventKind::Tick)
+                });
+            }
+            // Cancelling a timer that has already stopped is not an error: a
+            // one-shot cancels itself after it fires, and a handler that also
+            // cancels it should not have to know which happened first.
+            Value::Bool(existed)
+        }
         "alert" | "confirm" => {
             let window = widget_of(interp, name, &args, 0, span)?;
             let title = display(&args[1]);
@@ -535,6 +600,23 @@ fn run_event_loop(interp: &mut Interpreter, span: Span) -> Res<()> {
             for handler in handlers {
                 interp.call_callback(&handler, vec![Value::Number(event.widget as f64)], span)?;
             }
+            // A one-shot has now done what it was for. Cancelling it here
+            // rather than in the handler means `barn.after` cannot leave a
+            // timer running behind the program's back.
+            if event.kind == EventKind::Tick {
+                let once = interp.ui.timer(event.widget).is_some_and(|timer| !timer.repeating);
+                if once {
+                    interp.ui.remove_timer(event.widget);
+                    if let Some(mut backend) = interp.backend.take() {
+                        backend.stop_timer(&mut interp.ui, event.widget);
+                        interp.backend = Some(backend);
+                    }
+                    interp
+                        .handlers
+                        .retain(|(widget, kind, _)| !(*widget == event.widget && *kind == EventKind::Tick));
+                }
+            }
+
             // A close with no handler means the obvious thing. With one, the
             // handler decides, which is what makes "save before closing?"
             // possible.

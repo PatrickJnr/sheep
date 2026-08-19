@@ -415,6 +415,54 @@ pub trait Backend {
 mod tests {
     use super::*;
 
+    /// Timers are ids with an interval. Nothing about them needs a screen, so
+    /// the model is tested without one.
+    #[test]
+    fn hands_out_timer_ids_that_are_never_reused() {
+        let mut ui = Ui::new();
+        let first = ui.add_timer(100, true);
+        let second = ui.add_timer(50, false);
+        assert_ne!(first, second);
+
+        assert!(ui.remove_timer(first));
+        // The next id is a new one. Reusing `first` would let a tick that was
+        // already in flight arrive at whatever took its place.
+        let third = ui.add_timer(100, true);
+        assert_ne!(third, first);
+        assert_ne!(third, second);
+    }
+
+    #[test]
+    fn remembers_whether_a_timer_repeats() {
+        let mut ui = Ui::new();
+        let repeating = ui.add_timer(100, true);
+        let once = ui.add_timer(100, false);
+        assert!(ui.timer(repeating).unwrap().repeating);
+        assert!(!ui.timer(once).unwrap().repeating);
+        assert_eq!(ui.timer(repeating).unwrap().interval, 100);
+    }
+
+    #[test]
+    fn removing_a_timer_twice_is_not_an_error() {
+        // A one-shot cancels itself once it has fired, and a handler that also
+        // cancels it should not have to know which happened first.
+        let mut ui = Ui::new();
+        let id = ui.add_timer(10, false);
+        assert!(ui.remove_timer(id));
+        assert!(!ui.remove_timer(id));
+        assert!(ui.timer(id).is_none());
+    }
+
+    #[test]
+    fn a_tick_carries_the_timer_id_where_a_widget_id_would_go() {
+        let mut ui = Ui::new();
+        let id = ui.add_timer(10, true);
+        ui.push_event(id, EventKind::Tick);
+        let event = ui.events.pop_front().expect("a tick");
+        assert_eq!(event.kind, EventKind::Tick);
+        assert_eq!(event.widget, id);
+    }
+
     /// A column of three buttons in a 300x300 window: fixed heights, stacked,
     /// with the spacing between them and the window's padding around them.
     #[test]

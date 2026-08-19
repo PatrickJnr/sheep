@@ -208,6 +208,54 @@ after it, so anything that has to happen on the way out goes there.
 
 ---
 
+## Timers
+
+Something has to happen while nobody is clicking: a clock ticking, a countdown
+running down, a progress bar moving. That is what timers are for.
+
+| Function | Effect |
+| --- | --- |
+| `barn.every(millis, handler)` | Call `handler` every `millis`. Returns a timer id. |
+| `barn.after(millis, handler)` | Call `handler` once, `millis` from now. Returns a timer id. |
+| `barn.cancel(id)` | Stop a timer. `true` when there was one to stop. |
+
+The handler is called with the timer's id, so a timer can stop itself:
+
+```baa
+barn.every(1000, fn(id) {
+    remaining = remaining - 1
+    barn.set_text(label, remaining + "...")
+    if remaining == 0 {
+        barn.cancel(id)
+        barn.set_text(label, "Done")
+    }
+})
+```
+
+Ticks arrive on the event loop, in the same single thread as every other
+handler, and only while `barn.run()` is running. Nothing runs in parallel with
+your code and nothing interrupts it half way: a handler that takes 200ms delays
+the next tick rather than overlapping it. There is no second concurrency model
+to reason about, which is the whole point of putting timers on the loop instead
+of on a thread.
+
+Two consequences worth knowing:
+
+- **Intervals are a floor, not a promise.** A tick that cannot be delivered on
+  time is delivered late, and Windows will not schedule faster than about 10ms
+  whatever you ask for. Anything that needs to know how much time has really
+  passed should ask `meadow.now()` rather than counting ticks.
+- **`barn.after` cancels itself** once its handler has run, so its id is dead
+  afterwards. Cancelling it again is harmless and returns `false`.
+
+A timer can be set before `barn.show`, and it does not keep the loop alive: the
+program still ends when the last window closes.
+
+`examples/native/clock` is a stopwatch built on this — a display driven by
+`barn.every` and counted by a module with no window in it.
+
+---
+
 ## Platforms
 
 The window model in `rust/crates/baa-native/src/gui/mod.rs` contains no Win32

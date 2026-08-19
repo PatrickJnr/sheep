@@ -234,6 +234,22 @@ second, stranger tool wearing the same name — or moving the standard library
 into Baa, which is a different project. `tools/gen-docs.ts` keeps that page;
 `baa doc` gives everyone else's code the same treatment.
 
+### Timers in `barn` — **COMPLETED** in 0.8.0
+
+**Delivered.** `barn.every`, `barn.after` and `barn.cancel`. Ticks arrive on
+the event loop in the same single thread as every other handler, so nothing
+runs in parallel with the program and there is no second concurrency model.
+`examples/native/clock` is a stopwatch built on them.
+
+**Definition of done — met.** The model is unit-tested without a screen, and an
+end-to-end test drives the real event loop on a real window: three ticks, a
+cancel from inside the handler, and a one-shot that quits.
+
+One thing was learned the hard way and is written into the code. `SetTimer`
+with a window keeps the id it is given; with no window it assigns its own and
+ignores yours, so a timer set before `barn.show` fired `WM_TIMER` messages
+carrying a number the runtime had never heard of. The backend maps the two.
+
 ### Standard-library growth — **COMPLETED** in 0.8.0
 
 **Delivered.** Nine functions, in both runtimes. `pasture.walk`, `glob` and
@@ -295,37 +311,7 @@ matching codes.
 
 ## Immediate Next
 
-### 1. Timers in `barn` — **NEXT**
-
-**Goal.** Let a native application do something while it waits.
-
-**Why it matters.** `meadow` can tell an application what time it is, but
-`barn` has no periodic callback, so an animation, a countdown or a clock cannot
-be written at all. It is the smallest missing piece that blocks whole kinds of
-application.
-
-**Definition of done.** A timer registers, fires, and can be cancelled from its
-own callback; the event loop stays synchronous and single-threaded, with no
-second concurrency model; an example application uses one; both the Windows
-backend and the platform-independent model are tested.
-
-**Dependencies.** None.
-
----
-
-## Near Term
-
-| Milestone | Status | Definition of done |
-| --- | --- | --- |
-| **Confining the filesystem rather than refusing it.** `--deny-fs` is all or nothing; a program that should read one directory has to be trusted with every directory. | PLANNED | A path outside the allowed roots is refused with `BAA313`, including through `..` and through a link. |
-| **`[wool]` dependencies inside a bundle.** Manifest dependencies are refused today rather than bundled. | PLANNED | A manifest dependency is bundled deterministically, or refused with a reason. |
-| **Calendar arithmetic in `meadow`.** Adding and subtracting amounts, not only formatting them. | PLANNED | Each function exists in both runtimes, with tests. |
-
----
-
-## Medium Term
-
-### A Linux backend for `barn` — **PLANNED**
+### 1. A Linux backend for `barn` — **NEXT**
 
 The window model in `gui/mod.rs` has no Win32 in it and is unit-tested without
 a screen; `gui/win32.rs` is one implementation of a `Backend` trait. On Linux,
@@ -336,6 +322,30 @@ which is the honest scale of the job.
 
 **Definition of done.** The three example applications build and run on Linux,
 and the smoke tests drive them there.
+
+### 2. Confining the filesystem rather than refusing it — **NEXT**
+
+`--deny-fs` is all or nothing. A program that should read one directory has to
+be trusted with every directory, which is the difference between a capability
+and a switch.
+
+**Definition of done.** A path outside the allowed roots is refused with
+`BAA313`, including through `..`, through a link, and through a relative path
+that climbs out; the roots are named on the command line; a test covers each
+route.
+
+---
+
+## Near Term
+
+| Milestone | Status | Definition of done |
+| --- | --- | --- |
+| **`[wool]` dependencies inside a bundle.** Manifest dependencies are refused today rather than bundled. | PLANNED | A manifest dependency is bundled deterministically, or refused with a reason. |
+| **Calendar arithmetic in `meadow`.** Adding and subtracting amounts, not only formatting them. | PLANNED | Each function exists in both runtimes, with tests. |
+
+---
+
+## Medium Term
 
 ### Regular expressions in the native runtime — **PLANNED**
 
@@ -405,8 +415,10 @@ browser and no wrapper. Three example applications are the tests. Since 0.8.0 a
 built executable carries its own icon and version metadata, written into the PE
 without a linker.
 
-Queued: [a Linux backend](#a-linux-backend-for-barn--planned),
-[timers](#1-timers-in-barn--next), [a table
+Timers landed in 0.8.0, so an application can do something while nobody is
+clicking.
+
+Queued: [a Linux backend](#1-a-linux-backend-for-barn--next), [a table
 control](#a-table-control-in-barn--planned), and putting the runtime inside the
 npm package so the download stops being a manual step.
 
@@ -513,7 +525,7 @@ platform-independent and tested without a screen, so a second backend is work
 rather than a rewrite, but until one exists Baa is not a cross-platform
 application platform and this document will not call it one.
 
-Queued: [a Linux backend](#a-linux-backend-for-barn--planned). macOS would need
+Queued: [a Linux backend](#1-a-linux-backend-for-barn--next). macOS would need
 a third backend against Cocoa and has no volunteer; it is not scheduled.
 
 ### Performance

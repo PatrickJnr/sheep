@@ -1,0 +1,35 @@
+import "../stopwatch.baa"
+
+test "a new stopwatch is stopped at zero" {
+    const watch = stopwatch.start()
+    assert_eq(watch.elapsed, 0)
+    assert_eq(watch.running, false)
+    assert_eq(stopwatch.display(watch), "0:00.0")
+}
+
+test "a stopped watch ignores its ticks" {
+    const watch = stopwatch.tick(stopwatch.start(), 100)
+    assert_eq(watch.elapsed, 0)
+}
+
+test "a running watch counts the milliseconds it is given" {
+    let watch = stopwatch.toggle(stopwatch.start())
+    watch = stopwatch.tick(watch, 100)
+    watch = stopwatch.tick(watch, 100)
+    assert_eq(watch.elapsed, 200)
+    assert_eq(stopwatch.display(watch), "0:00.2")
+}
+
+test "the display carries into seconds and minutes" {
+    let watch = stopwatch.toggle(stopwatch.start())
+    watch = stopwatch.tick(watch, 67400)
+    assert_eq(stopwatch.display(watch), "1:07.4")
+}
+
+test "reset returns to zero without stopping the watch" {
+    let watch = stopwatch.toggle(stopwatch.start())
+    watch = stopwatch.tick(watch, 5000)
+    watch = stopwatch.reset(watch)
+    assert_eq(watch.elapsed, 0)
+    assert_eq(watch.running, true)
+}

@@ -587,6 +587,67 @@ describe("native: an application, built and driven", { skip: canDriveWindows ? f
     rmSync(out, { recursive: true, force: true });
   });
 
+  it("fires timers, repeats them, and stops when told", () => {
+    // The whole point of a timer: something happens while nobody is clicking.
+    // Driven through the real event loop, on a real window, because a timer
+    // that works anywhere else is not a timer.
+    const work = mkdtempSync(join(tmpdir(), "baa-timer-"));
+    const entry = join(work, "program.baa");
+    const image = join(work, "program.fleece");
+    writeFileSync(
+      entry,
+      [
+        "import barn",
+        "",
+        "let ticks = 0",
+        'const window = barn.window({ title: "Timer", width: 200, height: 100 })',
+        "",
+        "barn.every(20, fn(id) {",
+        "    ticks = ticks + 1",
+        '    baa "tick " + ticks',
+        "    if ticks == 3 {",
+        "        barn.cancel(id)",
+        "    }",
+        "})",
+        "",
+        "barn.after(300, fn(id) {",
+        '    baa "once, after " + ticks + " ticks"',
+        "    barn.quit()",
+        "})",
+        "",
+        "barn.show(window)",
+        "barn.run()",
+        'baa "done"',
+        "",
+      ].join(NEWLINE),
+      "utf8",
+    );
+    writeFileSync(image, bundle({ entry, root: work }).bytes);
+
+    let stdout: string;
+    try {
+      stdout = execFileSync(host!, [image], { encoding: "utf8", timeout: 30_000 });
+    } catch (error) {
+      const failure = error as { stdout?: string; stderr?: string };
+      const said = (failure.stdout ?? "") + (failure.stderr ?? "");
+      rmSync(work, { recursive: true, force: true });
+      // A machine with no interactive desktop cannot open a window, and that
+      // is a fact about the machine rather than about timers.
+      if (/the window did not open/.test(said)) return;
+      throw new Error(`the timer program failed: ${said}`);
+    }
+    rmSync(work, { recursive: true, force: true });
+
+    const lines = stdout.replace(/\r\n/g, NEWLINE).trim().split(NEWLINE);
+    assert.deepEqual(lines, [
+      "tick 1",
+      "tick 2",
+      "tick 3",
+      "once, after 3 ticks",
+      "done",
+    ]);
+  });
+
   it("carries the version its manifest states, where Windows shows it", () => {
     const project = join(ROOT, "examples", "native", "calculator");
     const out = mkdtempSync(join(tmpdir(), "baa-app-version-"));

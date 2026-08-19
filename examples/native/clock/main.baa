@@ -1,0 +1,67 @@
+/// A stopwatch, as a native Windows application.
+///
+/// This is the example timers exist for. `barn.every` calls a function on a
+/// schedule while the event loop is waiting, which is what makes anything
+/// happen when nobody is clicking: a clock, a countdown, a progress bar, a
+/// game.
+///
+/// The counting is [`stopwatch.baa`](stopwatch.baa), which has no window in it
+/// and is tested without one.
+///
+///     baa app run     # from this directory
+///     baa app build   # build/Stopwatch.exe
+import barn
+import { display, reset, start, tick, toggle } from "./stopwatch.baa"
+
+/// How often the display is updated. Tenths are what a stopwatch shows, so
+/// anything finer would be work nobody can see.
+const INTERVAL = 100
+
+let watch = start()
+
+const window = barn.window({ title: "Stopwatch", width: 260, height: 160 })
+const column = barn.column(window)
+const face = barn.label(column, display(watch))
+const buttons = barn.row(column)
+const startStop = barn.button(buttons, "Start")
+const clear = barn.button(buttons, "Reset")
+
+/// The timer runs from the moment the window opens and never stops: a stopped
+/// watch simply ignores its ticks. Starting and stopping the *timer* instead
+/// would make the display drift, because the first tick after a start would
+/// land a fraction of a second late.
+barn.every(
+    INTERVAL,
+    fn(_id) {
+        watch = tick(watch, INTERVAL)
+        barn.set_text(face, display(watch))
+    },
+)
+
+barn.on(
+    startStop,
+    "click",
+    fn(_id) {
+        watch = toggle(watch)
+        barn.set_text(startStop, if_running("Stop", "Start"))
+    },
+)
+
+barn.on(
+    clear,
+    "click",
+    fn(_id) {
+        watch = reset(watch)
+        barn.set_text(face, display(watch))
+    },
+)
+
+fn if_running(yes, no) {
+    if watch.running {
+        return yes
+    }
+    return no
+}
+
+barn.show(window)
+barn.run()

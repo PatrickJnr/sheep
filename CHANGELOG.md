@@ -58,6 +58,22 @@ less than the shell that started it.
   bytes at the end of the file, three numbers corrected. It refuses rather than
   guessing on anything it does not recognise.
 
+- **Timers in `barn`**: `barn.every(millis, handler)`, `barn.after(millis,
+  handler)` and `barn.cancel(id)`. Ticks arrive on the event loop, in the same
+  single thread as every other handler, so there is no second concurrency model
+  to reason about: a handler that takes 200ms delays the next tick rather than
+  overlapping it. The handler is called with the timer's id, so a timer can stop
+  itself, and `after` cancels itself once it has fired.
+
+  `examples/native/clock` is a stopwatch built on it, and a test drives the real
+  event loop on a real window: three ticks, a cancel from inside the handler,
+  then a one-shot that quits.
+
+- **`baa doc`**, a Markdown reference for everything a project exports, from the
+  `///` comments the parser already keeps for the language server's hovers.
+  `--out` writes a file, `--check` fails when that file is stale, and the output
+  is deterministic so `--check` in CI means something.
+
 - **Nine standard-library functions, in both runtimes.** `pasture.walk`,
   `pasture.glob` and `pasture.matches`; `flock.union`, `flock.intersect`,
   `flock.difference` and `flock.is_subset`; `meadow.duration` and

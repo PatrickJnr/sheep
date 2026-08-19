@@ -1,0 +1,11 @@
+# A stopwatch, as a native application. The example timers exist for.
+[flock]
+name = "Stopwatch"
+version = "0.8.0"
+description = "A stopwatch: barn.every driving a display while nobody clicks."
+entry = "main.baa"
+
+[app]
+title = "Stopwatch"
+width = "260"
+height = "160"

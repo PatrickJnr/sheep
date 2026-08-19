@@ -475,6 +475,9 @@ import barn
 | `barn.confirm` | 2–3 | Ask a yes/no question. Returns true for yes. |
 | `barn.open_file` | 0–2 | Ask for a file to open. Returns a path, or nil if cancelled. |
 | `barn.save_file` | 0–2 | Ask where to save. Returns a path, or nil if cancelled. |
+| `barn.every` | 2 | Call a function every n milliseconds. Returns a timer id. |
+| `barn.after` | 2 | Call a function once, n milliseconds from now. Returns a timer id. |
+| `barn.cancel` | 1 | Stop a timer, by the id `every` or `after` returned. |
 | `barn.clipboard` | 0 | The clipboard's text, or nil. |
 | `barn.set_clipboard` | 1 | Put text on the clipboard. |
 
