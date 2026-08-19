@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://sheep.grimtech.co.uk/sitemap.xml
+
+# For language models and agents writing Baa. `llms.txt` is the index;
+# `llms-full.txt` has every standard-library signature and the mistakes that
+# compile but do the wrong thing. Both are generated from the implementation,
+# so a signature in them is a signature that exists.
+# https://llmstxt.org
+#
+# llms: https://sheep.grimtech.co.uk/llms.txt
+# llms-full: https://sheep.grimtech.co.uk/llms-full.txt

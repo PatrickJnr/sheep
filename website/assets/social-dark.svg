@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="Baa: a programming language with a little more Baa">
+  <title>Baa: a programming language with a little more Baa</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#161B12"/>
+      <stop offset="1" stop-color="#0E120C"/>
+    </linearGradient>
+    <pattern id="dots" width="26" height="26" patternUnits="userSpaceOnUse">
+      <circle cx="1.5" cy="1.5" r="1.5" fill="#2A3324"/>
+      <circle cx="14.5" cy="14.5" r="1.5" fill="#2A3324"/>
+    </pattern>
+    <g id="fleece">
+      <circle cx="32.00" cy="19.00" r="6.2"/>
+      <circle cx="41.00" cy="21.50" r="6.2"/>
+      <circle cx="47.59" cy="27.50" r="6.2"/>
+      <circle cx="50.00" cy="34.00" r="6.2"/>
+      <circle cx="47.59" cy="40.50" r="6.2"/>
+      <circle cx="41.00" cy="46.50" r="6.2"/>
+      <circle cx="32.00" cy="49.00" r="6.2"/>
+      <circle cx="23.00" cy="46.50" r="6.2"/>
+      <circle cx="16.41" cy="40.50" r="6.2"/>
+      <circle cx="14.00" cy="34.00" r="6.2"/>
+      <circle cx="16.41" cy="27.50" r="6.2"/>
+      <circle cx="23.00" cy="21.50" r="6.2"/>
+    </g>
+    <g id="sheep">
+      <g stroke="#22352C" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="#22352C">
+        <use href="#fleece"/>
+      </g>
+      <use href="#fleece" fill="#F7F5EE"/>
+      <g fill="#F7F5EE" stroke="#22352C" stroke-width="3" stroke-linejoin="round">
+        <path d="M27 27 C 20 20, 11 20, 7 28 C 12 35, 21 34, 27 32 Z"/>
+        <path d="M37 27 C 44 20, 53 20, 57 28 C 52 35, 43 34, 37 32 Z"/>
+        <path d="M22.5 28 A6 6 0 0 1 27 19.5 A5.5 5.5 0 0 1 32 16.8 A5.5 5.5 0 0 1 37 19.5 A6 6 0 0 1 41.5 28 Z"/>
+        <path d="M23 27 Q32 21.5, 41 27 L41 37.5 Q41 46.5, 32 46.5 Q23 46.5, 23 37.5 Z"/>
+      </g>
+      <g fill="#22352C">
+        <circle cx="27.6" cy="32.8" r="2.6"/>
+        <circle cx="36.4" cy="32.8" r="2.6"/>
+        <ellipse cx="32" cy="39.2" rx="1.9" ry="1.4"/>
+      </g>
+      <g fill="#F7F5EE">
+        <circle cx="28.5" cy="31.9" r="0.85"/>
+        <circle cx="37.3" cy="31.9" r="0.85"/>
+      </g>
+      <path d="M28.1 42.4 Q32 46.1, 35.9 42.4" fill="none" stroke="#22352C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#sky)"/>
+  <rect width="1200" height="630" fill="url(#dots)" opacity="0.5"/>
+
+  <path d="M0 470 C 180 430, 320 500, 520 470 S 900 420, 1200 468 L1200 630 L0 630 Z" fill="#263D33"/>
+  <path d="M0 512 C 220 486, 400 540, 640 512 S 980 470, 1200 508 L1200 630 L0 630 Z" fill="#1C2C25"/>
+
+  <g transform="translate(96 108) scale(2.25)"><use href="#sheep"/></g>
+
+  <text x="270" y="188" font-family="Georgia, 'Times New Roman', serif" font-size="104" font-weight="700" fill="#F2EFE4">Baa</text>
+  <text x="272" y="238" font-family="ui-monospace, 'SF Mono', Consolas, monospace" font-size="26" fill="#A7B29C">a programming language with a little more Baa</text>
+
+  <g transform="translate(96 296)">
+    <rect width="1008" height="176" rx="18" fill="#080B07"/>
+    <text font-family="ui-monospace, 'SF Mono', Consolas, monospace" font-size="27" fill="#E9E5DA">
+      <tspan x="40" y="58"><tspan fill="#F0B46B">baa</tspan> <tspan fill="#B7D39A">"Hello, flock!"</tspan></tspan>
+      <tspan x="40" y="102"><tspan fill="#CFA2D8">for</tspan> name <tspan fill="#CFA2D8">in</tspan> FLOCK { <tspan fill="#F0B46B">baa</tspan> <tspan fill="#B7D39A">"Baa, {name}!"</tspan> }</tspan>
+      <tspan x="40" y="146"><tspan fill="#7F8A72">// a real lexer, parser and runtime · no third-party deps</tspan></tspan>
+    </text>
+  </g>
+
+  <!--
+    No sheep scattered on the hill: the mark is a head-on portrait, so a copy
+    of it floating in a field reads as a disembodied head rather than as a
+    grazing sheep. The mark appears once, in the lockup.
+  -->
+</svg>

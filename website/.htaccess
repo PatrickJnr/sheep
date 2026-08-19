@@ -1,0 +1,130 @@
+# Baa website — Apache configuration.
+#
+# This directory is a plain static site: copy it into `public_html` and it
+# works. Everything below is optional polish, and every block is guarded, so
+# the site still serves correctly on a host where a module is unavailable.
+
+# ---------------------------------------------------------------- MIME types
+
+<IfModule mod_mime.c>
+  AddType text/javascript            .js .mjs
+  AddType application/json           .json
+  AddType image/svg+xml              .svg
+  AddType text/plain                 .baa
+  AddDefaultCharset UTF-8
+</IfModule>
+
+# ------------------------------------------------------------------ defaults
+
+DirectoryIndex index.html
+
+# Never list a directory that has no index.
+<IfModule mod_autoindex.c>
+  Options -Indexes
+</IfModule>
+
+# ------------------------------------------------------------- pretty URLs
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # /docs/language -> /docs/language.html
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}.html -f
+  RewriteRule ^(.*)$ $1.html [L]
+
+  # Drop a trailing .html from the address bar.
+  RewriteCond %{THE_REQUEST} \s/+(.+?)\.html[\s?] [NC]
+  RewriteRule ^ /%1 [R=301,L,NE]
+</IfModule>
+
+# ------------------------------------------------------------------- caching
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault                          "access plus 1 hour"
+  ExpiresByType text/html                 "access plus 10 minutes"
+  ExpiresByType text/css                  "access plus 7 days"
+  ExpiresByType text/javascript           "access plus 7 days"
+  ExpiresByType image/svg+xml             "access plus 30 days"
+  ExpiresByType image/png                 "access plus 30 days"
+  ExpiresByType application/json          "access plus 1 day"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/json image/svg+xml
+</IfModule>
+
+# ------------------------------------------------------------------ security
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set X-Frame-Options "SAMEORIGIN"
+
+  # Tell the browser to reach this site over HTTPS and nothing else, for a
+  # year, subdomains included.
+  #
+  # `env=HTTPS` sends it only on a secure response: over plain HTTP the header
+  # is ignored by browsers and reported as a misconfiguration by scanners. The
+  # `env=` form works on Apache 2.2 as well as 2.4, unlike `<If>`, which is a
+  # syntax error on 2.2 and takes the whole site down with a 500.
+  #
+  # Add `preload` and submit to hstspreload.org only once every subdomain is
+  # certain to serve HTTPS indefinitely. Removal from the preload list takes
+  # months to reach users.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+
+  # A static documentation site needs none of these, so it gives none of them
+  # away. Anything not listed keeps its browser default.
+  Header set Permissions-Policy "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), screen-wake-lock=(), usb=(), xr-spatial-tracking=()"
+
+  # Cross-origin isolation.
+  #
+  # Nothing here is meant to be embedded elsewhere and nothing here embeds
+  # anything from elsewhere, so the strict values cost nothing:
+  #
+  #   COOP same-origin    severs window.opener, so a page this site opens (or
+  #                       that opened it) cannot reach into it.
+  #   CORP same-origin    stops another site hotlinking the assets.
+  #   COEP require-corp   every subresource must opt in. Safe only because the
+  #                       site loads no third-party asset at all: adding one
+  #                       without `Cross-Origin-Resource-Policy: cross-origin`
+  #                       on it will break the page, so revisit this before
+  #                       embedding anything external.
+  #
+  # COOP and COEP together also give the playground a cross-origin isolated
+  # context, which is what `SharedArrayBuffer` would need if its worker ever
+  # moves to one.
+  Header set Cross-Origin-Opener-Policy "same-origin"
+  Header set Cross-Origin-Resource-Policy "same-origin"
+  Header set Cross-Origin-Embedder-Policy "require-corp"
+
+  # The site loads nothing from anywhere else, so it can say so precisely.
+  #
+  # script-src is 'self' with no 'unsafe-inline': every script is a file, the
+  # theme bootstrap included. That is the directive worth being strict about,
+  # because 'unsafe-inline' there would let an injected <script> run.
+  #
+  # style-src still allows inline, because generated pages carry `style`
+  # attributes: Markdown table alignment produces them per cell. It is a far
+  # weaker concession than the script one, and removing it means emitting a
+  # class for every alignment instead.
+  Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; worker-src 'self'; object-src 'none'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests"
+</IfModule>
+
+# --------------------------------------------------------------- error pages
+
+ErrorDocument 404 /404.html
+
+# Keep the build inputs out of the served site, in case the whole repository
+# directory is uploaded rather than just the built output.
+<FilesMatch "\.(md|ts|toml|lock)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Deny from all
+  </IfModule>
+</FilesMatch>

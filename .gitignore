@@ -5,9 +5,21 @@ dist/
 Thumbs.db
 baa.lock
 .baa-cache/
-# The website is built and deployed separately, and is not published here.
-# Everything under it, sources and build output alike, stays out of the repo.
-website/
+# The website's sources are tracked; its built output is not. The pages are
+# deployed to sheep.grimtech.co.uk, so committing them here would keep a second
+# copy of something a generator in tools/ rebuilds from scratch on demand.
+#
+# Tracked: website/src/, the hand-written assets (playground, worker, shims,
+# styles, theme, highlight), the SVG drawings, and the Apache configuration.
+# The playground's browser build lives here, so a clone can build and test it.
+website/*.html
+website/docs/
+website/baa/
+website/sitemap.xml
+website/llms.txt
+website/llms-full.txt
+website/assets/baa/
+website/assets/*.png
 
 # Rust build output. The native runtime's source lives in rust/crates/; its
 # target directory is several hundred megabytes of intermediate objects and is

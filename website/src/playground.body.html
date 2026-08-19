@@ -1,0 +1,91 @@
+<section class="wrap" style="padding-top:2.5rem">
+  <p class="eyebrow">Playground</p>
+  <h1 style="margin-bottom:.4rem">Run Baa in your browser.</h1>
+  <p class="lede">
+    This is the genuine interpreter: the same lexer, parser, resolver and
+    runtime the <code>baa</code> command uses, compiled to JavaScript. Nothing
+    is sent anywhere; it all runs in this tab.
+  </p>
+
+  <div class="play__examples" style="margin-top:1.5rem">
+    <button class="tab" type="button" data-sample="hello">Hello, flock</button>
+    <button class="tab" type="button" data-sample="collections">Collections</button>
+    <button class="tab" type="button" data-sample="match">Match</button>
+    <button class="tab" type="button" data-sample="errors">Errors</button>
+    <button class="tab" type="button" data-sample="closures">Closures</button>
+  </div>
+</section>
+
+<section class="wrap play">
+  <div class="play__pane">
+    <div class="play__head">
+      <strong>playground.baa</strong>
+      <button class="tab" type="button" data-format>Format</button>
+      <button class="button button--primary" type="button" data-run style="padding:.35rem .9rem;font-size:.88rem">Run</button>
+    </div>
+    <label class="visually-hidden" for="editor">Baa source code</label>
+    <textarea id="editor" data-editor spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off">const FLOCK = ["Dolly", "Shaun", "Lambchop"]
+
+fn greet(name) {
+    return "Baa, {name}!"
+}
+
+for name in FLOCK {
+    baa greet(name)
+}
+
+baa "That's {len(FLOCK)} sheep accounted for."
+</textarea>
+  </div>
+
+  <div class="play__pane">
+    <div class="play__head">
+      <strong>Output</strong>
+      <label style="display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem">
+        <input type="checkbox" data-woolly checked> sheep wording
+      </label>
+    </div>
+    <pre class="play__out" data-output aria-live="polite" aria-atomic="false"><span class="muted">Press Run, or Ctrl+Enter in the editor.</span></pre>
+    <div class="play__head" style="border-bottom:0;border-top:1px solid var(--fleece-line)">
+      <span class="play__status" data-status>Loading the interpreter…</span>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-bottom:3rem">
+  <div class="grid grid--2">
+    <div class="card">
+      <h3>What runs here</h3>
+      <p>
+        Everything except the parts that need an operating system.
+        <code>wool</code>, <code>flock</code>, <code>ram</code>,
+        <code>meadow</code> and <code>lamb</code> work fully.
+        <code>pasture</code> and <code>shepherd</code> load, but report a clear
+        error when they are asked for a file or a subprocess, there is neither
+        in a browser tab.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Loops that never end</h3>
+      <p>
+        Your program runs in a worker with a five-second limit, so
+        <code>while true { }</code> costs you a click rather than the tab. If
+        you hit it, the output pane says so.
+      </p>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:2rem">
+    <strong>Keyboard.</strong> <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (or
+    <kbd>⌘</kbd>+<kbd>Enter</kbd>) runs. <kbd>Tab</kbd> inserts four spaces
+    instead of leaving the editor. <kbd>/</kbd> focuses search on the
+    documentation pages.
+  </div>
+
+  <p style="margin-top:2rem;color:var(--ink-soft)">
+    Ready for the real thing? <a href="docs/cli.html">Install Baa</a>, it needs
+    Node 22.18 or newer and has no runtime dependencies. Or read
+    <a href="docs/language.html">the language tour</a>, which covers everything
+    in about fifteen minutes.
+  </p>
+</section>

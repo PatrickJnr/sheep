@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 208 64" width="208" height="64" role="img" aria-label="Baa">
+  <title>Baa</title>
+<!--
+    Bold-keyline construction. The fleece is drawn twice: once fat and dark to
+    create a single unified outline, then again in wool on top. Because each
+    layer is one colour, no seams appear where the twelve lobes overlap.
+    Ears sit behind the topknot and face, which are drawn with their own
+    keyline so they read as separate planes.
+  -->
+  <g stroke="#22352C" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="#22352C">
+    <circle cx="32.00" cy="19.00" r="6.2"/>
+    <circle cx="41.00" cy="21.50" r="6.2"/>
+    <circle cx="47.59" cy="27.50" r="6.2"/>
+    <circle cx="50.00" cy="34.00" r="6.2"/>
+    <circle cx="47.59" cy="40.50" r="6.2"/>
+    <circle cx="41.00" cy="46.50" r="6.2"/>
+    <circle cx="32.00" cy="49.00" r="6.2"/>
+    <circle cx="23.00" cy="46.50" r="6.2"/>
+    <circle cx="16.41" cy="40.50" r="6.2"/>
+    <circle cx="14.00" cy="34.00" r="6.2"/>
+    <circle cx="16.41" cy="27.50" r="6.2"/>
+    <circle cx="23.00" cy="21.50" r="6.2"/>
+  </g>
+  <g fill="#F7F5EE">
+    <circle cx="32.00" cy="19.00" r="6.2"/>
+    <circle cx="41.00" cy="21.50" r="6.2"/>
+    <circle cx="47.59" cy="27.50" r="6.2"/>
+    <circle cx="50.00" cy="34.00" r="6.2"/>
+    <circle cx="47.59" cy="40.50" r="6.2"/>
+    <circle cx="41.00" cy="46.50" r="6.2"/>
+    <circle cx="32.00" cy="49.00" r="6.2"/>
+    <circle cx="23.00" cy="46.50" r="6.2"/>
+    <circle cx="16.41" cy="40.50" r="6.2"/>
+    <circle cx="14.00" cy="34.00" r="6.2"/>
+    <circle cx="16.41" cy="27.50" r="6.2"/>
+    <circle cx="23.00" cy="21.50" r="6.2"/>
+  </g>
+  <g fill="#F7F5EE" stroke="#22352C" stroke-width="3" stroke-linejoin="round">
+    <path d="M27 27 C 20 20, 11 20, 7 28 C 12 35, 21 34, 27 32 Z"/>
+    <path d="M37 27 C 44 20, 53 20, 57 28 C 52 35, 43 34, 37 32 Z"/>
+  </g>
+  <g fill="#F7F5EE" stroke="#22352C" stroke-width="3" stroke-linejoin="round">
+    <path d="M22.5 28 A6 6 0 0 1 27 19.5 A5.5 5.5 0 0 1 32 16.8 A5.5 5.5 0 0 1 37 19.5 A6 6 0 0 1 41.5 28 Z"/>
+    <path d="M23 27 Q32 21.5, 41 27 L41 37.5 Q41 46.5, 32 46.5 Q23 46.5, 23 37.5 Z"/>
+  </g>
+  <g fill="#22352C">
+    <circle cx="27.6" cy="32.8" r="2.6"/>
+    <circle cx="36.4" cy="32.8" r="2.6"/>
+    <ellipse cx="32" cy="39.2" rx="1.9" ry="1.4"/>
+  </g>
+  <g fill="#F7F5EE">
+    <circle cx="28.5" cy="31.9" r="0.85"/>
+    <circle cx="37.3" cy="31.9" r="0.85"/>
+  </g>
+  <path d="M28.1 42.4 Q32 46.1, 35.9 42.4" fill="none" stroke="#22352C" stroke-width="2.5"
+        stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="76" y="43" font-family="Georgia, 'Iowan Old Style', 'Times New Roman', serif" font-size="34" font-weight="700" letter-spacing="-0.5" fill="#F7F5EE">Baa</text>
+</svg>

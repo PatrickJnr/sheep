@@ -1,0 +1,803 @@
+<section class="hero">
+  <div class="wrap hero__grid">
+    <div>
+      <p class="eyebrow">Version {{version}} · MIT · needs only Node</p>
+      <h1>A programming language with a little more Baa.</h1>
+      <p>
+        A modern, readable programming language for people who enjoy clean
+        syntax, fast tools and extremely questionable sheep-related naming
+        decisions.
+      </p>
+      <div class="cta-row">
+        <a class="button button--primary" href="docs/language.html">
+          Get started
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a class="button button--ghost" href="playground.html">Try it in the browser</a>
+        <a class="button button--ghost" href="{{repo}}" rel="noopener">View on GitHub</a>
+      </div>
+      <div class="install">
+        <span class="install-text">git clone {{repo}}.git &amp;&amp; cd sheep &amp;&amp; npm install &amp;&amp; npm link</span>
+        <button class="copy" type="button" data-copy="">copy</button>
+      </div>
+    </div>
+
+    <div class="terminal">
+      <div class="terminal__bar">
+        <span class="terminal__dot"></span><span class="terminal__dot"></span><span class="terminal__dot"></span>
+        <span class="terminal__title">hello.baa</span>
+      </div>
+      <pre><code class="language-baa">const FLOCK = ["Dolly", "Shaun", "Lambchop"]
+
+fn greet(name) {
+    return "Baa, {name}!"
+}
+
+for name in FLOCK {
+    baa greet(name)
+}
+
+baa "That's {len(FLOCK)} sheep accounted for."</code></pre>
+      <div class="terminal__out">$ baa run hello.baa
+Baa, Dolly!
+Baa, Shaun!
+Baa, Lambchop!
+That's 3 sheep accounted for.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ what is Baa -->
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">What is Baa?</p>
+      <h2>A complete language, not a syntax mock-up.</h2>
+      <p>
+        Baa has a hand-written lexer, a recursive-descent parser with error
+        recovery, a real AST, a semantic analyser, a tree-walking interpreter, a
+        standard library, a deterministic formatter, a linter, a test runner, a
+        REPL and a project tool. It runs real programs. The joke is the name;
+        everything underneath is built to be used.
+      </p>
+    </div>
+
+    <div class="grid grid--3">
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13"/></svg></span>Small on purpose</h3>
+        <p>
+          Nine statement forms, one numeric type, no inheritance, no hidden
+          coercions. You can hold the whole language in your head, and the
+          <a href="docs/spec.html">specification</a> fits in one page you might
+          actually read.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 4.3 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/></svg></span>Errors that help</h3>
+        <p>
+          Every diagnostic has a stable code, a source span, an underlined
+          excerpt and a suggestion. There are
+          <a href="docs/errors.html">44 of them</a>, and none say
+          "unexpected token".
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/></svg></span>Quick enough</h3>
+        <p>
+          Roughly 1.2 million function calls and 4.5 million loop iterations a
+          second. Not a match for anything compiled: comfortably fast for the
+          scripting it is meant for.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7h18M3 12h18M3 17h18"/></svg></span>Tools in the box</h3>
+        <p>
+          <code>fmt</code>, <code>lint</code>, <code>check</code>,
+          <code>test</code>, <code>repl</code>, <code>init</code>,
+          <code>build</code>, <code>doctor</code>, <code>lsp</code>,
+          <code>serve</code>, <code>app</code>. No plugin hunt on day one.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>Serious when needed</h3>
+        <p>
+          <code>--no-baa</code>: or a <code>CI</code> environment variable:
+          swaps every sheep joke for neutral wording, keeping the codes and
+          spans identical. Your build log stays a build log.
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="card__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M5 8l7-5 7 5v8l-7 5-7-5Z"/></svg></span>Nothing to trust</h3>
+        <p>
+          Zero third-party packages: <code>dependencies</code> is empty, and
+          everything Baa imports is a Node built-in. Nothing is downloaded,
+          nothing runs implicitly, and no subprocess ever sees a shell.
+          <a href="docs/security.html">The reasoning is written down.</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat"><b>{{tests}}</b><span>automated tests</span></div>
+      <div class="stat"><b>{{diagnostics}}</b><span>diagnostic codes</span></div>
+      <div class="stat"><b>{{modules}}</b><span>standard modules</span></div>
+      <div class="stat"><b>0</b><span>third-party packages</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------------- tour -->
+
+<section class="section section--sunken">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">The language</p>
+      <h2>Familiar where it matters, sheep where it doesn't.</h2>
+      <p>
+        If you have written Python, Lua, Go or JavaScript, you can read Baa
+        already. The only word you have to learn is <code>baa</code>, which
+        prints.
+      </p>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="Language examples" data-tabs>
+      <button class="tab" role="tab" id="tab-basics" aria-controls="panel-basics" aria-selected="true">Basics</button>
+      <button class="tab" role="tab" id="tab-collections" aria-controls="panel-collections" aria-selected="false" tabindex="-1">Collections</button>
+      <button class="tab" role="tab" id="tab-match" aria-controls="panel-match" aria-selected="false" tabindex="-1">Match</button>
+      <button class="tab" role="tab" id="tab-errors" aria-controls="panel-errors" aria-selected="false" tabindex="-1">Errors</button>
+      <button class="tab" role="tab" id="tab-modules" aria-controls="panel-modules" aria-selected="false" tabindex="-1">Modules</button>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-basics" aria-labelledby="tab-basics">
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">basics.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code class="language-baa">// `let` can change. `const` cannot: and the compiler checks.
+let sheep = 12
+const MAX_SHEEP = 100
+
+sheep += 1
+
+// Strings interpolate with braces, and take whole expressions.
+baa "The flock holds {sheep} of a maximum {MAX_SHEEP}."
+
+// Defaults, rest parameters, closures, first-class functions.
+fn tally(label, ..counts) {
+    return "{label}: {counts.sum()}"
+}
+
+fn make_counter(start) {
+    let count = start
+    return fn() {
+        count += 1
+        return count
+    }
+}
+
+const next = make_counter(10)
+baa tally("this week", 3, 4, 5), next(), next()</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-collections" aria-labelledby="tab-collections" hidden>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">collections.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code class="language-baa">import flock
+import ram
+
+const HERD = [
+    { name: "Dolly", farm: "Hill", weight: 46.5 },
+    { name: "Shaun", farm: "Hill", weight: 52.0 },
+    { name: "Timmy", farm: "Dale", weight: 21.0 },
+]
+
+// Methods where a method reads well.
+baa HERD.map(fn(s) { return s.name }).sort().join(", ")
+
+// Modules where it doesn't.
+const by_farm = flock.group_by(HERD, fn(s) { return s.farm })
+
+for farm, members in by_farm {
+    const weights = members.map(fn(s) { return s.weight })
+    baa "{farm}: {members.length()} sheep, mean {ram.round(ram.mean(weights), 1)}kg"
+}
+
+// Arrays and maps compare by value, not by identity.
+baa [1, [2]] == [1, [2]], { a: 1 } == { a: 1 }</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-match" aria-labelledby="tab-match" hidden>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">match.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code class="language-baa">// `match` is an expression, and patterns compare structurally:
+// so a pair of booleans is a perfectly good pattern.
+fn fizzbuzz(n) {
+    return match [n % 3 == 0, n % 5 == 0] {
+        [true, true] =&gt; "FizzBuzz",
+        [true, false] =&gt; "Fizz",
+        [false, true] =&gt; "Buzz",
+        _ =&gt; to_string(n),
+    }
+}
+
+fn describe(flock) {
+    return match flock.length() {
+        0 =&gt; "empty",
+        1 =&gt; "one lonely sheep",
+        2 || 3 =&gt; "a small flock",
+        n if n &gt; 50 =&gt; "a very large flock ({n})",
+        _ =&gt; "a flock",
+    }
+}
+
+for n in 1..=15 {
+    baa fizzbuzz(n)
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-errors" aria-labelledby="tab-errors" hidden>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">errors.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code class="language-baa">// Throw any value you like: errors keep their type.
+fn shear(sheep) {
+    if sheep.shorn {
+        throw { code: "ALREADY_SHORN", sheep: sheep.name }
+    }
+    return "snip"
+}
+
+try {
+    shear({ name: "Dolly", shorn: true })
+} catch problem {
+    baa "{problem.code}: {problem.sheep}"
+}
+
+// Runtime failures are catchable too, and carry a stable code.
+try {
+    baa ["Dolly"][99]
+} catch problem {
+    baa problem.code, problem.line   // BAA304 18
+} finally {
+    baa "gate closed"
+}</code></pre>
+      </div>
+    </div>
+
+    <div class="tabpanel" role="tabpanel" id="panel-modules" aria-labelledby="tab-modules" hidden>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">modules.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code class="language-baa">// A standard module, a rename, and individual names.
+import wool
+import meadow as clock
+import { round, mean } from ram
+
+// A local file. Paths are relative to the importing file.
+import "./pen.baa"
+import "./helpers/text.baa" as text
+
+baa wool.title_case("the flock is thriving")
+baa clock.format(0, "YYYY-MM-DD")
+baa round(mean([1, 2, 3, 4]), 2)
+
+let my_pen = []
+pen.admit(my_pen, "Dolly")
+baa pen.describe(my_pen)
+
+// Modules are values, so you can pass one around.
+fn report(module, subject) {
+    return module.describe(subject)
+}
+
+baa report(pen, my_pen)</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------------ diagnostics -->
+
+<section class="section">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">Diagnostics</p>
+      <h2>Beautiful errors, because even sheep deserve good diagnostics.</h2>
+      <p>
+        Every message has a stable <code>BAAnnn</code> code, the file, the line,
+        the column, the offending source line with the exact span underlined,
+        and, where Baa can work it out, the fix.
+      </p>
+      <p>
+        Codes never change meaning. You can grep a CI log for
+        <code>BAA102</code> and rely on it meaning the same thing in every
+        future version.
+      </p>
+      <p>
+        Runtime failures carry a real call stack, captured where the failure
+        happened rather than reconstructed after the fact. And when you would
+        rather not be told about sheep, <code>--no-baa</code> gives you the
+        same information in neutral wording.
+      </p>
+      <p><a href="docs/errors.html">Browse the full catalogue →</a></p>
+    </div>
+
+    <div>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">$ baa check flock.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code>error[BAA102]: `sheap` is not part of the current flock.
+  ┌─ examples/hello.baa:4:19
+  │
+3 │ const flock = ["Dolly", "Shaun"]
+4 │     baa "Baa, " + sheap
+  │                   ^^^^^ not found in this pasture
+  │
+  = help: Did you mean `sheep`?</code></pre>
+      </div>
+
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">$ baa --no-baa run count.baa</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code>error[BAA201]: `count_sheep` expects 1 argument(s) but received 2.
+  ┌─ count.baa:9:13
+  │
+8 │ fn count_sheep(flock) {
+9 │ baa count_sheep(flock, true)
+  │                ^^^^^^^^^^^^^ too many arguments
+  │ declared here → count.baa:8:4
+  │
+  = trace:
+    at count_sheep (count.baa:9:13)
+    at main (count.baa:14:1)</code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------------- tooling -->
+
+<section class="section section--sunken">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">Tooling</p>
+      <h2>Fast enough to outrun a startled sheep.</h2>
+      <p>
+        One executable, twelve subcommands, no configuration file needed to
+        start. Formatting is deterministic, linting has an escape hatch, and
+        every command has an exit code you can build a pipeline on.
+      </p>
+    </div>
+
+    <div class="split">
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">a working day</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code>$ baa init hill-farm
+Created hill_farm in hill-farm
+  baa.toml
+  main.baa
+  greetings.baa
+  tests/greetings_test.baa
+
+$ cd hill-farm &amp;&amp; baa run
+Hello, flock!
+Baa, Dolly!
+
+$ baa test
+tests/greetings_test.baa
+  ok greets a sheep by name 0.2ms
+  ok greets every sheep in a flock 0.3ms
+
+2 passed, 0 failed in 4ms
+
+$ baa fmt --check .
+11 files: 0 would change, 11 already tidy
+
+$ baa lint --deny-warnings .
+11 files linted, no problems</code></pre>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Deterministic formatting</h3>
+          <p>
+            The same syntax tree always produces the same bytes, and a second
+            run changes nothing. Comments are never lost: there is a test that
+            proves it over every example and a set of deliberately awkward
+            cases.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Tests in the language</h3>
+          <p>
+            <code>test "name" { ... }</code> is a statement, not a framework.
+            <code>baa run</code> registers tests without running them;
+            <code>baa test</code> runs them and reports timings.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Reproducible runs</h3>
+          <p>
+            <code>baa run --seed 42</code> makes everything drawing on
+            <code>meadow</code> deterministic, so a flaky test is a real bug
+            rather than bad luck.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Built for CI</h3>
+          <p>
+            <code>--check</code>, <code>--deny-warnings</code> and proper exit
+            codes. <code>CI=true</code> turns off colour and the jokes on its
+            own: nothing to configure.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Diagnostics a program can read</h3>
+          <p>
+            <code>--format json</code> on <code>check</code>,
+            <code>lint</code> and <code>fmt</code> writes one object carrying
+            every code, span and wording, so a job can annotate a pull request
+            without parsing prose.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Less than your shell has</h3>
+          <p>
+            <code>--deny-fs</code>, <code>--deny-env</code>,
+            <code>--deny-process</code> and <code>--allow-fs&nbsp;&lt;dir&gt;</code>
+            run a program you have not read with fewer capabilities than the
+            shell that started it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------- standard library -->
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">Standard library</p>
+      <h2>Zero dependencies. Maximum fleece.</h2>
+      <p>
+        {{modules}} modules, sheep-branded on the outside and completely boring on the
+        inside. An API you have to remember at 2am is no place for a joke, so
+        the functions are called things like <code>group_by</code> and
+        <code>round</code>.
+      </p>
+    </div>
+
+    <div class="grid grid--4">
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#wool"><code>wool</code></a></h3>
+        <p>Text. Formatting, case conversion, wrapping, centring, bytes.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#flock"><code>flock</code></a></h3>
+        <p>Collections. Grouping, chunking, zipping, partitioning, building maps from pairs.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#ram"><code>ram</code></a></h3>
+        <p>Arithmetic. Rounding, integer division, statistics, constants, base conversion.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#meadow"><code>meadow</code></a></h3>
+        <p>Time and chance. Clocks, calendars, and randomness you can seed.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#pasture"><code>pasture</code></a></h3>
+        <p>Files and paths. Reading, writing, listing, and platform-aware path arithmetic.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#shepherd"><code>shepherd</code></a></h3>
+        <p>The outside world. Arguments, environment, stdin, and subprocesses that never see a shell.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#lamb"><code>lamb</code></a></h3>
+        <p>Data. JSON in, JSON out, with clear errors for anything that has no JSON form.</p>
+      </div>
+      <div class="card card--link card--module">
+        <h3><a href="docs/stdlib.html#the-prelude"><code>prelude</code></a></h3>
+        <p>Always in scope: <code>len</code>, <code>type_of</code>, <code>clone</code>, <code>assert_eq</code> and six more.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- --------------------------------------------------------------- examples -->
+
+<!-- ------------------------------------------------------- two targets -->
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">Two places to run</p>
+      <h2>The same files. A web page, or a Windows application.</h2>
+      <p>
+        A <code>.baa</code> file is a web page when it imports
+        <code>gate</code>, and a desktop application when it imports
+        <code>barn</code>. Same language, same tooling, same tests. A module
+        that imports neither belongs to both, which is how the native
+        calculator and the web calculator share one arithmetic file.
+      </p>
+    </div>
+
+    <div class="grid grid--2">
+      <div class="card">
+        <h3>On the web</h3>
+        <p>
+          A page is a program that writes a reply. It runs under CGI on
+          ordinary shared hosting, one process per request, with no
+          JavaScript required on the page.
+        </p>
+        <p>
+          <a href="https://sheep.grimtech.co.uk/baa/index.baa">A live example</a>,
+          rendered by Baa, right now ·
+          <a href="docs/web.html">Web pages</a>
+        </p>
+      </div>
+      <div class="card">
+        <h3>On the desktop</h3>
+        <p>
+          <code>baa app build</code> produces one Windows executable holding
+          the runtime and your program. A real window with the system's own
+          controls, its own menu bar and its own file dialogs — no browser
+          inside it, and no Node.js on the machine that runs it.
+        </p>
+        <p>
+          <a href="docs/native-applications.html">Native applications</a> ·
+          <a href="docs/gui.html">The <code>barn</code> module</a>
+        </p>
+      </div>
+    </div>
+
+    <pre><code class="language-baa">import barn
+
+const window = barn.window({ title: "Hello", width: 320, height: 140 })
+const layout = barn.column(window, { weight: 1 })
+const label = barn.label(layout, { text: "Baa", align: "center", size: 20 })
+const button = barn.button(layout, { text: "Again" })
+
+fn on_click() {
+    barn.set_text(label, "Baa baa")
+}
+
+barn.on(button, "click", on_click)
+barn.show(window)
+barn.run()</code></pre>
+
+    <div class="note">
+      <p>
+        Windows today. The window model has no Win32 in it and a second
+        backend is an addition rather than a rewrite, but until somebody
+        writes one, <code>barn.show</code> on another platform says so rather
+        than doing nothing.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="section section--sunken">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">Examples</p>
+      <h2>Every example in the repository runs.</h2>
+      <p>
+        They are all formatted by <code>baa fmt</code>, clean under
+        <code>baa lint</code>, and their output is recorded and asserted by the
+        test suite. If one of them breaks, CI says so.
+      </p>
+    </div>
+
+    <div class="grid grid--4">
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/hello.baa" rel="noopener">hello.baa</a></h3>
+        <p>The smallest program that does something useful.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/variables.baa" rel="noopener">variables.baa</a></h3>
+        <p>Bindings, every value type, and all the operators.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/functions.baa" rel="noopener">functions.baa</a></h3>
+        <p>Defaults, rest parameters, closures, recursion.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/loops.baa" rel="noopener">loops.baa</a></h3>
+        <p>Every loop form, over every iterable.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/collections.baa" rel="noopener">collections.baa</a></h3>
+        <p>Arrays and maps used in anger.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/errors.baa" rel="noopener">errors.baa</a></h3>
+        <p>Throwing, catching, <code>finally</code>, and structured errors.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/stdlib.baa" rel="noopener">stdlib.baa</a></h3>
+        <p>A tour of six standard modules, in one program.</p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/blob/HEAD/examples/large_program.baa" rel="noopener">large_program.baa</a></h3>
+        <p>A ~200-line flock register: parsing, validation, statistics, a report and JSON.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ---------------------------------------------------------- for agents -->
+
+<section class="section">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">For AI agents</p>
+      <h2>A reference written for models, generated from the compiler.</h2>
+      <p>
+        Baa is small and new, so a language model has not read much of it.
+        Rather than hope, the site publishes
+        <a href="llms.txt"><code>/llms.txt</code></a> and
+        <a href="llms-full.txt"><code>/llms-full.txt</code></a>, following the
+        <em>llms.txt</em> convention: plain Markdown at a known address, meant
+        to be fetched by an agent before it writes anything.
+      </p>
+    </div>
+
+    <div class="grid grid--2">
+      <div class="card card--link">
+        <h3><a href="llms.txt">llms.txt</a></h3>
+        <p>
+          The index, about two kilobytes. What Baa is, the rule that decides
+          whether a file is a web page or a native application, and where the
+          real documentation lives.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="llms-full.txt">llms-full.txt</a></h3>
+        <p>
+          Everything needed to write Baa that runs, in one fetch: the syntax,
+          every standard-library signature, which modules exist on which
+          target, and worked examples of a module, a page and an application.
+        </p>
+      </div>
+    </div>
+
+    <div class="section__head" style="margin-top:2.5rem">
+      <h3>Why generate it</h3>
+      <p>
+        A hand-written cheat sheet goes stale, and a stale signature is worse
+        than none: a model given one writes code that cannot run and has no way
+        to notice. So both files are built from the same source the compiler
+        uses. Every function, every argument count and every diagnostic code in
+        them is read out of the implementation, and the build fails if the
+        published copy no longer matches.
+      </p>
+      <p>
+        The examples are compiled by the test suite, and the section on
+        mistakes is checked against the language itself: each claim about what
+        goes wrong has a test asserting it still goes wrong that way.
+      </p>
+    </div>
+
+    <div class="note">
+      <p>
+        <strong>Most of it is about what does not work.</strong> Which modules
+        a native application cannot use, that <code>if</code> is a statement
+        rather than an expression, and the one construct that compiles and
+        silently produces the wrong answer &mdash; a <code>{</code> inside a
+        string opens an interpolation, so <code>"{" + x + "}"</code> is one
+        string rather than three. Those are the things a model gets wrong, and
+        they are stated first.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------------- why sheep -->
+
+<section class="section">
+  <div class="wrap split">
+    <div>
+      <p class="eyebrow">Why sheep?</p>
+      <h2>Because a language called Baa has to be twice as good.</h2>
+      <p>
+        <code>print</code> is a boring word. <code>baa</code> is not. That is
+        genuinely the whole origin story.
+      </p>
+      <p>
+        It turned out to be a useful forcing function. A language with a
+        ridiculous name gets no benefit of the doubt, so everything else had to
+        be right: the diagnostics, the formatter's determinism, the test
+        coverage, the specification. Nobody excuses a bad error message because
+        the project is a joke.
+      </p>
+      <p>
+        The humour is kept where it cannot do harm: module names, error
+        wording, documentation. It never changes what an operator does, and it
+        is one flag away from gone.
+      </p>
+      <p><a href="docs/faq.html">More reasonable questions →</a></p>
+    </div>
+
+    <div>
+      <div class="note">
+        <strong>The rule.</strong> Sheep terminology lives in module names,
+        error wording and documentation. Never in operator semantics, never in
+        standard-library function names, and never anywhere it makes a program
+        harder to read at 2am.
+      </div>
+      <div class="codeblock">
+        <div class="codeblock__bar"><span class="codeblock__name">the same error, both ways</span><button class="copy" type="button" data-copy="">copy</button></div>
+        <pre><code>$ baa check pen.baa
+error[BAA103]: `MAX_SHEEP` was shorn with `const`: its value can't grow back.
+
+$ baa --no-baa check pen.baa
+error[BAA103]: Cannot assign to constant `MAX_SHEEP`.</code></pre>
+      </div>
+      <p style="color:var(--ink-soft);font-size:.95rem">
+        Same code, same span, same suggestion. Only the wording moves.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- -------------------------------------------------------------- community -->
+
+<section class="section section--sunken">
+  <div class="wrap">
+    <div class="section__head">
+      <p class="eyebrow">Community</p>
+      <h2>Finally, a language that understands the importance of a good flock.</h2>
+      <p>
+        Baa is open source under the MIT licence, built in the open, and small
+        enough that a newcomer can read the whole implementation in an evening.
+      </p>
+    </div>
+
+    <div class="grid grid--3">
+      <div class="card card--link">
+        <h3><a href="{{repo}}" rel="noopener">Read the source</a></h3>
+        <p>
+          Around 14,000 lines of documented TypeScript &mdash; lexer, parser,
+          resolver, runtime and tooling &mdash; plus 8,000 of Rust for the
+          native runtime.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="docs/contributing.html">Contribute</a></h3>
+        <p>
+          The house rules, the test layout, and what makes a change likely to be
+          merged. Documentation fixes count.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="{{repo}}/issues" rel="noopener">Report a bug</a></h3>
+        <p>
+          The most useful report is a <code>.baa</code> file that misbehaves.
+          Specification bugs count double.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="docs/rust.html">Would you rather this were Rust?</a></h3>
+        <p>
+          So would some of us. There is a full port plan and a conformance suite
+          waiting for whoever wants it.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="docs/roadmap.html">See the roadmap</a></h3>
+        <p>
+          What is next, and, just as importantly, what was considered and
+          deliberately left out.
+        </p>
+      </div>
+      <div class="card card--link">
+        <h3><a href="playground.html">Just try it</a></h3>
+        <p>
+          The real interpreter, running in your browser. No install, no sign-up,
+          no telemetry.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

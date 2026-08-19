@@ -230,3 +230,42 @@ jobs:
           ./node_modules/.bin/baa run check.baa | tee out.txt
           grep -qx 'installed' out.txt
           grep -qx '5' out.txt
+
+  playground:
+    name: browser playground
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+
+      # The playground is the only part of this repository that runs in a
+      # browser rather than in Node, so nothing else in CI would notice it
+      # breaking. It compiles `src/` to ES modules and rewrites every `node:`
+      # import to a shim: a change to the interpreter's imports can break the
+      # browser build while every other job stays green.
+
+      - name: Build the site
+        run: npm run gen:site
+
+      - name: Compile the interpreter for the browser
+        run: npm run gen:playground
+
+      # `check-playground.ts` drives a real browser through puppeteer-core and
+      # exits 0 when it cannot find one, so this step reports success without
+      # having checked anything if Chrome ever leaves the runner image. The
+      # explicit path fails loudly instead.
+      - name: The playground runs Baa in a browser
+        env:
+          BAA_BROWSER: /usr/bin/google-chrome
+        run: |
+          test -x /usr/bin/google-chrome || {
+            echo "No Chrome on this runner; the playground check would silently pass."
+            exit 1
+          }
+          npm run check:playground
