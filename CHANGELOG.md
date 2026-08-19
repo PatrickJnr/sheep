@@ -7,6 +7,102 @@ Baa follows [semantic versioning](https://semver.org/) from 1.0; before then,
 minor versions may change the language, and every such change appears here with
 a migration note.
 
+## [0.8.0], 2026-08-19
+
+The tooling release: Baa's diagnostics can be read by a program, its formatter
+can show its work, its checker can stay running, and a program can be given
+less than the shell that started it.
+
+### Added
+
+- **`--format json` on `check`, `lint` and `fmt`.** One JSON object on stdout
+  per run, carrying every diagnostic with its stable code, both wordings, file,
+  range, notes, help and trace. It is a second *presentation* of the same
+  `Diagnostic` values the terminal renders — nothing parses formatted text — so
+  JSON cannot report a problem the terminal would not, or miss one it does. One
+  line per run, so a log of reports is also valid JSON Lines. The schema is
+  documented in [docs/diagnostics-json.md](docs/diagnostics-json.md) and
+  versioned: within a version, fields are added and never removed.
+
+  `run` and `test` refuse the flag with `BAA301`. Their stdout belongs to the
+  program, and a report written into that stream could not be told apart from
+  what the program printed.
+
+- **`baa fmt --diff`.** A unified diff of what formatting would change, without
+  changing it. Exits exactly like `--check`, and prints nothing at all for a
+  file that is already formatted, so any output means "this would change".
+
+- **`baa check --watch`.** Re-checks only what changed: 92 ms cold on a
+  200-file project, 12 ms after one edit. There is no dependency graph, and
+  that is not a shortcut — Baa's analysis is per-file, because a module's
+  diagnostics do not depend on the modules it imports, so a graph would always
+  report no dependents. Changing `baa.toml` drops the whole cache, since it
+  decides which module names are importable.
+
+- **Capability flags on `baa run` and `baa test`**: `--deny-fs`,
+  `--deny-fs-write`, `--deny-env`, `--deny-process`. They wrap the host rather
+  than auditing the standard library, so an allowed operation is untouched and
+  a denied one raises the new `BAA313` where it happens, which a program can
+  catch. Nothing is denied by default.
+
+  There is deliberately no `--deny-network` — Baa cannot open a socket, and a
+  flag denying a capability the language lacks would suggest the others are the
+  same gesture — and no `--deny-randomness`, because `--seed` already does what
+  that usually means. [SECURITY.md](SECURITY.md) says what this claims and what
+  it does not.
+
+- **Application icons and version metadata on Windows.** `[app] icon` points at
+  an `.ico`, and `title`, `version`, `company` and `copyright` fill in the
+  Details tab of the executable's Properties. Written into the PE by hand,
+  because the build has no linker: a section header after the last one, the
+  bytes at the end of the file, three numbers corrected. It refuses rather than
+  guessing on anything it does not recognise.
+
+- **Nine standard-library functions, in both runtimes.** `pasture.walk`,
+  `pasture.glob` and `pasture.matches`; `flock.union`, `flock.intersect`,
+  `flock.difference` and `flock.is_subset`; `meadow.duration` and
+  `meadow.format_duration`. `meadow.parts` and `meadow.iso` take an optional
+  UTC offset in whole minutes, and the ISO text then ends in `+01:00` rather
+  than lying with `Z`.
+
+  The glob subset is `?`, `*` and `**` and nothing else. There are no time-zone
+  *names*: an offset is a fact about an instant, while a zone name is a rule
+  that changes twice a year and needs a database shipping updates.
+
+### Changed
+
+- **Reading a variable is an array index.** The resolver records how many
+  scopes out each name lives and which position it holds there; `Environment`
+  keeps its bindings in declaration order. Measured back to back on one
+  machine, best of three: 300k loop iterations 56.0 ms → 46.6 ms,
+  `map`/`filter`/`sum` 42.1 ms → 36.1 ms, `fib(22)` unchanged within noise,
+  because a call defines its parameters and that bookkeeping offsets what its
+  lookups save.
+
+  The slot carries the name it was resolved from and is checked before it is
+  trusted: a disagreement falls back to the name walk rather than reading the
+  wrong binding, and a test asserts the fallback never fires. Nothing about the
+  language changed, and the native runtime is untouched — the image format
+  carries no slots.
+
+- `docs/stdlib.md` now carries prose beside the signatures where a one-line
+  description cannot carry the rules, which is how the glob subset and the
+  offset range are published.
+
+### Fixed
+
+- **`shepherd.run` bypassed the capability boundary.** It called
+  `child_process` directly, so the most dangerous operation in the language was
+  the one operation `RuntimeHost` could not see — while `host.ts` claimed
+  everything went through it. It now goes through `host.runProcess`, still
+  without a shell, and a test asserts the module does not import
+  `child_process` at all.
+
+- `baa check --watch` installs its watcher before the first sweep rather than
+  after it, so an edit that lands during a long first check is not lost.
+
+[0.8.0]: https://github.com/PatrickJnr/sheep/releases/tag/v0.8.0
+
 ## [0.7.1], 2026-08-19
 
 ### Fixed

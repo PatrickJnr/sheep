@@ -26,18 +26,18 @@ carry a status label:
 
 ## Current State
 
-Version **0.7.1**. The reference implementation is TypeScript running on
+Version **0.8.0**. The reference implementation is TypeScript running on
 Node.js 22.18+ with no build step and no runtime dependencies; the native
 runtime is Rust with no dependencies either.
 
 | | |
 | --- | --- |
-| Automated tests | 600+, across Windows, Linux and macOS on every commit |
+| Automated tests | 750+, across Windows, Linux and macOS on every commit |
 | Diagnostics | 47 `BAAnnn` codes, each with a default and a professional wording |
 | Standard library | 9 modules |
 | Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
 | Native runtime conformance | All 50 conformance programs, byte for byte, none skipped |
-| Executable targets | Windows x86-64 |
+| Executable targets | Windows x86-64, with an icon and version metadata |
 | Runtime dependencies | None, on either implementation |
 
 **Baa runs in two places, and a file's imports decide which.** A file that
@@ -163,6 +163,74 @@ involved in the build.
 `optionalDependencies` entry, so the download is a manual step rather than
 something `npm install -g baa-lang` arranges.
 
+### Structured diagnostics, incremental checking and capabilities — **COMPLETED** in 0.8.0
+
+**Delivered.** Three tooling milestones that had been queued since 0.5.0.
+
+`--format json` on `check`, `lint` and `fmt` writes one JSON object to stdout:
+code, severity, both wordings, file, range, notes, help and trace. It renders
+the same `Diagnostic` values the terminal renders, so it cannot report a
+problem the terminal would not. `run` and `test` refuse it, because stdout
+belongs to the program there. The schema is in
+[docs/diagnostics-json.md](docs/diagnostics-json.md).
+
+`baa fmt --diff` prints a unified diff of what formatting would change and
+exits exactly like `--check`. `baa check --watch` re-checks only what changed:
+92 ms cold on a 200-file project, 12 ms after one edit. There is no dependency
+graph, because Baa's analysis is per-file and a graph would always report no
+dependents; `baa.toml` is the exception and drops the whole cache.
+
+`baa run` and `baa test` take `--deny-fs`, `--deny-fs-write`, `--deny-env` and
+`--deny-process`, which wrap the host rather than auditing the library. That
+audit found a hole worth the milestone on its own: `shepherd.run` was calling
+`child_process` directly, so the most dangerous operation in the language was
+the one operation the capability boundary could not see.
+
+### Resolved variable slots — **COMPLETED** in 0.8.0
+
+**Delivered.** The resolver records where each name lives — how many scopes out
+and which position — and the interpreter reads it by index instead of hashing
+it. `Environment` keeps its bindings in declaration order; a scope past eight
+names builds a `Map`, which is what keeps the prelude off a linear scan.
+
+The slot carries the name it was resolved from and is checked before it is
+trusted, so a disagreement between the resolver and the interpreter falls back
+to the name walk rather than reading the wrong binding. `slotStats.misses`
+counts those fallbacks and a test asserts it stays at zero.
+
+**Measured**, back to back on one machine, best of three: 300k loop iterations
+56.0 ms to 46.6 ms, `map`/`filter`/`sum` 42.1 ms to 36.1 ms, `fib(22)`
+unchanged within noise, because a call defines its parameters and that
+bookkeeping offsets what its lookups save.
+
+### Application icons and version metadata — **COMPLETED** in 0.8.0
+
+**Delivered.** A built `.exe` shows its icon in Explorer and fills in the
+Details tab of its Properties. Both live in a PE resource section, which the
+appending build has no linker to produce, so `src/native/resources.ts` writes
+one: a section header after the last, the bytes at the end of the file, three
+numbers corrected in the headers. It refuses — rather than guessing — on a file
+that is not a PE, a section table with no room, or an image already appended.
+
+**Definition of done — met, and verified through Windows rather than through
+the writer.** A test reads the version back with `FileVersionInfo` and counts
+the icons with `ExtractIconEx`. That is what caught the first icon group being
+eighteen bytes per image instead of fourteen: Windows stored it without
+complaint and made no icon from it.
+
+### Standard-library growth — **COMPLETED** in 0.8.0
+
+**Delivered.** Nine functions, in both runtimes. `pasture.walk`, `glob` and
+`matches`; `flock.union`, `intersect`, `difference` and `is_subset`;
+`meadow.duration` and `format_duration`, plus a UTC offset argument on
+`meadow.parts` and `meadow.iso`.
+
+The glob subset is `?`, `*` and `**` and nothing else, written into
+`docs/stdlib.md` rather than left to whatever a regular expression happened to
+do. There are no time-zone *names*: an offset is a fact about an instant, while
+a zone name is a rule that changes twice a year and needs a database shipping
+updates.
+
 ### Documentation for language models — **COMPLETED**
 
 `/llms.txt` and `/llms-full.txt`, generated by `tools/gen-llms.ts` from the same
@@ -211,37 +279,38 @@ matching codes.
 
 ## Immediate Next
 
-### 1. `--format json` for diagnostics — **NEXT**
+### 1. `baa doc` — **NEXT**
 
-**Goal.** Let an editor or a CI job read Baa's diagnostics without parsing the
-text meant for humans.
+**Goal.** Let Baa generate its own reference, from the `///` comments the
+standard library already carries.
 
-**Why it matters.** Every command that reports a problem prints a code, a span,
-an excerpt and usually a fix. A tool that wants any of that today has to
-re-derive it from formatted output, which is a parser nobody should have to
-write and which breaks whenever the wording improves. The language server
-already builds structured diagnostics internally, so the data exists; only the
-command line cannot emit it.
+**Why it matters.** `docs/stdlib.md` is generated by `tools/gen-docs.ts`, a
+bespoke tool that reads the interpreter's own module objects. That works for
+the standard library and does nothing for anybody else's code: a Baa project
+has no way to publish a reference for its own functions.
 
-**Deliverables.** A documented schema carrying code, severity, both wordings,
-file, range, notes and help; `--format json` on every command that reports
-diagnostics; valid JSON for zero, one and many diagnostics.
+**Deliverables.** A documentation model taken from the resolver's symbols and
+`///` comments; `baa doc [paths]` writing deterministic Markdown; the
+standard-library page produced by it rather than by a bespoke tool.
 
-**Definition of done.** A CI job can turn `baa check --format json` into
-annotations without a regular expression, and a test asserts every field.
+**Definition of done.** `docs/stdlib.md` is generated by `baa doc`, output is
+byte-identical between runs, and `npm run gen:check` still fails on drift.
 
 **Dependencies.** None.
 
-### 2. `baa fmt --diff` — **NEXT**
+### 2. Timers in `barn` — **NEXT**
 
-**Goal.** Show what formatting would change, instead of changing it.
+**Goal.** Let a native application do something while it waits.
 
-**Why it matters.** `--check` answers yes or no, which is right for CI and
-useless for a review. The formatter is already deterministic, so the diff is a
-presentation of something the tool computes anyway.
+**Why it matters.** `meadow` can tell an application what time it is, but
+`barn` has no periodic callback, so an animation, a countdown or a clock cannot
+be written at all. It is the smallest missing piece that blocks whole kinds of
+application.
 
-**Definition of done.** Exit code matches `--check`, output is a unified diff,
-and an unchanged file produces nothing at all.
+**Definition of done.** A timer registers, fires, and can be cancelled from its
+own callback; the event loop stays synchronous and single-threaded, with no
+second concurrency model; an example application uses one; both the Windows
+backend and the platform-independent model are tested.
 
 **Dependencies.** None.
 
@@ -251,11 +320,9 @@ and an unchanged file produces nothing at all.
 
 | Milestone | Status | Definition of done |
 | --- | --- | --- |
-| **Resolved variable slots.** The resolver already knows which scope declares each name; recording a `(depth, index)` pair turns a lookup from a map walk into an array index. | PLANNED | The interpreter never hashes a name at runtime; the benchmark shows the change; both runtimes agree. |
-| **Incremental `baa check --watch`.** Re-check only what changed. | PLANNED | Editing one file in a large project re-analyses that file and its dependents, not the project. |
-| **Application icon and version metadata.** Both live in PE resources, which the appending build deliberately does not touch. | PLANNED | A built `.exe` shows the application's icon in Explorer and its version in Properties, with no external tool involved. |
-| **Standard-library growth**: `pasture` recursive walk and globbing, `flock` set operations, `meadow` durations and time zones. | PLANNED | Each function is generated into the reference, has tests, and exists in both runtimes. |
-| **`baa doc`.** A reference generated from `///` comments, which the standard library already carries internally. | PLANNED | The generated standard-library page is produced by `baa doc` rather than by a bespoke tool. |
+| **Confining the filesystem rather than refusing it.** `--deny-fs` is all or nothing; a program that should read one directory has to be trusted with every directory. | PLANNED | A path outside the allowed roots is refused with `BAA313`, including through `..` and through a link. |
+| **`[wool]` dependencies inside a bundle.** Manifest dependencies are refused today rather than bundled. | PLANNED | A manifest dependency is bundled deterministically, or refused with a reason. |
+| **Calendar arithmetic in `meadow`.** Adding and subtracting amounts, not only formatting them. | PLANNED | Each function exists in both runtimes, with tests. |
 
 ---
 
@@ -284,13 +351,12 @@ survives review. This wants a specified subset written into SPEC.md first.
 implement exactly it; a pattern outside it is a diagnostic rather than a
 difference.
 
-### Timers, and a table control, in `barn` — **PLANNED**
+### A table control in `barn` — **PLANNED**
 
-`meadow` can tell an application what time it is, but `barn` has no periodic
-callback, so nothing can happen while the program is waiting for an event: an
-animation or a countdown still cannot be written. Neither
-is difficult; both wait for an application that needs them, so the API is
-shaped by a real use rather than guessed.
+Rows, columns, headers, selection and scrolling. It waits for an application
+that needs one, so the API is shaped by a real use rather than guessed: a small
+useful table beats an enormous data grid nobody asked for. (Timers, which used
+to share this entry, are now an Immediate Next.)
 
 ### `[wool]` dependencies inside a bundle — **PLANNED**
 
@@ -338,10 +404,13 @@ So the small core stays small on purpose rather than by neglect.
 ### Native applications
 
 **State: shipped for Windows, 0.4.0.** One executable, a real window, no
-browser and no wrapper. Three example applications are the tests.
+browser and no wrapper. Three example applications are the tests. Since 0.8.0 a
+built executable carries its own icon and version metadata, written into the PE
+without a linker.
 
-Queued: [a Linux backend](#a-linux-backend-for-barn--planned), icon and
-version metadata, timers, a table control, and putting the runtime inside the
+Queued: [a Linux backend](#a-linux-backend-for-barn--planned),
+[timers](#2-timers-in-barn--next), [a table
+control](#a-table-control-in-barn--planned), and putting the runtime inside the
 npm package so the download stops being a manual step.
 
 Not planned: a browser-based application model. If a Baa program should run in
@@ -387,9 +456,12 @@ it, attached to an issue. See
 reference; the Rust one runs a resolved tree the reference hands it and is
 checked against the same conformance suite.
 
-Queued: [resolved variable slots](#near-term), then a
-[bytecode VM](#bytecode-compiler-and-vm--planned). Both are performance work,
-and both are to be built with the tree-walker still present and still tested.
+Resolved variable slots landed in 0.8.0, in the reference only: the image
+format carries no slots and the native runtime still looks names up, so the two
+cannot disagree about scope rules on account of it.
+
+Queued: a [bytecode VM](#bytecode-compiler-and-vm--planned), to be built with
+the tree-walker still present and still tested.
 
 ### Tooling
 
@@ -398,9 +470,9 @@ and both are to be built with the tree-walker still present and still tested.
 is deterministic and preserves comments; the linter has six rules and an escape
 hatch; the language server is around 470 lines with no dependencies and reads
 the resolver's symbol table rather than a second copy of the analysis.
+`check`, `lint` and `fmt` speak JSON; `check` watches; `fmt` diffs.
 
-Queued: `--format json`,
-`fmt --diff`, `check --watch`, `baa doc`.
+Queued: `baa doc`.
 
 ### Standard library
 
@@ -412,8 +484,13 @@ Native availability today: everything except `gate`, which is refused in an
 application by design. Five `wool` functions report that they need a
 regular-expression engine.
 
-Queued: `pasture` walk and globbing, `flock` set operations, `meadow` durations
-and time zones.
+0.8.0 added `pasture.walk`, `glob` and `matches`, `flock`'s set operations, and
+`meadow`'s durations and UTC offsets — in both runtimes, as the drift guard
+insists.
+
+Queued: calendar arithmetic in `meadow`, and a decision about
+[regular expressions](#regular-expressions-in-the-native-runtime--planned)
+before anything else in `wool`.
 
 ### Developer experience
 
@@ -421,10 +498,13 @@ and time zones.
 everything.** Diagnostics carry a code, a span, a note and usually a fix, in two
 wordings. The playground runs the real interpreter in the browser.
 
-Queued: [structured diagnostics](#1---format-json-for-diagnostics--next) and
-[`fmt --diff`](#2-baa-fmt---diff--next). The VS Code client and the published
-native runtimes both landed, so the editor and the install are no longer the
-sore points; reading Baa's output from another program is.
+Since 0.8.0, `check`, `lint` and `fmt` can report as JSON, `check --watch`
+re-checks only what changed, and `fmt --diff` shows what it would change
+without changing it.
+
+Queued: [`baa doc`](#1-baa-doc--next), so that a project can publish a
+reference for its own functions rather than only the standard library having
+one.
 
 ### Cross-platform
 
@@ -446,9 +526,11 @@ runtime starts about 10x faster and runs a tight loop about 1.2x faster —
 almost all of the win is process start, because it is the same algorithm in a
 different language.
 
-Queued: resolved variable slots, then a bytecode VM, then inline caches and
-constant folding. Ordered that way because each is the prerequisite for the
-next being worth measuring.
+Resolved variable slots landed in 0.8.0: reading a local is an array index,
+worth about 17% on loop-heavy code and nothing measurable on calls.
+
+Queued: a bytecode VM, then inline caches and constant folding. Ordered that
+way because each is the prerequisite for the next being worth measuring.
 
 ### Security
 
@@ -458,9 +540,14 @@ environment and process operation goes through `RuntimeHost`
 a shell: a program that wants one has to name it, which puts the decision in the
 source and in review. `gate` escapes by default. See [SECURITY.md](SECURITY.md).
 
-Queued: `baa run --deny-fs` and friends, which the single capability surface
-exists to make possible; signed native-runtime binaries alongside the release
-workflow that ships them.
+`baa run` and `baa test` can give a program less than they have:
+`--deny-fs`, `--deny-fs-write`, `--deny-env` and `--deny-process` wrap the host,
+and a denied operation is `BAA313` where it happens. Capability reduction, not
+a sandbox — SECURITY.md says which is which.
+
+Queued: confining the filesystem to named directories rather than refusing it
+outright; signed native-runtime binaries alongside the release workflow that
+ships them.
 
 ### Testing
 

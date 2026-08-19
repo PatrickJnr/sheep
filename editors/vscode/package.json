@@ -2,7 +2,7 @@
   "name": "baa-lang",
   "displayName": "Baa",
   "description": "The Baa programming language: syntax highlighting, plus diagnostics, formatting, hover, go to definition, find references and rename from the `baa lsp` language server.",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "publisher": "baa-lang",
   "license": "MIT",
   "engines": {
