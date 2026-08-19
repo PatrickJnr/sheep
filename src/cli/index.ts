@@ -68,7 +68,7 @@ USAGE
 
 COMMANDS
   run [file]            Execute a program (defaults to the project entry)
-  check [paths...]      Parse and analyse without running
+  check [paths...]      Parse and analyse without running (--watch to keep going)
   test [paths...]       Run \`test "..." { ... }\` blocks
   fmt [paths...]        Format source files in place
   lint [paths...]       Report style and correctness warnings
@@ -115,8 +115,12 @@ const COMMAND_HELP: Record<string, string> = {
   Parse and analyse without executing. Directories are searched for .baa files.
   Exits non-zero when anything fails to compile.
 
+  --watch           Keep running, re-checking only what changes
   --format json     One JSON object on stdout: every diagnostic with its code,
-                    both wordings, file and range. See docs/diagnostics-json.md.`,
+                    both wordings, file and range. See docs/diagnostics-json.md.
+
+  Under --watch a report is written after every settled batch of changes, so
+  with --format json the output is a stream of JSON Lines.`,
   test: `baa test [paths...] [options]
 
   Run every \`test "name" { ... }\` block found in the given files.
@@ -366,8 +370,15 @@ export async function main(argv: readonly string[]): Promise<number> {
           },
           context,
         );
-      case "check":
+      case "check": {
+        if (parsed.booleans.has("watch")) {
+          // Deferred like `serve` and `repl`: this pulls in a filesystem
+          // watcher that no other command touches.
+          const { commandCheckWatch } = await import("./watch-command.ts");
+          return await commandCheckWatch({ paths: parsed.positionals }, context);
+        }
         return commandCheck(parsed.positionals, context);
+      }
       case "lint":
         return commandLint(
           {

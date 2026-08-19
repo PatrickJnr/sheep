@@ -169,8 +169,9 @@ describe("slots: what the resolver records", () => {
     resolveProgram(program, file, {});
     const statement = program.body[2]!;
     assert.equal(statement.kind, "BaaStatement");
-    const printed = (statement as { values: Array<{ slot?: { hops: number; index: number } | null }> })
-      .values[0]!;
+    const printed = (statement as unknown as {
+      values: ReadonlyArray<{ slot?: { hops: number; index: number } | null }>;
+    }).values[0]!;
     assert.deepEqual(printed.slot, { hops: 0, index: 1 });
   });
 

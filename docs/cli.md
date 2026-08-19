@@ -94,7 +94,7 @@ See [web.md](web.md) for serving pages this way, and for the live example.
 ## `baa check`
 
 ```
-baa check [paths...] [--format json]
+baa check [paths...] [--watch] [--format json]
 ```
 
 Parses and analyses without executing. Directories are searched recursively for
@@ -111,6 +111,33 @@ The schema is documented in [Diagnostics as JSON](diagnostics-json.md).
 ```bash
 baa check --format json . | jq '.errors'
 ```
+
+### `--watch`
+
+Keeps running and re-checks what changed, which on a 200-file project is a
+tenth of the work:
+
+```
+$ baa check --watch .
+Watching src
+200 checked, 0 unchanged, no problems
+Press Ctrl+C to stop.
+1 checked, 199 unchanged, 1 error
+```
+
+A file whose bytes have not changed cannot have changed its answer, so it is
+not read again. That is the whole of it: Baa's analysis is per-file, because a
+module's diagnostics do not depend on the modules it imports — imports are
+resolved when a program runs, not when it is checked. There is no dependency
+graph to invalidate, and pretending otherwise would be theatre.
+
+The exception is `baa.toml`, which decides which module names are importable.
+Changing it drops the whole cache.
+
+A file that will not parse does not stop the watcher; fix it and the next
+report is clean. `Ctrl+C` closes the watchers and exits `0`. With
+`--format json` a report is written after every settled batch of changes, so
+the output is a stream of [JSON Lines](https://jsonlines.org).
 
 ## `baa test`
 
