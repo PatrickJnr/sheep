@@ -200,8 +200,22 @@ export function watchRoots(options: WatcherOptions): { close: () => void } {
   };
 }
 
-/** The long form of a path, or the path itself when it cannot be resolved. */
+/**
+ * The long form of a path on Windows, and the path untouched anywhere else.
+ *
+ * Windows needs it: libuv's recursive watcher compares the long name the
+ * operating system reports against the name it was handed, and an 8.3 short
+ * path (`RUNNER~1` for `runneradmin`) fails an assertion that takes the process
+ * down with it.
+ *
+ * macOS must not have it. `$TMPDIR` there is `/var/folders/...`, a symlink to
+ * `/private/var/folders/...`; watching the resolved path while a program writes
+ * through the original delivers no events at all, which is worse than the
+ * problem being solved. Nothing on macOS or Linux needs the resolution, so
+ * nothing on macOS or Linux gets it.
+ */
 function realPath(path: string): string {
+  if (process.platform !== "win32") return path;
   try {
     return realpathSync.native(path);
   } catch {
