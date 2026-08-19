@@ -9,7 +9,7 @@
 
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -20,6 +20,7 @@ import {
   ALL_CAPABILITIES,
   createCapturingHost,
   DeniedError,
+  isInsideRoots,
   isUnrestricted,
   restrictHost,
 } from "../src/runtime/host.ts";
@@ -90,6 +91,7 @@ describe("capabilities: the host wrapper", () => {
     const host = restrictHost(createCapturingHost(), {
       readFiles: false,
       writeFiles: false,
+      roots: null,
       env: false,
       process: false,
     });
@@ -268,5 +270,115 @@ for path in pasture.glob(".", "**/*.baa") {
     assert.equal(missing.code, 1);
     assert.match(missing.err, /BAA404/);
     assert.match(missing.err, /nope/);
+  });
+});
+
+describe("capabilities: confining the filesystem", () => {
+  it("judges a path by where it leads, not by how it is written", () => {
+    const dir = workspace({ "in.txt": "inside" });
+    const inside = join(dir, "in.txt");
+    assert.equal(isInsideRoots(inside, [dir]), true);
+    assert.equal(isInsideRoots(dir, [dir]), true, "the root itself is inside it");
+    assert.equal(isInsideRoots(join(dir, "sub", "deep", "new.txt"), [dir]), true);
+    assert.equal(isInsideRoots(join(dir, "..", "elsewhere.txt"), [dir]), false);
+    assert.equal(isInsideRoots(join(dir, "sub", "..", "..", "out.txt"), [dir]), false);
+  });
+
+  it("is not fooled by a name that merely starts the same way", () => {
+    // `/tmp/data` and `/tmp/data-backup` share a prefix and are different
+    // directories. A `startsWith` check gets this wrong.
+    const dir = workspace({});
+    mkdirSync(join(dir, "data"));
+    mkdirSync(join(dir, "data-backup"));
+    assert.equal(isInsideRoots(join(dir, "data", "a.txt"), [join(dir, "data")]), true);
+    assert.equal(isInsideRoots(join(dir, "data-backup", "a.txt"), [join(dir, "data")]), false);
+  });
+
+  it("accepts a path under any one of several roots", () => {
+    const one = workspace({ "a.txt": "1" });
+    const two = workspace({ "b.txt": "2" });
+    assert.equal(isInsideRoots(join(one, "a.txt"), [one, two]), true);
+    assert.equal(isInsideRoots(join(two, "b.txt"), [one, two]), true);
+    assert.equal(isInsideRoots(join(tmpdir(), "nowhere.txt"), [one, two]), false);
+  });
+
+  it("refuses a read outside the allowed directory, and allows one inside", () => {
+    const dir = workspace({});
+    mkdirSync(join(dir, "project"));
+    writeFileSync(join(dir, "project", "data.txt"), "readable");
+    writeFileSync(join(dir, "secret.txt"), "not for you");
+    writeFileSync(
+      join(dir, "project", "app.baa"),
+      `import pasture
+baa pasture.read("data.txt")
+try {
+    baa pasture.read("../secret.txt")
+} catch e {
+    baa "refused: " + e["code"]
+}
+`,
+    );
+    const result = baa(["run", "--allow-fs", ".", "app.baa"], join(dir, "project"));
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /readable/);
+    assert.match(result.out, /refused: BAA313/);
+    assert.doesNotMatch(result.out, /not for you/);
+  });
+
+  it("refuses a write outside the allowed directory", () => {
+    const dir = workspace({});
+    mkdirSync(join(dir, "project"));
+    writeFileSync(
+      join(dir, "project", "app.baa"),
+      'import pasture\npasture.write("../escaped.txt", "hi")\n',
+    );
+    const result = baa(["run", "--allow-fs", ".", "app.baa"], join(dir, "project"));
+    assert.equal(result.code, 1);
+    assert.match(result.err, /BAA313/);
+    assert.equal(existsSync(join(dir, "escaped.txt")), false);
+  });
+
+  it("follows a link out of the allowed directory and refuses that too", (t) => {
+    const dir = workspace({});
+    mkdirSync(join(dir, "project"));
+    writeFileSync(join(dir, "secret.txt"), "not for you");
+    try {
+      symlinkSync(join(dir, "secret.txt"), join(dir, "project", "link.txt"), "file");
+    } catch {
+      // Windows needs a privilege for this, and a machine without it is not a
+      // machine where the test can say anything.
+      t.skip("this machine cannot create symbolic links");
+      return;
+    }
+    writeFileSync(
+      join(dir, "project", "app.baa"),
+      'import pasture\nbaa pasture.read("link.txt")\n',
+    );
+    const result = baa(["run", "--allow-fs", ".", "app.baa"], join(dir, "project"));
+    assert.equal(result.code, 1);
+    assert.match(result.err, /BAA313/);
+    assert.doesNotMatch(result.out, /not for you/);
+  });
+
+  it("changes nothing when no directory is named", () => {
+    const dir = workspace({});
+    mkdirSync(join(dir, "project"));
+    writeFileSync(join(dir, "reachable.txt"), "reachable");
+    writeFileSync(
+      join(dir, "project", "app.baa"),
+      'import pasture\nbaa pasture.read("../reachable.txt")\n',
+    );
+    const result = baa(["run", "app.baa"], join(dir, "project"));
+    assert.equal(result.code, 0, result.err);
+    assert.match(result.out, /reachable/);
+  });
+
+  it("says the directories it was given, so the message can be acted on", () => {
+    const dir = workspace({});
+    mkdirSync(join(dir, "project"));
+    writeFileSync(join(dir, "project", "app.baa"), 'import pasture\npasture.read("../x.txt")\n');
+    const result = baa(["run", "--allow-fs", ".", "app.baa"], join(dir, "project"));
+    assert.match(result.err, /may not touch files outside/);
+    assert.match(result.err, /project/);
   });
 });

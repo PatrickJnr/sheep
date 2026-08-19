@@ -115,6 +115,7 @@ const COMMAND_HELP: Record<string, string> = {
   --max-depth <n>   Maximum nested function calls (default 512)
   --deny-fs         The program may not read or write files
   --deny-fs-write   The program may read files but not change them
+  --allow-fs <dir>  Confine the program to this directory (repeatable)
   --deny-env        The program may not read environment variables
   --deny-process    The program may not start other programs
 
@@ -138,7 +139,7 @@ const COMMAND_HELP: Record<string, string> = {
 
   --filter <text>   Only run tests whose name contains this text
   --seed <n>        Seed the random number generator
-  --deny-fs, --deny-fs-write, --deny-env, --deny-process
+  --deny-fs, --deny-fs-write, --deny-env, --deny-process, --allow-fs <dir>
                     Restrict what the tests may reach, as \`baa run\` does`,
   fmt: `baa fmt [paths...] [options]
 
@@ -239,6 +240,7 @@ const VALUE_FLAGS = new Set([
   "name",
   "path",
   "title",
+  "allow-fs",
   "disable",
   "entry",
   "out",
@@ -322,9 +324,13 @@ function numberOption(parsed: Parsed, key: string): number | null {
  */
 function capabilitiesFrom(parsed: Parsed): Capabilities {
   const deniedAll = parsed.booleans.has("deny-fs");
+  const allowed = parsed.options.get("allow-fs") ?? [];
   return {
     readFiles: !deniedAll,
     writeFiles: !deniedAll && !parsed.booleans.has("deny-fs-write"),
+    // `--allow-fs` names the directories the program may touch. Without it
+    // there is no confinement, which is the same thing the shell gives it.
+    roots: allowed.length === 0 ? null : allowed.map((path) => resolve(path)),
     env: !parsed.booleans.has("deny-env"),
     process: !parsed.booleans.has("deny-process"),
   };

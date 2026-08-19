@@ -18,8 +18,16 @@
 
 import { spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import process from "node:process";
 
 import { BaaError } from "../diagnostics/diagnostic.ts";
@@ -249,11 +257,21 @@ export type Capabilities = {
   readonly env: boolean;
   /** Start other programs. */
   readonly process: boolean;
+  /**
+   * Directories the program may touch. `null` means anywhere, which is the
+   * default and what a shell would give it anyway.
+   *
+   * A path is judged after being resolved *and* after the part of it that
+   * exists has been followed to its real location, so neither `..` nor a link
+   * pointing out of an allowed directory gets past it.
+   */
+  readonly roots: readonly string[] | null;
 };
 
 export const ALL_CAPABILITIES: Capabilities = {
   readFiles: true,
   writeFiles: true,
+  roots: null,
   env: true,
   process: true,
 };
@@ -261,7 +279,11 @@ export const ALL_CAPABILITIES: Capabilities = {
 /** True when nothing has been taken away, so wrapping the host is pointless. */
 export function isUnrestricted(capabilities: Capabilities): boolean {
   return (
-    capabilities.readFiles && capabilities.writeFiles && capabilities.env && capabilities.process
+    capabilities.readFiles &&
+    capabilities.writeFiles &&
+    capabilities.env &&
+    capabilities.process &&
+    capabilities.roots === null
   );
 }
 
@@ -273,6 +295,50 @@ export function isUnrestricted(capabilities: Capabilities): boolean {
  * a program that reads a file it is not allowed to read should fail, not
  * quietly behave as though the file were empty.
  */
+/**
+ * Is this path inside one of the allowed directories?
+ *
+ * Two things make this more than a string comparison. A path is resolved
+ * first, so `data/../../etc/passwd` is judged as what it means rather than as
+ * what it says. And the longest part of it that *exists* is followed to its
+ * real location, so a link inside an allowed directory cannot point out of one
+ * — while a file that does not exist yet, which is every file a program is
+ * about to create, still gets an answer.
+ */
+export function isInsideRoots(path: string, roots: readonly string[]): boolean {
+  const target = realDeep(resolve(path));
+  return roots.some((root) => {
+    const base = realDeep(resolve(root));
+    if (same(target, base)) return true;
+    const rest = relative(base, target);
+    return rest !== "" && !rest.startsWith(`..${sep}`) && rest !== ".." && !isAbsolute(rest);
+  });
+}
+
+/** Compare two paths, ignoring case where the filesystem does. */
+function same(a: string, b: string): boolean {
+  return process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+/**
+ * The real location of the longest existing prefix of a path, with the rest
+ * appended unchanged.
+ */
+function realDeep(path: string): string {
+  let at = path;
+  const rest: string[] = [];
+  for (;;) {
+    try {
+      return rest.length === 0 ? realpathSync(at) : join(realpathSync(at), ...rest.reverse());
+    } catch {
+      const parent = dirname(at);
+      if (parent === at) return path;
+      rest.push(basename(at));
+      at = parent;
+    }
+  }
+}
+
 export class DeniedError extends Error {
   readonly capability: string;
 
@@ -296,17 +362,30 @@ const denied = (capability: string): never => {
  */
 export function restrictHost(host: RuntimeHost, capabilities: Capabilities): RuntimeHost {
   if (isUnrestricted(capabilities)) return host;
-  const read = <T>(what: () => T): T => (capabilities.readFiles ? what() : denied("read files"));
-  const write = <T>(what: () => T): T => (capabilities.writeFiles ? what() : denied("write files"));
+  const roots = capabilities.roots;
+  const inside = (path: string): void => {
+    if (roots === null || isInsideRoots(path, roots)) return;
+    denied(`touch files outside ${roots.join(", ")}`);
+  };
+  const read = <T>(path: string, what: () => T): T => {
+    if (!capabilities.readFiles) denied("read files");
+    inside(path);
+    return what();
+  };
+  const write = <T>(path: string, what: () => T): T => {
+    if (!capabilities.writeFiles) denied("write files");
+    inside(path);
+    return what();
+  };
   return {
     ...host,
-    readFile: (path) => read(() => host.readFile(path)),
-    fileExists: (path) => read(() => host.fileExists(path)),
-    listDir: (path) => read(() => host.listDir(path)),
-    stat: (path) => read(() => host.stat(path)),
-    writeFile: (path, contents) => write(() => host.writeFile(path, contents)),
-    appendFile: (path, contents) => write(() => host.appendFile(path, contents)),
-    makeDir: (path) => write(() => host.makeDir(path)),
+    readFile: (path) => read(path, () => host.readFile(path)),
+    fileExists: (path) => read(path, () => host.fileExists(path)),
+    listDir: (path) => read(path, () => host.listDir(path)),
+    stat: (path) => read(path, () => host.stat(path)),
+    writeFile: (path, contents) => write(path, () => host.writeFile(path, contents)),
+    appendFile: (path, contents) => write(path, () => host.appendFile(path, contents)),
+    makeDir: (path) => write(path, () => host.makeDir(path)),
     envVar: (name) => (capabilities.env ? host.envVar(name) : denied("read the environment")),
     envVars: () => (capabilities.env ? host.envVars() : denied("read the environment")),
     runProcess: (program, args, options) =>

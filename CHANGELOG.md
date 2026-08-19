@@ -45,6 +45,11 @@ less than the shell that started it.
   a denied one raises the new `BAA313` where it happens, which a program can
   catch. Nothing is denied by default.
 
+  `--allow-fs <dir>` confines rather than refuses, and is repeatable. A path is
+  judged by where it leads: resolved first, so `..` cannot climb out, and with
+  the part of it that exists followed to its real location, so a link inside an
+  allowed directory cannot point out of one.
+
   There is deliberately no `--deny-network` — Baa cannot open a socket, and a
   flag denying a capability the language lacks would suggest the others are the
   same gesture — and no `--deny-randomness`, because `--seed` already does what

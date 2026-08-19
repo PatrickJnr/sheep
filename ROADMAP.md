@@ -180,8 +180,11 @@ exits exactly like `--check`. `baa check --watch` re-checks only what changed:
 graph, because Baa's analysis is per-file and a graph would always report no
 dependents; `baa.toml` is the exception and drops the whole cache.
 
-`baa run` and `baa test` take `--deny-fs`, `--deny-fs-write`, `--deny-env` and
-`--deny-process`, which wrap the host rather than auditing the library. That
+`baa run` and `baa test` take `--deny-fs`, `--deny-fs-write`, `--deny-env`,
+`--deny-process` and `--allow-fs <dir>`, which wrap the host rather than
+auditing the library. `--allow-fs` confines instead of refusing: a path is
+resolved and then followed to its real location, so neither `..` nor a link can
+climb out of an allowed directory. That
 audit found a hole worth the milestone on its own: `shepherd.run` was calling
 `child_process` directly, so the most dangerous operation in the language was
 the one operation the capability boundary could not see.
@@ -323,16 +326,19 @@ which is the honest scale of the job.
 **Definition of done.** The three example applications build and run on Linux,
 and the smoke tests drive them there.
 
-### 2. Confining the filesystem rather than refusing it — **NEXT**
+**Why it is still here.** Not because it is large, though it is: because it
+cannot be *verified* from a Windows machine, and a GTK backend written blind is
+a few hundred lines of foreign-function declarations nobody has watched open a
+window. It wants a Linux machine with a display, or a CI job running Xvfb, set
+up before the first line is written.
 
-`--deny-fs` is all or nothing. A program that should read one directory has to
-be trusted with every directory, which is the difference between a capability
-and a switch.
+### 2. Regular expressions in the native runtime — **NEXT**
 
-**Definition of done.** A path outside the allowed roots is refused with
-`BAA313`, including through `..`, through a link, and through a relative path
-that climbs out; the roots are named on the command line; a test covers each
-route.
+Five `wool` functions report that they need an engine. Promoted because it is
+now the largest thing a program can do in one runtime and not the other, and
+because it is work that can be finished and checked anywhere. See Medium Term
+below for the shape of it, and the trap: a near-miss reimplementation of
+JavaScript's engine is worse than an absence.
 
 ---
 
@@ -555,8 +561,10 @@ source and in review. `gate` escapes by default. See [SECURITY.md](SECURITY.md).
 and a denied operation is `BAA313` where it happens. Capability reduction, not
 a sandbox — SECURITY.md says which is which.
 
-Queued: confining the filesystem to named directories rather than refusing it
-outright; signed native-runtime binaries alongside the release workflow that
+`--allow-fs` confines a run to named directories, judging a path by where it
+leads rather than by how it is written.
+
+Queued: signed native-runtime binaries alongside the release workflow that
 ships them.
 
 ### Testing

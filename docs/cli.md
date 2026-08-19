@@ -67,6 +67,7 @@ Everything after `--` is passed to the program and read with
 | `--deny-fs-write` | The program may read files but not change them. |
 | `--deny-env` | The program may not read environment variables. |
 | `--deny-process` | The program may not start other programs. |
+| `--allow-fs <dir>` | Confine the program to this directory. Repeatable. |
 
 The `--deny-` flags take capabilities away from the program, not from `baa`
 itself, and work on `baa test` as well. A denied operation raises `BAA313`
@@ -77,6 +78,18 @@ $ baa run --deny-fs untrusted.baa
 error[BAA313]: That gate is bolted: this run may not read files.
   ┌─ untrusted.baa:3:19
 ```
+
+`--allow-fs` is the one that confines rather than refuses:
+
+```bash
+baa run --allow-fs . --allow-fs ../shared untrusted.baa
+```
+
+A path is judged by where it leads, not by how it is written. It is resolved
+first, so `../../etc/passwd` is read as what it means; and the part of it that
+exists is followed to its real location, so a link inside an allowed directory
+cannot point out of one. A file that does not exist yet — which is every file a
+program is about to create — is judged by the directory it would go in.
 
 Nothing is denied by default: a program run from your shell already has
 whatever your shell has. See [SECURITY.md](../SECURITY.md) for what this does

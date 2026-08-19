@@ -119,6 +119,7 @@ import `child_process` at all.
 | `--deny-fs-write` | Reading is allowed; writing, appending and `mkdir` are not |
 | `--deny-env` | `shepherd.env` and `shepherd.env_all` refuse |
 | `--deny-process` | `shepherd.run` refuses |
+| `--allow-fs <dir>` | Files outside the named directories refuse. Repeatable. |
 
 They apply to `baa run` and `baa test`, and work by wrapping the host: an
 allowed operation reaches the real implementation untouched, so a restricted
@@ -139,11 +140,17 @@ same kind of gesture.
 There is no `--deny-randomness` either. It is not a boundary, and `--seed`
 already makes a run reproducible, which is what that request usually means.
 
-This is capability *reduction*, not a sandbox. A denied run cannot reach the
-filesystem through the standard library, and that is the claim being made: it
-is not a security boundary against hostile code that has other ways to reach
-the host process, and confining reads to a directory (rather than refusing them
-outright) is still on the roadmap.
+`--allow-fs` confines rather than refuses. A path is resolved before it is
+judged, so `..` cannot climb out, and the part of it that exists is followed to
+its real location, so a link inside an allowed directory cannot point out of
+one. A path that does not exist yet is judged by the directory it would be
+created in. Prefix comparison alone would let `/tmp/data-backup` pass for
+`/tmp/data`; the check is a resolved-path containment test, not a string one.
+
+This is capability *reduction*, not a sandbox. A restricted run cannot reach
+the filesystem through the standard library, and that is the claim being made:
+it is not a security boundary against hostile code that has other ways to reach
+the host process.
 
 ### Path inputs are validated
 
