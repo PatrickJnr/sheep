@@ -52,7 +52,7 @@
     "ci": "npm run typecheck && npm run gen:check && npm run fmt:check && npm run lint && npm test",
     "fmt": "node src/cli/index.ts fmt examples tests/programs",
     "fmt:check": "node src/cli/index.ts fmt --check examples tests/programs",
-    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:native && npm run gen:assets && npm run gen:playground && npm run gen:cgi && npm run gen:site && npm run gen:llms",
+    "gen": "npm run gen:docs && npm run gen:conformance && npm run gen:native && npm run gen:assets && npm run gen:playground && npm run gen:cgi && npm run gen:llms && npm run gen:site",
     "gen:assets": "node tools/render-assets.ts",
     "gen:cgi": "node tools/build-cgi.ts",
     "gen:check": "node tools/gen-docs.ts --check && node tools/gen-conformance.ts --check && node tools/gen-native-codes.ts --check && node tools/render-assets.ts --check",

@@ -257,14 +257,17 @@ jobs:
       - name: Render the brand images
         run: npm run gen:assets
 
+      # Before the site: every page links to `llms.txt`, and `check-site.ts`
+      # follows those links. Generating it afterwards means the first build on
+      # a machine that has never had one fails on 25 broken links.
+      - name: Build llms.txt
+        run: npm run gen:llms
+
       - name: Build the site
         run: npm run gen:site
 
       - name: Compile the interpreter for the browser
         run: npm run gen:playground
-
-      - name: Build llms.txt
-        run: npm run gen:llms
 
       # These skip on a clone, because they assert against generated pages that
       # a clone does not have. This is the one job that has just generated them.
