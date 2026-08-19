@@ -90,6 +90,84 @@
       "exit": 0
     },
     {
+      "name": "patterns/matches",
+      "source": "import wool\nbaa wool.matches(\"baa baa\", \"b(a+)\"), wool.matches(\"sheep\", \"^wool$\")",
+      "stdout": "true false\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/find",
+      "source": "import wool\nconst m = wool.find(\"a baa here\", \"b(a+)\")\nbaa m[\"match\"], m[\"start\"], m[\"end\"], m[\"groups\"]",
+      "stdout": "baa 2 5 [\"aa\"]\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/find-nothing",
+      "source": "import wool\nbaa wool.find(\"sheep\", \"wool\") == nil, wool.find_all(\"sheep\", \"wool\")",
+      "stdout": "true []\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/find-all",
+      "source": "import wool\nbaa wool.find_all(\"a1b22c333\", \"\\\\d+\").map(fn(m) { return m[\"match\"] })",
+      "stdout": "[\"1\", \"22\", \"333\"]\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/groups-not-taken",
+      "source": "import wool\nbaa wool.find(\"b\", \"(a)|(b)\")[\"groups\"]",
+      "stdout": "[nil, \"b\"]\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/named-groups",
+      "source": "import wool\nconst m = wool.find(\"2026-08-19\", \"(?<year>\\\\d+)-(?<month>\\\\d+)\")\nbaa m[\"named\"][\"year\"], m[\"named\"][\"month\"]",
+      "stdout": "2026 08\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/leftmost-first",
+      "source": "import wool\nbaa wool.find(\"abc\", \"a|ab\")[\"match\"], wool.find(\"abc\", \"ab|a\")[\"match\"]",
+      "stdout": "a ab\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/greedy-and-lazy",
+      "source": "import wool\nbaa wool.find(\"<a><b>\", \"<(.+)>\")[\"match\"], wool.find(\"<a><b>\", \"<(.+?)>\")[\"match\"]",
+      "stdout": "<a><b> <a>\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/flags",
+      "source": "import wool\nbaa wool.matches(\"SHEEP\", \"sheep\", \"i\"), wool.matches(\"SHEEP\", \"sheep\")\nbaa wool.find(\"one\\ntwo\", \"^two\", \"m\")[\"match\"], wool.matches(\"a\\nb\", \"a.b\", \"s\")",
+      "stdout": "true false\ntwo true\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/substitute",
+      "source": "import wool\nbaa wool.substitute(\"2026-08-19\", \"(\\\\d+)-(\\\\d+)-(\\\\d+)\", \"$3/$2/$1\")\nbaa wool.substitute(\"a1b2\", \"\\\\d\", \"[$&]\"), wool.substitute(\"aa\", \"a\", \"$$\")",
+      "stdout": "19/08/2026\na[1]b[2] $$\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/split-on",
+      "source": "import wool\nbaa wool.split_on(\"a1b22c\", \"\\\\d+\"), wool.split_on(\"one two  three\", \"\\\\s+\")",
+      "stdout": "[\"a\", \"b\", \"c\"] [\"one\", \"two\", \"three\"]\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/empty-matches",
+      "source": "import wool\nbaa wool.find_all(\"ab\", \"\").map(fn(m) { return m[\"start\"] }), wool.substitute(\"ab\", \"x*\", \"-\")",
+      "stdout": "[0, 1, 2] -a-b-\n",
+      "exit": 0
+    },
+    {
+      "name": "patterns/classes-and-boundaries",
+      "source": "import wool\nbaa wool.matches(\"sheepdog\", \"\\\\bsheep\\\\b\"), wool.matches(\"a sheep\", \"\\\\bsheep\\\\b\")\nbaa wool.find(\"xxabcxx\", \"[a-c]+\")[\"match\"], wool.find(\"abxyc\", \"[^a-c]+\")[\"match\"]",
+      "stdout": "false true\nabc xy\n",
+      "exit": 0
+    },
+    {
       "name": "arrays/methods",
       "source": "const a = [3, 1, 2]\nbaa a.sort(), a.reverse(), a.sum(), a.slice(1, 3)",
       "stdout": "[1, 2, 3] [2, 1, 3] 6 [1, 2]\n",

@@ -110,7 +110,7 @@ bug.
 | --- | --- |
 | `gate` | It serves web pages over CGI. Native applications draw windows: use `barn`. This one is not a gap, it is the boundary. |
 | `meadow.parse_iso` on a time with no zone | `2026-08-18T09:30` means *local* time in JavaScript, so the reference would read it as one instant and an application on another machine as a different one. The native runtime raises `BAA301` naming the fix rather than guessing an offset. Date-only text, and text carrying `Z` or an offset, are read identically. |
-| `wool.matches`, `find`, `find_all`, `substitute`, `split_on` | These need a regular-expression engine. Calling one reports that. The other twenty `wool` functions work; for fixed text use `text.contains`, `text.replace_all` or `text.split`. |
+| `wool.matches`, `find`, `find_all`, `substitute`, `split_on` | These work, on the pattern subset in [SPEC.md](../SPEC.md#71-patterns). Lookahead, lookbehind, backreferences and `\p{...}` are refused with `BAA314` rather than approximated. |
 | Linux and macOS | The window model is platform-independent and has no Win32 in it, but only the Windows backend exists. `barn.show` on another platform says so rather than doing nothing. |
 | An application icon | The executable carries the runtime's icon. Changing it needs a PE resource rewrite, which the appending build deliberately avoids. |
 | Timers, images, sound, networking | Not built. No application has needed them yet, and an API with no use case is worse than no API. |

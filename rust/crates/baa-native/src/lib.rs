@@ -18,6 +18,7 @@ pub mod image;
 pub mod interp;
 pub mod methods;
 pub mod number;
+pub mod regex;
 pub mod stdlib;
 pub mod value;
 

@@ -345,7 +345,7 @@ on the roadmap.
 
 ### What keeps the two honest
 
-- The **conformance suite** runs on both. All 50 of its programs execute on
+- The **conformance suite** runs on both. All 63 of its programs execute on
   the native runtime and are compared byte for byte. The harness can still skip
   a program that imports a module the native runtime lacks — `gate` is the only
   one — and reports such a program as skipped rather than passed, because a

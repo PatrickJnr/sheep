@@ -17,9 +17,10 @@ use std::rc::Rc;
 use crate::ast::Span;
 use crate::interp::{Flow, Interpreter, Res, MAX_SIZE};
 use crate::number;
-use crate::value::{display, inspect, Module, Native, Value};
+use crate::value::{display, inspect, BaaMap, MapKey, Module, Native, Value};
 
-use super::{module_of, need_array, need_number, need_string};
+use super::{map_value, module_of, need_array, need_number, need_string};
+use crate::regex::{Match, Regex, RegexError};
 
 const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("join", 1, 2),
@@ -47,8 +48,11 @@ const FUNCTIONS: &[(&str, usize, usize)] = &[
     ("inspect", 1, 1),
 ];
 
-/// The functions that need a regular-expression engine.
+/// The functions that use the regular-expression engine.
 pub const PATTERN_FUNCTIONS: &[&str] = &["matches", "find", "find_all", "substitute", "split_on"];
+
+/// The longest pattern the engine will take, matching the reference.
+const MAX_PATTERN: usize = 4096;
 
 pub fn module() -> Rc<Module> {
     let exports = FUNCTIONS
@@ -78,19 +82,7 @@ fn call(interp: &mut Interpreter, native: &Native, args: Vec<Value>, span: Span)
     let name = native.name.clone();
 
     if PATTERN_FUNCTIONS.contains(&native.method) {
-        return Err(Flow::Err(
-            interp
-                .error(
-                    "BAA301",
-                    vec![format!("`{name}` needs a regular-expression engine, which the native runtime does not have")],
-                    span,
-                )
-                .with_note("not implemented natively")
-                .with_help(
-                    "The other twenty functions in `wool` all work. For fixed text use \
-                     `text.contains`, `text.replace_all` or `text.split`. See ROADMAP.md.",
-                ),
-        ));
+        return pattern_call(interp, native, &name, args, span);
     }
 
     Ok(match native.method {
@@ -418,6 +410,277 @@ fn percent_decode(text: &str) -> Option<String> {
     // Malformed UTF-8 is nil rather than replacement characters: a caller
     // reading untrusted input should be able to tell the difference.
     String::from_utf8(out).ok()
+}
+
+
+// --------------------------------------------------------------------------
+// The five functions that take a pattern
+// --------------------------------------------------------------------------
+
+/// Compile the pattern these arguments carry.
+///
+/// The flags are the third argument for every one of these functions except
+/// `substitute`, where the replacement takes that place. A pattern that this
+/// engine does not support is `BAA314` naming the feature, never a match that
+/// quietly means something else than it would in the reference.
+fn compile(
+    interp: &Interpreter,
+    name: &str,
+    args: &[Value],
+    flag_index: usize,
+    span: Span,
+) -> Res<Regex> {
+    let source = need_string(interp, name, args, 1, span)?;
+    if source.chars().count() > MAX_PATTERN {
+        return Err(Flow::Err(
+            interp
+                .error(
+                    "BAA312",
+                    vec![
+                        name.to_string(),
+                        source.chars().count().to_string(),
+                        MAX_PATTERN.to_string(),
+                    ],
+                    span,
+                )
+                .with_note("pattern too long"),
+        ));
+    }
+    let flags = if args.len() > flag_index {
+        need_string(interp, name, args, flag_index, span)?
+    } else {
+        Rc::from("")
+    };
+    Regex::new(&source, &flags).map_err(|error| {
+        let mut diagnostic = interp
+            .error("BAA314", vec![name.to_string(), error.message.clone()], span)
+            .with_note("this pattern cannot be used here");
+        if let Some(help) = error.help {
+            diagnostic = diagnostic.with_help(help);
+        }
+        Flow::Err(diagnostic)
+    })
+}
+
+/// Turn an engine failure at match time into a diagnostic. Only the step
+/// budget gets here; everything else is refused at compile time.
+fn matching_failed(interp: &Interpreter, name: &str, error: RegexError, span: Span) -> Flow {
+    let mut diagnostic = interp
+        .error("BAA314", vec![name.to_string(), error.message], span)
+        .with_note("the match was abandoned");
+    if let Some(help) = error.help {
+        diagnostic = diagnostic.with_help(help);
+    }
+    Flow::Err(diagnostic)
+}
+
+/// `{ match, start, end, groups, named }`, the same shape the reference builds.
+fn match_map(regex: &Regex, haystack: &[char], found: &Match) -> Value {
+    let text: String = haystack[found.start..found.end].iter().collect();
+    let mut groups: Vec<Value> = Vec::new();
+    for index in 1..regex.groups {
+        let start = found.slots.get(index * 2).copied().flatten();
+        let end = found.slots.get(index * 2 + 1).copied().flatten();
+        groups.push(match (start, end) {
+            (Some(start), Some(end)) if start <= end => {
+                Value::str(haystack[start..end].iter().collect::<String>())
+            }
+            _ => Value::Nil,
+        });
+    }
+    let mut named = BaaMap::new();
+    for (index, name) in &regex.names {
+        let start = found.slots.get(index * 2).copied().flatten();
+        let end = found.slots.get(index * 2 + 1).copied().flatten();
+        let value = match (start, end) {
+            (Some(start), Some(end)) if start <= end => {
+                Value::str(haystack[start..end].iter().collect::<String>())
+            }
+            _ => Value::Nil,
+        };
+        named.set(MapKey::Str(Rc::from(name.as_str())), value);
+    }
+    map_value(vec![
+        ("match", Value::str(text)),
+        // Character offsets, not code units, exactly as the reference reports.
+        ("start", Value::Number(found.start as f64)),
+        ("end", Value::Number(found.end as f64)),
+        ("groups", Value::array(groups)),
+        ("named", Value::map(named)),
+    ])
+}
+
+/// Every non-overlapping match, the way `String.matchAll` walks them: after an
+/// empty match the search moves on by one, or it would never end.
+fn all_matches(
+    interp: &Interpreter,
+    name: &str,
+    regex: &Regex,
+    haystack: &[char],
+    span: Span,
+) -> Res<Vec<Match>> {
+    let mut out = Vec::new();
+    let mut at = 0;
+    loop {
+        let found = regex
+            .find_at(haystack, at)
+            .map_err(|error| matching_failed(interp, name, error, span))?;
+        let Some(found) = found else { break };
+        at = if found.end == found.start { found.end + 1 } else { found.end };
+        out.push(found);
+        if at > haystack.len() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+fn pattern_call(
+    interp: &mut Interpreter,
+    native: &Native,
+    name: &str,
+    args: Vec<Value>,
+    span: Span,
+) -> Res<Value> {
+    let haystack: Vec<char> = need_string(interp, name, &args, 0, span)?.chars().collect();
+    let flag_index = if native.method == "substitute" { 3 } else { 2 };
+    let regex = compile(interp, name, &args, flag_index, span)?;
+
+    Ok(match native.method {
+        "matches" => Value::Bool(
+            regex
+                .find_at(&haystack, 0)
+                .map_err(|error| matching_failed(interp, name, error, span))?
+                .is_some(),
+        ),
+        "find" => match regex
+            .find_at(&haystack, 0)
+            .map_err(|error| matching_failed(interp, name, error, span))?
+        {
+            Some(found) => match_map(&regex, &haystack, &found),
+            None => Value::Nil,
+        },
+        "find_all" => {
+            let found = all_matches(interp, name, &regex, &haystack, span)?;
+            Value::array(found.iter().map(|item| match_map(&regex, &haystack, item)).collect())
+        }
+        "substitute" => {
+            let replacement = need_string(interp, name, &args, 2, span)?;
+            let found = all_matches(interp, name, &regex, &haystack, span)?;
+            let mut out = String::new();
+            let mut at = 0;
+            for item in &found {
+                if item.start >= at {
+                    out.extend(&haystack[at..item.start]);
+                }
+                out.push_str(&expand(&replacement, &regex, &haystack, item));
+                at = item.end.max(item.start);
+            }
+            if at <= haystack.len() {
+                out.extend(&haystack[at..]);
+            }
+            Value::str(out)
+        }
+        "split_on" => {
+            let found = all_matches(interp, name, &regex, &haystack, span)?;
+            let mut parts: Vec<Value> = Vec::new();
+            let mut at = 0;
+            for item in &found {
+                // `String.split` ignores a match at the very start or end of
+                // an empty-width run the same way; matching JavaScript here
+                // matters more than any tidier rule.
+                if item.start == item.end && (item.start == 0 || item.start == haystack.len()) {
+                    continue;
+                }
+                parts.push(Value::str(haystack[at..item.start].iter().collect::<String>()));
+                at = item.end;
+            }
+            parts.push(Value::str(haystack[at.min(haystack.len())..].iter().collect::<String>()));
+            Value::array(parts)
+        }
+        _ => Value::Nil,
+    })
+}
+
+/// `$1`, `$<name>`, `$&` and `$$` in a replacement, as `String.replace` reads
+/// them. A `$` before anything else stays a `$`.
+fn expand(replacement: &str, regex: &Regex, haystack: &[char], found: &Match) -> String {
+    let chars: Vec<char> = replacement.chars().collect();
+    let mut out = String::new();
+    let mut at = 0;
+    let slice = |start: Option<usize>, end: Option<usize>| -> String {
+        match (start, end) {
+            (Some(start), Some(end)) if start <= end => haystack[start..end].iter().collect(),
+            _ => String::new(),
+        }
+    };
+    while at < chars.len() {
+        if chars[at] != '$' || at + 1 >= chars.len() {
+            out.push(chars[at]);
+            at += 1;
+            continue;
+        }
+        match chars[at + 1] {
+            '$' => {
+                out.push('$');
+                at += 2;
+            }
+            '&' => {
+                out.push_str(&slice(Some(found.start), Some(found.end)));
+                at += 2;
+            }
+            '<' => {
+                let mut name = String::new();
+                let mut cursor = at + 2;
+                while cursor < chars.len() && chars[cursor] != '>' {
+                    name.push(chars[cursor]);
+                    cursor += 1;
+                }
+                if cursor >= chars.len() {
+                    out.push(chars[at]);
+                    at += 1;
+                    continue;
+                }
+                if let Some((index, _)) = regex.names.iter().find(|(_, known)| *known == name) {
+                    out.push_str(&slice(
+                        found.slots.get(index * 2).copied().flatten(),
+                        found.slots.get(index * 2 + 1).copied().flatten(),
+                    ));
+                }
+                at = cursor + 1;
+            }
+            glyph if glyph.is_ascii_digit() => {
+                // Two digits when that names a group, one otherwise, which is
+                // what JavaScript does with `$12` in a pattern with two groups.
+                let mut digits = String::new();
+                digits.push(glyph);
+                let mut cursor = at + 2;
+                if cursor < chars.len() && chars[cursor].is_ascii_digit() {
+                    let both: usize = format!("{digits}{}", chars[cursor]).parse().unwrap_or(0);
+                    if both > 0 && both < regex.groups {
+                        digits.push(chars[cursor]);
+                        cursor += 1;
+                    }
+                }
+                let index: usize = digits.parse().unwrap_or(0);
+                if index > 0 && index < regex.groups {
+                    out.push_str(&slice(
+                        found.slots.get(index * 2).copied().flatten(),
+                        found.slots.get(index * 2 + 1).copied().flatten(),
+                    ));
+                } else {
+                    out.push('$');
+                    out.push_str(&digits);
+                }
+                at = cursor;
+            }
+            _ => {
+                out.push(chars[at]);
+                at += 1;
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]

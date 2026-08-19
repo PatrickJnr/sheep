@@ -70,6 +70,7 @@ The program was valid but something went wrong while it ran.
 | `BAA311` | error | `{0}` expected {1} for argument {2}, but got {3}. | `{0}`: argument {2} must be {1}, received {3}. |
 | `BAA312` | error | `{0}` was asked to build {1} items. The pen only holds {2}. | `{0}`: requested size {1} exceeds the limit of {2}. |
 | `BAA313` | error | That gate is bolted: this run may not {0}. | Capability denied: this run may not {0}. |
+| `BAA314` | error | `{0}` cannot use that pattern: {1}. | `{0}`: unsupported pattern: {1}. |
 
 ## BAA4xx, Modules and projects
 

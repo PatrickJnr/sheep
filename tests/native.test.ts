@@ -543,11 +543,30 @@ describe("native: the runtime, when it has been built", { skip: built ? false : 
     assert.equal(under({ CI: "true" }), plain);
   });
 
-  it("says which `wool` functions need a regular-expression engine", () => {
-    const { stdout, status } = run('import wool\nbaa wool.matches("a", "a")\n');
+  it("names the regular-expression features it does not have, rather than guessing", () => {
+    // The whole design of the engine in one test: a pattern outside the subset
+    // is refused by name. A near-miss reimplementation that quietly matched
+    // something else would be worse than having no engine at all.
+    const cases: Array<[string, RegExp]> = [
+      ["(?=a)", /lookahead/],
+      ["(?<=a)b", /lookbehind/],
+      ["\\\\p\\{L\\}", /property escapes/],
+    ];
+    for (const [pattern, expected] of cases) {
+      const { stdout, status } = run(`import wool\nbaa wool.matches("a", "${pattern}")\n`);
+      assert.equal(status, 1, `\`${pattern}\` should be refused`);
+      assert.match(stdout, /BAA314/);
+      assert.match(stdout, expected);
+    }
+  });
+
+  it("gives up on a pattern that would run for ever, rather than hanging", () => {
+    const { stdout, status } = run(
+      'import wool\nbaa wool.matches("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "(a+)+b")\n',
+    );
     assert.equal(status, 1);
-    assert.match(stdout, /regular-expression engine/);
-    assert.match(stdout, /contains|replace_all|split/, "should suggest what to use instead");
+    assert.match(stdout, /BAA314/);
+    assert.match(stdout, /too long/);
   });
 
   // `after`, not a bare call: the body of a `describe` runs before any of its

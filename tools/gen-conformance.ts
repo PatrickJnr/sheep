@@ -91,6 +91,61 @@ const CORE_PROGRAMS: Array<[string, string]> = [
   ["strings/interpolation", 'const n = 3\nbaa "there are {n + 1} sheep and {["a", "b"].join(", ")}"'],
   ["strings/escapes", 'baa "a\\nb", "\\{literal\\}", "\\u{1F411}"'],
   ["strings/indexing", 'baa "wool"[0], "wool"[-1], "wool".length()'],
+  // Patterns. These matter more than most: the reference hands them to
+  // JavaScript's engine and the native runtime has its own, so every one of
+  // these is a place the two could disagree without anybody noticing.
+  [
+    "patterns/matches",
+    'import wool\nbaa wool.matches("baa baa", "b(a+)"), wool.matches("sheep", "^wool$")',
+  ],
+  [
+    "patterns/find",
+    'import wool\nconst m = wool.find("a baa here", "b(a+)")\nbaa m["match"], m["start"], m["end"], m["groups"]',
+  ],
+  [
+    "patterns/find-nothing",
+    'import wool\nbaa wool.find("sheep", "wool") == nil, wool.find_all("sheep", "wool")',
+  ],
+  [
+    "patterns/find-all",
+    'import wool\nbaa wool.find_all("a1b22c333", "\\\\d+").map(fn(m) { return m["match"] })',
+  ],
+  [
+    "patterns/groups-not-taken",
+    'import wool\nbaa wool.find("b", "(a)|(b)")["groups"]',
+  ],
+  [
+    "patterns/named-groups",
+    'import wool\nconst m = wool.find("2026-08-19", "(?<year>\\\\d+)-(?<month>\\\\d+)")\nbaa m["named"]["year"], m["named"]["month"]',
+  ],
+  [
+    "patterns/leftmost-first",
+    'import wool\nbaa wool.find("abc", "a|ab")["match"], wool.find("abc", "ab|a")["match"]',
+  ],
+  [
+    "patterns/greedy-and-lazy",
+    'import wool\nbaa wool.find("<a><b>", "<(.+)>")["match"], wool.find("<a><b>", "<(.+?)>")["match"]',
+  ],
+  [
+    "patterns/flags",
+    'import wool\nbaa wool.matches("SHEEP", "sheep", "i"), wool.matches("SHEEP", "sheep")\nbaa wool.find("one\\ntwo", "^two", "m")["match"], wool.matches("a\\nb", "a.b", "s")',
+  ],
+  [
+    "patterns/substitute",
+    'import wool\nbaa wool.substitute("2026-08-19", "(\\\\d+)-(\\\\d+)-(\\\\d+)", "$3/$2/$1")\nbaa wool.substitute("a1b2", "\\\\d", "[$&]"), wool.substitute("aa", "a", "$$")',
+  ],
+  [
+    "patterns/split-on",
+    'import wool\nbaa wool.split_on("a1b22c", "\\\\d+"), wool.split_on("one two  three", "\\\\s+")',
+  ],
+  [
+    "patterns/empty-matches",
+    'import wool\nbaa wool.find_all("ab", "").map(fn(m) { return m["start"] }), wool.substitute("ab", "x*", "-")',
+  ],
+  [
+    "patterns/classes-and-boundaries",
+    'import wool\nbaa wool.matches("sheepdog", "\\\\bsheep\\\\b"), wool.matches("a sheep", "\\\\bsheep\\\\b")\nbaa wool.find("xxabcxx", "[a-c]+")["match"], wool.find("abxyc", "[^a-c]+")["match"]',
+  ],
   ["arrays/methods", "const a = [3, 1, 2]\nbaa a.sort(), a.reverse(), a.sum(), a.slice(1, 3)"],
   [
     "arrays/higher-order",

@@ -615,6 +615,50 @@ The prelude, available without an import, is `len`, `type_of`, `to_string`,
 `to_number`, `inspect`, `clone`, `assert`, `assert_eq`, `panic` and `exit`.
 Prelude names may be shadowed by a local declaration.
 
+### 7.1 Patterns
+
+Five `wool` functions take a pattern: `matches`, `find`, `find_all`,
+`substitute` and `split_on`. A pattern is a string, and the syntax below is
+what an implementation must support. It is a subset of JavaScript's regular
+expressions, chosen because the reference implementation borrows that engine
+and any two implementations have to agree.
+
+| Syntax | Meaning |
+| --- | --- |
+| `x` | The character `x` |
+| `.` | Any character except a line break, or any character at all with `s` |
+| `[abc]`, `[a-z]`, `[^abc]` | A character class, a range, a negated class |
+| `\d` `\D` `\w` `\W` `\s` `\S` | Digit, word, space, and their negations |
+| `\b` `\B` | A word boundary, and a position that is not one |
+| `\n` `\r` `\t` `\f` `\v` `\0` | Control characters |
+| `\xNN` `\uNNNN` `\u{N...}` | A character by code |
+| `\` before punctuation | That character, literally |
+| `^` `$` | Start and end of the text, or of a line with `m` |
+| `(x)` `(?:x)` `(?<name>x)` | Capturing, non-capturing and named groups |
+| `x\|y` | Either, preferring `x` |
+| `x*` `x+` `x?` `x{n}` `x{n,}` `x{n,m}` | Repetition, greedy |
+| the same with a trailing `?` | Repetition, lazy |
+| flags `i` `m` `s` | Ignore case; `^`/`$` at line breaks; `.` matches a break |
+
+Matching is **leftmost-first**, not leftmost-longest: `a|ab` matches `a` in
+`abc`. A greedy quantifier takes as much as it can and then gives characters
+back one at a time until the rest of the pattern fits; a lazy one takes as
+little as it can and then takes more. `\d` and `\w` are ASCII, as they are in
+JavaScript. Offsets reported by `find` and `find_all` are in characters.
+
+`\d`, `{2}` and the rest are not Baa string escapes, so a pattern written as
+an ordinary string needs its backslashes doubled — or a raw string, which is
+what raw strings are for: `r"\d{4}"`.
+
+Anything not in the table is **not** part of Baa's pattern syntax, and includes
+lookahead, lookbehind, backreferences and `\p{...}` property escapes. An
+implementation must refuse such a pattern with `BAA314` naming the feature. It
+must not accept it and match something else: a pattern that means one thing in
+one implementation and another elsewhere is worse than one that is refused.
+
+An implementation may bound the work a single match may do, and must report
+`BAA314` when that bound is reached rather than returning a wrong answer.
+
 ## 8. Diagnostics
 
 Every diagnostic has a stable code of the form `BAAnnn`. Codes never change

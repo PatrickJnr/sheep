@@ -259,6 +259,12 @@ export const CATALOGUE = {
     "That gate is bolted: this run may not {0}.",
     "Capability denied: this run may not {0}.",
   ),
+  BAA314: spec(
+    "BAA314",
+    "error",
+    "`{0}` cannot use that pattern: {1}.",
+    "`{0}`: unsupported pattern: {1}.",
+  ),
 
   // ---------------------------------------------------------------- BAA4xx
   BAA401: spec(

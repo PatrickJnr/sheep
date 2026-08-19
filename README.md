@@ -87,7 +87,7 @@ mock-up.
 JavaScript, transpile to anything, or hand your program to another runtime. The
 lexer reads characters, the parser builds a tree, the resolver binds every name
 to its declaration, and the interpreter walks that tree — all of it written for
-this language and tested against a conformance suite of 50 programs pinned to
+this language and tested against a conformance suite of 63 programs pinned to
 their exact output.
 
 GitHub's language bar counts the *implementation*, which is TypeScript for the
@@ -111,7 +111,7 @@ The joke is the name. Everything underneath is built to be used.
 
 Verified on every commit, across Windows, Linux and macOS: **700+ tests**, a
 formatter that must be a fixed point, a linter that must be clean, and a
-conformance suite that pins the exact output of 50 programs.
+conformance suite that pins the exact output of 63 programs.
 
 ## Install
 
@@ -248,7 +248,7 @@ Three things worth knowing:
   range, so a CI job annotates a pull request without parsing prose:
   [docs/diagnostics-json.md](docs/diagnostics-json.md).
 
-All 47 of them are listed in [docs/errors.md](docs/errors.md).
+All 48 of them are listed in [docs/errors.md](docs/errors.md).
 
 ## Commands
 
@@ -352,7 +352,7 @@ bar and its own file dialogs.
 `baa app build` analyses the program with exactly the code `baa check` uses,
 writes the resolved tree into an image, and appends that image to a runtime
 written in Rust. There is one frontend, so the two cannot disagree about what
-your program means, and the runtime passes all 50 conformance programs byte for
+your program means, and the runtime passes all 63 conformance programs byte for
 byte.
 
 The calculator in
@@ -410,10 +410,10 @@ and a second implementation is an explicitly open track.
 Everything a port needs already exists and is kept fresh by CI:
 
 - [`SPEC.md`](SPEC.md): the full language definition, with an EBNF grammar
-- [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
+- [`tests/conformance/suite.json`](tests/conformance/suite.json): 63 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 47 diagnostics, both wordings, ready to embed
+  all 48 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, order of work, and the
   design notes worth carrying over
 

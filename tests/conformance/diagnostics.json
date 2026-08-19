@@ -214,6 +214,12 @@
       "plain": "Capability denied: this run may not {0}."
     },
     {
+      "code": "BAA314",
+      "severity": "error",
+      "woolly": "`{0}` cannot use that pattern: {1}.",
+      "plain": "`{0}`: unsupported pattern: {1}."
+    },
+    {
       "code": "BAA401",
       "severity": "error",
       "woolly": "No module named `{0}` is grazing anywhere the shepherd can see.",

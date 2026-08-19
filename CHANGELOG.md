@@ -63,6 +63,27 @@ less than the shell that started it.
   bytes at the end of the file, three numbers corrected. It refuses rather than
   guessing on anything it does not recognise.
 
+- **Regular expressions in the native runtime.** The five `wool` functions that
+  take a pattern used to report that the native runtime had no engine. It has
+  one now: a parser, a backtracking virtual machine, and a subset written into
+  [SPEC.md](SPEC.md#71-patterns) rather than left to whatever the
+  implementation happened to do.
+
+  Backtracking rather than a Thompson simulation, because JavaScript's answers
+  depend on it: alternation is leftmost-first, so `a|ab` matches `a` in `abc`,
+  and a greedy quantifier gives characters back one at a time until the rest of
+  the pattern fits.
+
+  Lookahead, lookbehind, backreferences and `\p{...}` are refused by name with
+  the new `BAA314`, and a pattern that would run for ever is abandoned with the
+  same code. A near-miss reimplementation is worse than an absence: a pattern
+  that quietly means something different is a bug that survives review.
+
+  Thirteen pattern programs joined the conformance suite, so both runtimes are
+  now held to byte-identical output on greedy and lazy quantifiers, named
+  groups, empty matches, `$&` and `$1` replacements, flags, boundaries and
+  classes. The suite is 63 programs, and the native runtime passes all of them.
+
 - **Timers in `barn`**: `barn.every(millis, handler)`, `barn.after(millis,
   handler)` and `barn.cancel(id)`. Ticks arrive on the event loop, in the same
   single thread as every other handler, so there is no second concurrency model

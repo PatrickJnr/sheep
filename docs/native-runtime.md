@@ -186,7 +186,7 @@ node tools/bench-native.ts                   # measurements
 
 The conformance run is the one that matters. It executes the same programs the
 reference implementation is tested against and compares stdout byte for byte.
-All 50 run and all 50 pass. The harness still knows how to skip a program that
+All 63 run and all 63 pass. The harness still knows how to skip a program that
 imports a module the runtime lacks — `gate` is the only one left — and reports a
 skip as a skip rather than counting it as a pass, because a program the runtime
 declined to run is not evidence that it can.

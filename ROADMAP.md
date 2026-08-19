@@ -33,10 +33,10 @@ runtime is Rust with no dependencies either.
 | | |
 | --- | --- |
 | Automated tests | 700+, across Windows, Linux and macOS on every commit |
-| Diagnostics | 47 `BAAnnn` codes, each with a default and a professional wording |
+| Diagnostics | 48 `BAAnnn` codes, each with a default and a professional wording |
 | Standard library | 9 modules |
-| Conformance suite | 50 programs pinned to exact output, 27 pinned to diagnostic codes |
-| Native runtime conformance | All 50 conformance programs, byte for byte, none skipped |
+| Conformance suite | 63 programs pinned to exact output, 27 pinned to diagnostic codes |
+| Native runtime conformance | All 63 conformance programs, byte for byte, none skipped |
 | Executable targets | Windows x86-64, with an icon and version metadata |
 | Runtime dependencies | None, on either implementation |
 
@@ -50,9 +50,8 @@ into an image and appends that image to a runtime.
 
 **What is not built, stated plainly.** There is no browser runtime and no DOM.
 There is no package registry. There is no bytecode VM. There is no static type
-system. Native applications run on Windows only. The native runtime has no
-regular expressions, so five `wool` functions report that when called. Each of
-these appears below with its status.
+system. Native applications run on Windows only. Each of these appears below
+with its status.
 
 ---
 
@@ -253,6 +252,30 @@ with a window keeps the id it is given; with no window it assigns its own and
 ignores yours, so a timer set before `barn.show` fired `WM_TIMER` messages
 carrying a number the runtime had never heard of. The backend maps the two.
 
+### Regular expressions in the native runtime — **COMPLETED** in 0.8.0
+
+**Delivered.** An engine, written for the purpose: a parser, a backtracking
+virtual machine, and a subset written into [SPEC.md](SPEC.md#71-patterns)
+rather than left to whatever the implementation happened to do. The five
+`wool` functions that needed one now work natively.
+
+Backtracking, not a Thompson simulation, because JavaScript's answers depend on
+it: alternation is leftmost-first, so `a|ab` matches `a` in `abc`, and a greedy
+quantifier gives characters back one at a time. An engine immune to blow-up
+would return different matches.
+
+**The trap this milestone was mostly about.** A near-miss reimplementation is
+worse than an absence: a pattern that quietly means something different is a
+bug that survives review. So lookahead, lookbehind, backreferences and
+`\p{...}` are refused by name with `BAA314`, and a pattern that would run for
+ever is abandoned with the same code — JavaScript hangs there, and saying so is
+better than either hanging or lying.
+
+**Definition of done — met.** Thirteen pattern programs are in the conformance
+suite, so both runtimes are held to byte-identical output on greedy and lazy
+quantifiers, named groups, empty matches, `$&` and `$1` replacements, flags,
+boundaries and classes. 63 of 63 programs pass natively.
+
 ### Standard-library growth — **COMPLETED** in 0.8.0
 
 **Delivered.** Nine functions, in both runtimes. `pasture.walk`, `glob` and
@@ -299,15 +322,15 @@ tagged `rust` naming the crate you are taking, so nobody writes the lexer twice.
 The material a second implementation needs is kept fresh by CI:
 
 - [`SPEC.md`](SPEC.md): the complete language definition, with grammar
-- [`tests/conformance/suite.json`](tests/conformance/suite.json): 50 programs
+- [`tests/conformance/suite.json`](tests/conformance/suite.json): 63 programs
   with their exact output, and 27 with the diagnostic codes they must report
 - [`tests/conformance/diagnostics.json`](tests/conformance/diagnostics.json):
-  all 47 diagnostics, both wordings, ready to embed
+  all 48 diagnostics, both wordings, ready to embed
 - [`rust/README.md`](rust/README.md): crate layout, suggested order of work,
   and the design notes worth carrying over
 
 **Definition of done.** `cargo run -- program.baa` passes both halves of the
-conformance suite: 50 programs byte for byte, and 27 diagnostic programs with
+conformance suite: 63 programs byte for byte, and 27 diagnostic programs with
 matching codes.
 
 ---
@@ -332,14 +355,6 @@ a few hundred lines of foreign-function declarations nobody has watched open a
 window. It wants a Linux machine with a display, or a CI job running Xvfb, set
 up before the first line is written.
 
-### 2. Regular expressions in the native runtime — **NEXT**
-
-Five `wool` functions report that they need an engine. Promoted because it is
-now the largest thing a program can do in one runtime and not the other, and
-because it is work that can be finished and checked anywhere. See Medium Term
-below for the shape of it, and the trap: a near-miss reimplementation of
-JavaScript's engine is worse than an absence.
-
 ---
 
 ## Near Term
@@ -352,17 +367,6 @@ JavaScript's engine is worse than an absence.
 ---
 
 ## Medium Term
-
-### Regular expressions in the native runtime — **PLANNED**
-
-Five `wool` functions need an engine, and currently say so when called. The
-trap is that a near-miss reimplementation of JavaScript's engine is worse than
-an absence: a pattern that quietly means something different is a bug that
-survives review. This wants a specified subset written into SPEC.md first.
-
-**Definition of done.** SPEC.md defines the supported subset; both runtimes
-implement exactly it; a pattern outside it is a diagnostic rather than a
-difference.
 
 ### A table control in `barn` — **PLANNED**
 
@@ -496,16 +500,14 @@ Queued: nothing. Every command the roadmap asked for exists.
 implementation, so the reference cannot drift from the code.
 
 Native availability today: everything except `gate`, which is refused in an
-application by design. Five `wool` functions report that they need a
-regular-expression engine.
+application by design. Since 0.8.0 that includes patterns: the native runtime
+has its own regular-expression engine, over the subset SPEC.md defines.
 
 0.8.0 added `pasture.walk`, `glob` and `matches`, `flock`'s set operations, and
 `meadow`'s durations and UTC offsets — in both runtimes, as the drift guard
 insists.
 
-Queued: calendar arithmetic in `meadow`, and a decision about
-[regular expressions](#regular-expressions-in-the-native-runtime--planned)
-before anything else in `wool`.
+Queued: calendar arithmetic in `meadow`.
 
 ### Developer experience
 
@@ -570,7 +572,7 @@ ships them.
 ### Testing
 
 **State: 644 automated tests**, plus Baa's own `test` blocks, recorded example
-transcripts, a conformance suite of 50 programs and 27 diagnostic programs, and
+transcripts, a conformance suite of 63 programs and 27 diagnostic programs, and
 smoke tests that drive all three native applications through real Win32
 messages.
 
