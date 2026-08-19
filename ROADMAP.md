@@ -77,15 +77,19 @@ the claim true and the artefact dishonest.
 - `barn`, the ninth standard-library module: windows, rows and columns with
   weights, labels, buttons, inputs, text areas, lists, checkboxes, a menu bar,
   message boxes, file dialogs, the clipboard, per-monitor DPI.
-- Three applications that are also the tests: a calculator that imports the
+- Three applications that are also the examples: a calculator that imports the
   *web* calculator's arithmetic module unchanged, a text editor, and a JSON
-  viewer. All three are driven through real Win32 messages by the suite.
+  viewer. Their logic lives in modules with no window in them, and those are
+  tested; the windows were driven through real Win32 messages by hand while the
+  platform was built, which is not the same as being driven by the suite. See
+  Testing, below, for what is and is not automated.
 - Documentation, an architecture record, and `tools/bench-native.ts` so the
   performance claims can be checked rather than believed.
 
 **Definition of done — met.** Applications build and run on a machine with no
-toolchain; the conformance harness runs the suite against the native runtime in
-CI; every documented `barn` function has a test that drives a real window.
+toolchain, and the conformance harness runs the suite against the native
+runtime in CI. Every documented `barn` function was exercised against a real
+window while the platform was built; automating that is queued under Testing.
 
 ### `shepherd` and `meadow` in the native runtime — **COMPLETED** in 0.5.0
 
@@ -357,7 +361,9 @@ hand-declaring another platform's functions — the Windows backend is 878 lines
 which is the honest scale of the job.
 
 **Definition of done.** The three example applications build and run on Linux,
-and the smoke tests drive them there.
+and a test opens one there and drives it — which means the smoke tests queued
+under Testing have to exist first, or there is nothing to run on the new
+platform.
 
 **Why it is still here.** Not because it is large, though it is: because it
 cannot be *verified* from a Windows machine, and a GTK backend written blind is
@@ -381,8 +387,10 @@ up before the first line is written.
 
 Rows, columns, headers, selection and scrolling. It waits for an application
 that needs one, so the API is shaped by a real use rather than guessed: a small
-useful table beats an enormous data grid nobody asked for. (Timers, which used
-to share this entry, are now an Immediate Next.)
+useful table beats an enormous data grid nobody asked for.
+
+**Definition of done.** An example application uses one, the model is tested
+without a screen, and the control works on every platform `barn` supports.
 
 ## Long Term
 
@@ -397,7 +405,7 @@ native tree-walker 1.2x ahead of Node on a tight loop and 10x ahead on process
 start: almost all of the win is starting up, and none of it is the interpreter
 being cleverer, because it is the same algorithm in a different language. A
 bytecode VM is where the interpreter itself would get faster. Resolved variable
-slots are the prerequisite.
+slots, which were its prerequisite, landed in 0.8.0.
 
 ### A package registry — **BLOCKED**
 
@@ -573,18 +581,24 @@ ships them.
 
 ### Testing
 
-**State: 644 automated tests**, plus Baa's own `test` blocks, recorded example
-transcripts, a conformance suite of 63 programs and 27 diagnostic programs, and
-smoke tests that drive all three native applications through real Win32
-messages.
+**State: 700+ automated tests** — over 800 in a checkout with the website
+sources, which a clone does not have — plus Baa's own `test` blocks, recorded
+example transcripts, and a conformance suite of 63 programs and 27 diagnostic
+programs that both runtimes are held to byte for byte.
+
+On Windows, with the runtime built, the suite also builds a real application
+and asserts the image was appended; runs a timer program through the real event
+loop on a real window; and reads a built executable's version and icon back
+through Windows rather than through the code that wrote them.
 
 The rule the suite is built on: a claim in the documentation should be checked
 by a test, not maintained by hand. Counts, module lists, generated files, site
 links and the examples in `llms-full.txt` all have guards, because each of them
 has drifted at least once.
 
-Queued: a Linux path for the native smoke tests, once there is a Linux backend
-for them to drive.
+Queued: smoke tests that drive the three example applications through Win32
+messages, which is done by hand today and should not be; and a Linux path for
+them, once there is a Linux backend to drive.
 
 ### Documentation
 
@@ -593,8 +607,12 @@ diagnostic catalogue, the conformance suite, the native diagnostic codes, the
 site and both `llms` files are generated from the implementation, and
 `npm run gen:check` fails when a published copy is stale.
 
-Queued: `baa doc`, so the generation is a Baa command rather than a script in
-`tools/`.
+`baa doc` publishes a reference for any project's exports. It does not
+generate `docs/stdlib.md`: those functions are implemented in the interpreter
+rather than written in Baa, so there is no `.baa` source for it to read, and
+`tools/gen-docs.ts` keeps that page.
+
+Queued: nothing. Every document that can be generated is.
 
 ### Open research
 
